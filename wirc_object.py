@@ -7,7 +7,7 @@ from wircpol_masks import * ### Make sure that the wircpol/DRP/mask_design direc
 import matplotlib.pyplot as plt
 
 
-class wircpol_data(object):
+class wirc_data(object):
 
     """
     A wirc+pol data file, that may include reduced data products
