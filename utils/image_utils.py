@@ -17,25 +17,27 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
 from DRP.reduction.constants import *
 from scipy.ndimage import gaussian_filter as gauss
+from scipy.ndimage.filters import median_filter
 import copy
 
 def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seeing, plot = False):
-	"""
-	This is the main function to perform coarse registration to find all traces
-	in the image by using a direct image (i.e. without the polarization grating)
-	Input: direct_image: the array of direct image
-	        mask: the array representing the mask used in the observation
-	        threshold_sigma: the threshold of detection above background noise
-	        guess_seeing: the approximated seeing value in PIXEL (not arcsec)
-	        plot: if True, the direct_image is shown along with locations of the
-	                objects found.
-	                
-	Output: An array whose length equals to the number of sources found
-	        Each element is a list with 2 elements. The first element is an array
-	        (index, x, y, x_err, y_err) and the second element tells the number 
-	        of slit the source is in or if it's in the slitless area. 
-	"""    
-    
+    #Previously named coarse_regis
+    """
+    This is the main function to perform coarse registration to find all traces
+    in the image by using a direct image (i.e. without the polarization grating)
+    Input: direct_image: the array of direct image
+            mask: the array representing the mask used in the observation
+            threshold_sigma: the threshold of detection above background noise
+            guess_seeing: the approximated seeing value in PIXEL (not arcsec)
+            plot: if True, the direct_image is shown along with locations of the
+                    objects found.
+                    
+    Output: An array whose length equals to the number of sources found
+            Each element is a list with 2 elements. The first element is an array
+            (index, x, y, x_err, y_err) and the second element tells the number 
+            of slit the source is in or if it's in the slitless area. 
+    """    
+
     locations = []
     if direct_image != None:
         
@@ -79,7 +81,7 @@ def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seei
     #        plt.ylim([int(fov_size/2),int(1.5*fov_size)])
        
     #        plt.show()
-    
+
     # Second, find sources inside the slits
         
         slit_area = np.copy(direct_image) #Just do all of the image.
@@ -143,26 +145,26 @@ def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seei
             locations += [ np.array([locations_slit[i], slit_with_obj[i]]) ]
        # for i in range(len(locations_slitless)):
        #     locations += [ np.array([locations_slitless[i], 'slitless']) ]
-    
+
     else:
         print("No Direct Image found. Need to find sources some other way!")
-    
+
     locations = np.array(locations)
     ###Print some status    
     ###Now we have the locations of all sources in this fov 
     print( "Found %i point sources" % np.shape(locations[:,0])[0])
     # print "index\tx\ty\tx_stddev\ty_stddev"
     print( "{0:<8} {1:<13} {2:<13} {3:<13} {4:<13} {5:<8}".format("index", "x", "y", "x_stddev", "y_stddev", "slit_number"))
-    
-    
-    
+
+
+
     for i,location in enumerate(locations[:,0]):
         # print "%i \t %3.3f \t %3.3f \t %1.2f \t %1.2f" % (i,location[1], location[0], location[2], location[3])
         print( '{0:<8} {1:<13.2f} {2:<13.2f} {3:<13.2f} {4:<13.2f} {5:<8}'.format(i,location[1], location[0], location[2], location[3],str(locations[i,1])))
-    
+
     stddev_est = np.mean([np.vstack(locations[:,0])[:,2],np.vstack(locations[:,0])[:,3]])
     print( '\nSeeing FWHM Estimate: %0.2f"' % (2*stddev_est * sampling))
-    
+
         
     return locations
 
@@ -262,7 +264,7 @@ def pointFinder(image, seeing_pix, threshold):
     labeled, num_obj = label(diff)#, structure = pattern)
     cutouts = find_objects(labeled) #get cutouts of area with objects    
     return cutouts
-   
+
 def locationInIm(wl, location_in_fov):
     """compute for a source at the location_in_fov (y,x) in pixel scale, where
     4 traces would land in the actual detector.
@@ -273,14 +275,14 @@ def locationInIm(wl, location_in_fov):
     #Use measured values from test data
     dwl = wl-1.25 #This compute the deviation from J band where the offsets were mesured
     dpx = round(dwl/(wlPerPix))
-    
+
     traceLocation = [ [ 453+location_in_fov[0]+dpx , -435 + location_in_fov[1]-dpx],\
                     [  -459+location_in_fov[0]-dpx, 450+ location_in_fov[1]+dpx], \
                    [    446+location_in_fov[0]+dpx, 449+location_in_fov[1]+dpx], \
                     [  -445+location_in_fov[0]-dpx, -455+location_in_fov[1]-dpx]]
     return np.array(traceLocation)
 
-#Functions for spectral image
+    #Functions for spectral image
 
 def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True):
     '''
@@ -348,7 +350,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
                             print("Source {}'s traces will hit the vertical bar of doom, compensating by subtracting the median of the edges of each row".format(k+1))
 
                         for xind in range(np.shape(thumbnail)[1]):
-                            sub_length = 10 #The number of pixels at the beginning and end to estimate the background
+                            sub_length = 20 #The number of pixels at the beginning and end to estimate the background
                             thumbnail[:,xind] -= np.median(np.concatenate([thumbnail[:sub_length-1,xind],thumbnail[-(sub_length):,xind]]))
 
 
@@ -358,7 +360,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
                             print("Source {}'s traces will hit the horizontal bar of doom".format(k+1))
 
                         for yind in range(np.shape(thumbnail)[0]):
-                            sub_length = 10 #The number of pixels at the beginning and end to estimate the background
+                            sub_length = 20 #The number of pixels at the beginning and end to estimate the background
                             thumbnail[yind,:] -= np.median(np.concatenate([thumbnail[yind,:sub_length-2],thumbnail[yind,-(sub_length):]]))
 
 
@@ -532,32 +534,32 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
                  np.sum( res_odd(yy) * res_even[1](yy)/flux_odd )]
         
     #just for plotting
-	#    flux = []
-	#    for i in all_res:
-	#        flux += [i(np.array(y))]
-	#    flux = np.array(flux)
-	#    print('size = ',np.shape(flux))
-	#    plt.contour(y, x, flux)
-	        
-	#    #Create a blank background array
-	#    fitBkgs = np.array(fitBkgs)
-	#    print(np.shape(fitBkgs))
-	#    plt.imshow(fitBkgs);plt.colorbar()
-	#    plt.show()
-	#    background = np.zeros(np.shape(cutout))
-	#    print('bkg size, fitBkg', np.shape(background), np.shape(fitBkgs))
-	#    for i in x:
-	#        for j in y:
-	#            #print(i+j,  width - buffer - i +j)
-	#            background[i+j, width - buffer - i +j] = fitBkgs[i,j]
-	    
-	    #return np.array(all_res_even), np.array(all_res_odd), bkg
-	    #print(all_res_even)
-	    #print(np.array(all_res_even))
-	    
-	    #calculate angle
-	    # angle = angCalc(all_res_even)
-	    #return all_res_even, bkg, flux, var
+    #    flux = []
+    #    for i in all_res:
+    #        flux += [i(np.array(y))]
+    #    flux = np.array(flux)
+    #    print('size = ',np.shape(flux))
+    #    plt.contour(y, x, flux)
+            
+    #    #Create a blank background array
+    #    fitBkgs = np.array(fitBkgs)
+    #    print(np.shape(fitBkgs))
+    #    plt.imshow(fitBkgs);plt.colorbar()
+    #    plt.show()
+    #    background = np.zeros(np.shape(cutout))
+    #    print('bkg size, fitBkg', np.shape(background), np.shape(fitBkgs))
+    #    for i in x:
+    #        for j in y:
+    #            #print(i+j,  width - buffer - i +j)
+    #            background[i+j, width - buffer - i +j] = fitBkgs[i,j]
+        
+        #return np.array(all_res_even), np.array(all_res_odd), bkg
+        #print(all_res_even)
+        #print(np.array(all_res_even))
+        
+        #calculate angle
+        # angle = angCalc(all_res_even)
+        #return all_res_even, bkg, flux, var
     return cutout - bkg, bkg
 
 def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False):
@@ -603,7 +605,7 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False):
 
         #Further scale the weights by their distance from the center of the image
         # weights *= 1/(np.abs(xinds-xcen))
-        weights[(xinds < 30) | (xinds > 80)] = 0. 
+        weights[(xinds < 60) | (xinds > 110)] = 0. 
 
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
     else:
@@ -622,3 +624,37 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False):
     width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
 
     return peaks, fit, width
+
+
+def traceWidth(trace, location, fit_length):
+    """
+    traceWidth fits a Gaussian across the trace (in the spatial direction) at the given location 
+    to find the width of the trace.
+
+    Input:      trace       -- a 2D array containing an image of the trace
+                location    -- a tuple (y,x) of the extracting location. 
+                fit_length      -- an integer, for which we fit from y-length to y+length and similarly in x
+    Output:     standard deviation of the resulting Gaussian fit. 
+    """
+    #First check if the given length will fall out of the trace
+    y_trace, x_trace = trace.shape
+    if (location[0] - fit_length < 0) or (location[0] + fit_length > y_trace):
+        print('Given location and fit_length fall of the trace image.')
+        return None
+    elif (location[1] - fit_length < 0) or (location[1] + fit_length > x_trace):
+        print('Given location and fit_length fall of the trace image.')
+        return None
+    else:
+        #create a flux vector 
+        flux = np.zeros(2*fit_length)
+        for i in range(2*fit_length):
+            flux[i] = trace[location[0] - fit_length + i , location[1] - fit_length + i ]
+        #fit parameters
+        x = range(len(flux))
+        gauss = models.Gaussian1D(mean = np.argmax(flux), stddev = 4, amplitude = np.max(flux))#, bounds = {'stddev':[-5,5]}) 
+        poly = models.Polynomial1D(2)  
+        f = fitting.LevMarLSQFitter()
+
+        res = f(gauss+poly, x, flux)
+
+        return res[0].stddev.value
