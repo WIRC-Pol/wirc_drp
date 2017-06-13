@@ -485,7 +485,7 @@ class wircpol_source(object):
         plt.legend()
         plt.show()
 
-    def plot_Q_and_U(self, with_errors = False, **kwargs):
+    def plot_Q_and_U(self, with_errors = False, xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, **kwargs):
 
         fig = plt.figure(figsize=(7,7))
 
@@ -501,17 +501,17 @@ class wircpol_source(object):
             ax1.plot(self.Q[0,:], self.Q[1,:], **kwargs)
             ax2.plot(self.U[0,:], self.U[1,:], **kwargs)
 
-        ax1.set_ylim(-0.2,0.2)
-        ax2.set_ylim(-0.2,0.2)
+        ax1.set_ylim(ylow,yhigh)
+        ax2.set_ylim(ylow,yhigh)
 
         if self.lambda_calibrated:
             ax1.set_xlabel("Wavelength [um]")
             ax2.set_xlabel("Wavelength [um]")
-            ax1.set_xlim(1.15,1.35)
-            ax2.set_xlim(1.15,1.35)
+            ax1.set_xlim(xlow,xhigh)
+            ax2.set_xlim(xlow,xhigh)
         else:
-            plt.xlabel("Wavelength [Arbitrary Unit]")
-
+            ax1.set_xlabel("Wavelength [Arbitrary Units]")
+            ax2.set_xlabel("Wavelength [Arbitrary Units]")
 
     # def subtract_pol_bias():
 
