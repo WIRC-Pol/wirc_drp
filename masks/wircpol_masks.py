@@ -10,7 +10,7 @@ from scipy.ndimage import imread
 import os 
 #from constants import *
 
-wircpol_dir = os.environ['WIRCPOL_DRP']
+wircpol_dir = os.environ['WIRC_DRP']
 
 fov_size = 1024
 spider_thickness = 5
@@ -53,17 +53,17 @@ circ_mask[511-slit_width:511+slit_width, 511-slit_width:511+slit_width] = 1
 
 
 ####Cross mask version 2
-cross_mask_v2 = imread(wircpol_dir+'DRP/mask_design/cross_mask/cross_mask_v2.002.png', flatten = True)
+cross_mask_v2 = imread(wircpol_dir+'masks/cross_mask/cross_mask_v2.002.png', flatten = True)
 cross_mask_v2[cross_mask_v2 < 20] = 0
 cross_mask_v2[cross_mask_v2 > 20] = 1
 
 ####Cross mask, no slit. For reduction pipeline
-cross_mask_ns = imread(wircpol_dir+'DRP/mask_design/cross_mask/cross_mask_v2.003.png', flatten = True)
+cross_mask_ns = imread(wircpol_dir+'masks/cross_mask/cross_mask_v2.003.png', flatten = True)
 cross_mask_ns[cross_mask_ns < 20] = 0
 cross_mask_ns[cross_mask_ns > 20] = 1
 
 ####Cross mask, with circular holes
-cross_mask_circ = imread(wircpol_dir+'DRP/mask_design/cross_mask/cross_mask_v2.003.png', flatten = True)
+cross_mask_circ = imread(wircpol_dir+'masks/cross_mask/cross_mask_v2.003.png', flatten = True)
 cross_mask_circ[cross_mask_circ < 20] = 0
 cross_mask_circ[cross_mask_circ > 20] = 1
 

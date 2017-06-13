@@ -1,20 +1,21 @@
 import numpy as np
 from astropy.io import fits
-from wircpol.DRP.reduction import calibration
-from DRP import version # For versioning (requires gitpython 'pip install gitpython')
-from wircpol.DRP.reduction import coarse_regis
-from wircpol_masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 import matplotlib.pyplot as plt
 
+import wirc_drp.utils.image_utils as image_utils
+import wirc_drp.utils.spec_utils as spec_utils
+import wirc_drp.utils.calibration as calibration
+from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
+from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 
 class wirc_data(object):
 
     """
-    A wirc+pol data file, that may include reduced data products
+    A wirc data file, that may include reduced data products
 
     Args:
         raw_filename: The filename of the raw image [optional]
-        wircpol_object_filename: The filename of 
+        wirc_object_filename: The filename
 
     Attributes:
         full_image: Array of shape (y,x) [probably 2048 x 2048]
@@ -32,20 +33,20 @@ class wirc_data(object):
         source_list: A list of n_sources wircpol_source objects
 
     """
-    def __init__(self, raw_filename=None, wircpol_object_filename=None, dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None):
+    def __init__(self, raw_filename=None, wirc_object_filename=None, dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None):
 
         ## Load in either the raw file, or the wircpol_object file
-        if raw_filename != None and wircpol_object_filename != None:
-            print("Can't open both a raw file and wircpol_object, ignoring the raw file and loading the wircpol_object_file ")
-            print("Loading a wircpol_data object from file {}".format(wircpol_object_filename))
-            self.load_wircpol_object(wircpol_object_filename)
+        if raw_filename != None and wirc_object_filename != None:
+            print("Can't open both a raw file and wircpol_object, ignoring the raw file and loading the wirc_object_file ")
+            print("Loading a wircpol_data object from file {}".format(wirc_object_filename))
+            self.load_wirc_object(wirc_object_filename)
 
-        elif wircpol_object_filename != None:
-            print("Loading a wircpol_data object from file {}".format(wircpol_object_filename))
-            self.load_wircpol_object(wircpol_object_filename)
+        elif wirc_object_filename != None:
+            print("Loading a wirc_data object from file {}".format(wirc_object_filename))
+            self.load_wirc_object(wirc_object_filename)
 
         elif raw_filename != None:
-            print("Creating a new wircpol_data object from file {}".format(raw_filename))
+            print("Creating a new wirc_data object from file {}".format(raw_filename))
             self.raw_filename = raw_filename
             hdu = fits.open(raw_filename)
             self.full_image = hdu[0].data
@@ -198,7 +199,7 @@ class wirc_data(object):
             print("Background filename not set, please set wircpol_data.bkg_fn property to the filename of your background file")
 
     
-    def save_wircpol_object(self, wircpol_object_filename, overwrite = True):
+    def save_wirc_object(self, wirc_object_filename, overwrite = True):
         #Save the object to a fits file   
 
         vers = version.get_version()
@@ -244,17 +245,17 @@ class wirc_data(object):
             #TODO: Add a fits table extension (or a series of them) to contain the spectra
 
 
-        print("Saving a wircpol_object to {}".format(wircpol_object_filename))
-        hdulist.writeto(wircpol_object_filename, overwrite=overwrite)
+        print("Saving a wirc_object to {}".format(wirc_object_filename))
+        hdulist.writeto(wirc_object_filename, overwrite=overwrite)
 
 
-    def load_wircpol_object(self, wircpol_object_filename):
+    def load_wirc_object(self, wirc_object_filename):
         '''
         Read in the wircpol_object file from a fits file
         '''
 
         #Open the fits file
-        hdulist = fits.open(wircpol_object_filename)
+        hdulist = fits.open(wirc_object_filename)
 
         #Read in the full image and the primary header
         self.full_image = hdulist[0].data
@@ -265,6 +266,8 @@ class wirc_data(object):
         self.flat_fn = self.header["FLAT_FN"]
         self.bp_fn = self.header["BP_FN"]
         self.bkg_fn = self.header["BKG_FN"]
+
+        self.filter_name = self.header['AFT'][0]
 
         #What's the calibration status?
         self.calibrated = self.header["CALBRTED"]
@@ -312,7 +315,7 @@ class wirc_data(object):
             mask = cross_mask_ns.astype('bool') #What does our mask look like? 
 
             #Find the sources 
-            locations = coarse_regis.coarse_regis(direct_image, mask, threshold_sigma = threshold_sigma, guess_seeing = guess_seeing, plot = plot)
+            locations = image_utils.find_sources_in_direct_image(direct_image, mask, threshold_sigma = threshold_sigma, guess_seeing = guess_seeing, plot = plot)
 
             #How many sources are there? 
             self.n_sources = np.shape(locations[0,:])[0]+1
@@ -322,11 +325,12 @@ class wirc_data(object):
                 self.source_list.append(wircpol_source(locations[source, 0], locations[source,1],source))
 
         else: 
-            print("For now we can only find sources in a direct image, we'll assume that there's a source in the middle slit for now, \
-                otherwise please enter a direct_image_fn as a keyword")
-            #TODO put in the object right in the slit. 
+            print("No direct image filename given. For now we can only find sources automatically in a direct image, so we'll assume that there's a source in the middle slit. If you wish you can add other sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) \
+            #where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1")
 
-
+            self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
+            self.n_sources = 1
+            
         self.header['NSOURCES'] = self.n_sources
 
     
@@ -372,14 +376,19 @@ class wircpol_source(object):
         #Extracted spectra 
         self.trace_spectra = None
         self.pol_spectra = None
-        self.calibrated_pol_spectra = None
+        self.Q = None
+        self.U = None
+        self.P = None
+        self.theta = None
+    
+        self.lambda_calibrated = False
 
-    def get_cutouts(self, image, filter_name, sub_bar):
+    def get_cutouts(self, image, filter_name, sub_bar=True):
         """
         Cutout thumbnails and put them into self.trace_images
 
         """
-        self.trace_images = np.array(coarse_regis.extract_traces(image, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False
                                     ,filter_name = filter_name, sub_bar = sub_bar)[0])
 
     def plot_cutouts(self, **kwargs):
@@ -387,27 +396,122 @@ class wircpol_source(object):
         fig = plt.figure(figsize = (12,8))
 
         ax = fig.add_subplot(141)
-        ax.imshow(self.trace_images[0,:,:], **kwargs)
+        plt.imshow(self.trace_images[0,:,:], **kwargs)
+        plt.text(5,145,"Top - Left", color='w')
 
         ax = fig.add_subplot(142)
-        ax.imshow(self.trace_images[1,:,:], **kwargs)
+        plt.imshow(self.trace_images[1,:,:], **kwargs)
+        plt.text(5,145,"Bottom - Right", color='w')
 
         ax = fig.add_subplot(143)
-        ax.imshow(self.trace_images[2,:,:], **kwargs)
+        plt.imshow(self.trace_images[2,:,:], **kwargs)
+        plt.text(5,145,"Top - Right", color='w')
 
         ax = fig.add_subplot(144)
-        ax.imshow(self.trace_images[3,:,:], **kwargs)
+        plt.imshow(self.trace_images[3,:,:], **kwargs)
+        plt.text(5,145,"Bottom - Left", color='w')
+        
+        fig.subplots_adjust(right=0.85)
+        cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
+        plt.colorbar(cax = cbar_ax)
 
         plt.show()
 
 
-    def extract_spectra(self,image, sub_background = False, plot=False):
+    def extract_spectra(self, sub_background = False, plot=False):
         print("Performing Spectral Extraction for source {}".format(self.index))
-        res_spec, res_stddev, thumbnails= spec_extraction(image, np.expand_dims([self.pos, self.slit_pos],axis=0), sub_background = sub_background, plot=plot) 
+        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, plot=plot) 
+
+        spectra_length = spectra.shape[1]
+
+        self.trace_spectra = np.zeros((4,3,spectra_length))
+        self.trace_spectra[:,0,:] = np.arange(spectra_length) #The wavelength axis, to be calibrated later. 
+        self.trace_spectra[:,1,:] = spectra
+        self.trace_spectra[:,2,:] = spectra_std
+
+    def rough_lambda_calibration(self, filter_name="J", method=1):
+        #Rough wavelength calibration. Will have to get better later!
+
+        if method == 1:
+            self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
+            self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[1,1,:], filter_name)
+            self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[2,1,:], filter_name)
+            self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[3,1,:], filter_name)
+        if method == 2:
+            self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name)
+            self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[1,1,:], filter_name)
+            self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[2,1,:], filter_name)
+            self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[3,1,:], filter_name)
+
+        self.lambda_calibrated = True
+
+    def compute_polarization(self, cutmin=0, cutmax=160):
 
 
+        wlQp, q, dq, wlUp,u, du = spec_utils.compute_polarization(self.trace_spectra, cutmin=cutmin, cutmax = cutmax)
+        
+        pol_spectra_length = q.shape[0]
+        
+        self.Q = np.zeros([3,pol_spectra_length])
+        self.U = np.zeros([3,pol_spectra_length])
+        
+        self.Q[0,:] = wlQp
+        self.Q[1,:] = q
+        self.Q[2,:] = dq
 
-    # def compute_polarization():
+        self.U[0,:] = wlUp
+        self.U[1,:] = u
+        self.U[2,:] = du
+
+    def plot_trace_spectra(self, with_errors = False, **kwargs):
+
+        fig = plt.figure(figsize=(7,7))
+        labels = ["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
+
+        for i in range(4):
+            if with_errors:
+                plt.errobar(self.trace_spectra[i,0,:], self.trace_spectra[i,1,:],yerr = self.trace_spectra[i,2,:], label=labels[i], **kwargs)
+
+            else:
+                plt.plot(self.trace_spectra[i,0,:], self.trace_spectra[i,1,:], label=labels[i], **kwargs)
+
+        plt.ylabel("Flux [ADU]")
+
+        if self.lambda_calibrated:
+            plt.xlabel("Wavelength [um]")
+        else:
+            plt.xlabel("Wavelength [Arbitrary Unit]")
+        
+        plt.legend()
+        plt.show()
+
+    def plot_Q_and_U(self, with_errors = False, xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, **kwargs):
+
+        fig = plt.figure(figsize=(7,7))
+
+        ax1 = fig.add_subplot(121)
+        ax2 = fig.add_subplot(122)
+        ax1.set_title("Stokes Q")
+        ax2.set_title("Stokes U")
+
+        if with_errors:
+            ax1.errobar(self.Q[0,:], self.Q[1,:],yerr=self.Q[2,:], **kwargs)
+            ax2.errobar(self.U[0,:], self.U[1,:],yerr=self.U[2,:], **kwargs)
+        else:
+            ax1.plot(self.Q[0,:], self.Q[1,:], **kwargs)
+            ax2.plot(self.U[0,:], self.U[1,:], **kwargs)
+
+        ax1.set_ylim(ylow,yhigh)
+        ax2.set_ylim(ylow,yhigh)
+
+        if self.lambda_calibrated:
+            ax1.set_xlabel("Wavelength [um]")
+            ax2.set_xlabel("Wavelength [um]")
+            ax1.set_xlim(xlow,xhigh)
+            ax2.set_xlim(xlow,xhigh)
+        else:
+            ax1.set_xlabel("Wavelength [Arbitrary Units]")
+            ax2.set_xlabel("Wavelength [Arbitrary Units]")
 
     # def subtract_pol_bias():
 
