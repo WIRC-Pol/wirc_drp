@@ -495,8 +495,8 @@ class wircpol_source(object):
         ax2.set_title("Stokes U")
 
         if with_errors:
-            ax1.errobar(self.Q[0,:], self.Q[1,:],yerr=self.Q[2,:], **kwargs)
-            ax2.errobar(self.U[0,:], self.U[1,:],yerr=self.U[2,:], **kwargs)
+            ax1.errorbar(self.Q[0,:], self.Q[1,:],yerr=self.Q[2,:], **kwargs)
+            ax2.errorbar(self.U[0,:], self.U[1,:],yerr=self.U[2,:], **kwargs)
         else:
             ax1.plot(self.Q[0,:], self.Q[1,:], **kwargs)
             ax2.plot(self.U[0,:], self.U[1,:], **kwargs)
