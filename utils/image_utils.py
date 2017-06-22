@@ -15,7 +15,7 @@ from astropy.io import fits as f
 from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
 from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
-from DRP.reduction.constants import *
+from wirc_drp.constants import *
 from scipy.ndimage import gaussian_filter as gauss
 from scipy.ndimage.filters import median_filter
 import copy

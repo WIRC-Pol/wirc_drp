@@ -22,7 +22,7 @@ j_ph=2e10#number of ph-e- per sec per micron per m**2
 sky_j = 15.4 #mag per arcsec**2
 sky_h = 13.9 #mag per arcsec**2
 #sky spectrum from Mauna Kea. To be scaled
-sky_spec_data = np.load(wircpol_dir+'/DRP/specification/sky_emission.npy')
+sky_spec_data = np.load(wircpol_dir+'/specification/sky_emission.npy')
 
 #Palomar Hale telescope
 diam=5.1#meter
@@ -74,7 +74,7 @@ c = 2.998e14 #micron/s
 J_lam = 1.2483 #micron
 J_dlam = 0.162  
 F0_J = 1.93e10 #photons/s/micron/m^2
-J_trans = a.read(wircpol_dir+'/DRP/specification/J_WIRC.csv',names = ('wl','transmission'))
+J_trans = a.read(wircpol_dir+'/specification/J_WIRC.csv',names = ('wl','transmission'))
 #in micron, %
 J_trans_int = interp1d(J_trans['wl'],J_trans['transmission']*0.01,bounds_error = False, fill_value = 0)
 
@@ -84,7 +84,7 @@ J_trans_int = interp1d(J_trans['wl'],J_trans['transmission']*0.01,bounds_error =
 H_lam = 1.6313 #micron
 H_dlam = 0.296 
 F0_H = 0.93e10 #photons/s/micron/m^2
-H_trans = a.read(wircpol_dir+'/DRP/specification/H_WIRC.csv',names = ('wl','transmission'))
+H_trans = a.read(wircpol_dir+'/specification/H_WIRC.csv',names = ('wl','transmission'))
 #in micron, %
 H_trans_int = interp1d(H_trans['wl'],H_trans['transmission']*0.01, bounds_error = False, fill_value = 0)
 
