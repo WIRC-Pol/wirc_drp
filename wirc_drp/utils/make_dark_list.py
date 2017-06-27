@@ -2,9 +2,11 @@
 This is a short script to go through all files in the directory, find dark frames, and write lists of darks
 based on exposure times. 
 """
-import glob
+import glob, os
 import astropy.io.fits as fits
 import numpy
+
+os.chdir('/hcig1-nas/wircpol/data/20170611/')
 
 #Grab all files
 all_files = glob.glob('*.fits')
@@ -21,3 +23,10 @@ for i in all_files:
 			darks[exp_time] = [i] #create an index with that exposure time
 
 print(darks)
+
+#go through each exposure time and write file
+for i in darks.keys():
+	out_file = open('dark_{}s.list'.format(i), 'w')
+	for item in darks[i]:
+		out_file.writelines("{}\n".format(item))
+
