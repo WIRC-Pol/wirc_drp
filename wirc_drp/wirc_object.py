@@ -2,6 +2,8 @@ import numpy as np
 from astropy.io import fits
 import matplotlib.pyplot as plt
 
+import warnings
+
 import wirc_drp.utils.image_utils as image_utils
 import wirc_drp.utils.spec_utils as spec_utils
 import wirc_drp.utils.calibration as calibration
@@ -111,7 +113,7 @@ class wirc_data(object):
             print("Subtracting background frame {} from all science files".format(self.bkg_fn))
 
         if dark_exp_time != self.header["EXPTIME"]:
-            warnings.warn("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal", UserWarning)
+            warnings.warn("The master dark file doesn't have the same exposure time as the data. We'll scale the dark for now, but this isn't ideal", UserWarning)
             factor = self.header["EXPTIME"]/dark_exp_time
         else: 
             factor = 1. 
@@ -232,10 +234,14 @@ class wirc_data(object):
 
             #Put in the source info
             source_hdu.header["XPOS"] = self.source_list[i].pos[0]
-            source_hdu.header["XPOS_ERR"] = self.source_list[i].pos[2]
-
             source_hdu.header["YPOS"] = self.source_list[i].pos[1]
-            source_hdu.header['YPOS_ERR'] = self.source_list[i].pos[3]
+
+            #only write position errors if they exist. 
+            if len(self.source_list[i])>2:
+            	source_hdu.header["XPOS_ERR"] = self.source_list[i].pos[2]
+                source_hdu.header['YPOS_ERR'] = self.source_list[i].pos[3]
+            
+            
 
             source_hdu.header["SLIT_LOC"] = self.source_list[i].slit_pos
 

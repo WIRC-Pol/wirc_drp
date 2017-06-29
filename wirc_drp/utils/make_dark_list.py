@@ -6,7 +6,7 @@ import glob, os
 import astropy.io.fits as fits
 import numpy
 
-os.chdir('/hcig1-nas/wircpol/data/20170611/')
+os.chdir('/hcig1-nas/wircpol/data/20170613/')
 
 #Grab all files
 all_files = glob.glob('*.fits')
