@@ -240,7 +240,7 @@ class wirc_data(object):
             source_hdu.header["YPOS"] = self.source_list[i].pos[1]
 
             #only write position errors if they exist. 
-            if len(self.source_list[i])>2:
+            if len(self.source_list[i].pos)>2:
             	source_hdu.header["XPOS_ERR"] = self.source_list[i].pos[2]
                 source_hdu.header['YPOS_ERR'] = self.source_list[i].pos[3]
             
