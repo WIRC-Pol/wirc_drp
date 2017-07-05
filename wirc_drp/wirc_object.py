@@ -255,27 +255,24 @@ class wirc_data(object):
             #TODO: Add a fits table extension (or a series of them) to contain the spectra
             #Create a TableHDU for each of the sources
             
-           
-                
-            
-            
             #The source_list attributes, trace_spectra(four separate trace spectra), Q, U, P, theta, are converted into tables of three columns each
-            t_ts_0=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_0 wavelength','D','nm'],
+            t_ts_0,l0=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_0 wavelength','D','nm'],
 ['trace_spectra_0 flux','D','units?'], ['trace_spectra_0 flux error','D','units?'])#trace spectra 0
-            t_ts_1=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_1 wavelength','D','nm'], ['trace_spectra_1 flux','D','units?'], ['trace_spectra_1 flux error','D','units?'])#trace spectra 1
-            t_ts_2=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_2 wavelength','D','nm'], ['trace_spectra_2 flux','D','units?'], ['trace_spectra_2 flux error','D','units?'])#trace spectra 2
-            t_ts_3=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_3 wavelength','D','nm'], ['trace_spectra_3 flux','D','units?'], ['trace_spectra_3 flux error','D','units?'])#trace spectra 3
+            t_ts_1,l1=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_1 wavelength','D','nm'], ['trace_spectra_1 flux','D','units?'], ['trace_spectra_1 flux error','D','units?'])#trace spectra 1
+            t_ts_2,l2=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_2 wavelength','D','nm'], ['trace_spectra_2 flux','D','units?'], ['trace_spectra_2 flux error','D','units?'])#trace spectra 2
+            t_ts_3,l3=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_3 wavelength','D','nm'], ['trace_spectra_3 flux','D','units?'], ['trace_spectra_3 flux error','D','units?'])#trace spectra 3
             
             
-            t_Q=self.make_triplet_table(self.source_list[i].Q, ['Q wavelength','D','nm'], ['Q stokes','D','units?'], ['Q stokes error','D','units?'])               #Q
+            t_Q,lQ=self.make_triplet_table(self.source_list[i].Q, ['Q wavelength','D','nm'], ['Q stokes','D','units?'], ['Q stokes error','D','units?'])               #Q
             
-            t_U=self.make_triplet_table(self.source_list[i].U, ['U wavelength','D','nm'], ['U stokes','D','units?'], ['U stokes error','D','units?'])               #U
+            t_U,lU=self.make_triplet_table(self.source_list[i].U, ['U wavelength','D','nm'], ['U stokes','D','units?'], ['U stokes error','D','units?'])               #U
             
-            t_P=self.make_triplet_table(self.source_list[i].P, ['P wavelength','D','nm'], ['P','D','units?'], ['P error','D','units?'])               #P
+            t_P,lP=self.make_triplet_table(self.source_list[i].P, ['P wavelength','D','nm'], ['P','D','units?'], ['P error','D','units?'])               #P
             
-            t_theta=self.make_triplet_table(self.source_list[i].theta, ['theta wavelength','D','nm'], ['theta','D','units?'], ['theta error','D','units?'])       #theta
+            t_theta,ltheta=self.make_triplet_table(self.source_list[i].theta, ['theta wavelength','D','nm'], ['theta','D','units?'], ['theta error','D','units?'])       #theta
             #tables of 3 columns each have been made
             
+
             
             #big table gets made
             #the .columns of each three-column-table are added up to form column_list
@@ -288,9 +285,18 @@ class wirc_data(object):
             
             #Append it to the hdu list
             hdulist.append(source_tbl_hdu)
-                             
+            
+            length_list=l0+l1+l2+l3+lQ+lU+lP+ltheta  #making a list of the lengths of columns
             #print ('Ending Iteration #',i);
             
+            
+            for k in range(len(length_list)):
+                header_keyword="TLENG"+str(k+1)
+                header_comment="Length of "+hdulist[(2*i)+2].data.names[k]
+                
+                
+                hdulist[(2*i)+2].header[header_keyword]=(length_list[k],header_comment)
+                
         #For loop ended    
         #print ('No more iterations');
         
@@ -309,6 +315,7 @@ class wirc_data(object):
         #developed to be called by save_wirc_object (the previously listed function)
         
         #first verifies if array_in has information (not None)
+        length=[]
         if array_in !=None:
                 #print ("array_in != None")
                 
@@ -338,9 +345,9 @@ class wirc_data(object):
                     #print ("Warning: While trying to convert array_in into a 3 column table, array_in.ndim != 2 or 3")
                     
                     #defines columns, not including data
-                    c1 = fits.Column(name=c1list[0],format=c1list[1],unit=c1list[2])
-                    c2 = fits.Column(name=c2list[0],format=c2list[1],unit=c2list[2])
-                    c3 = fits.Column(name=c3list[0],format=c3list[1],unit=c3list[2])
+                    c1 = fits.Column(name=c1list[0],format=c1list[1],unit=c1list[2], array=np.array([]))
+                    c2 = fits.Column(name=c2list[0],format=c2list[1],unit=c2list[2], array=np.array([]))
+                    c3 = fits.Column(name=c3list[0],format=c3list[1],unit=c3list[2], array=np.array([]))
                     
                     
                 
@@ -350,14 +357,39 @@ class wirc_data(object):
                 #print ("array_in == None")
                 
                 #defines columns, not including data
-                c1 = fits.Column(name=c1list[0],format=c1list[1],unit=c1list[2])
-                c2 = fits.Column(name=c2list[0],format=c2list[1],unit=c2list[2])
-                c3 = fits.Column(name=c3list[0],format=c3list[1],unit=c3list[2])
+                c1 = fits.Column(name=c1list[0],format=c1list[1],unit=c1list[2], array=np.array([]))
+                c2 = fits.Column(name=c2list[0],format=c2list[1],unit=c2list[2], array=np.array([]))
+                c3 = fits.Column(name=c3list[0],format=c3list[1],unit=c3list[2], array=np.array([]))
                 
+        length=[len(c1.array),len(c2.array),len(c2.array)]
         #returns table equivalent of array_in and corresponding c<#>lists
-        return fits.BinTableHDU.from_columns(fits.ColDefs([c1,c2,c3]))
+        return fits.BinTableHDU.from_columns(fits.ColDefs([c1,c2,c3])),length
          
-     
+    def table_columns_to_array(self,table_in,prihdr,cil):
+        list3columns = []
+        if len(cil) ==3:
+            
+            for j in range(len(cil)):
+                list3columns.append(table_in.field(cil[j])[0:prihdr['TLENG'+str(cil[j]+1)]])
+                
+            array_out=np.stack((list3columns[0],list3columns[1],list3columns[2]))
+
+        elif len(cil) ==12:
+            
+            for j in range(len(cil)):
+                list3columns.append(table_in.field(cil[j])[0:prihdr['TLENG'+str(cil[j]+1)]])
+            array_a=np.stack((list3columns[0],list3columns[1],list3columns[2]))
+            array_b=np.stack((list3columns[3],list3columns[4],list3columns[5]))
+            array_c=np.stack((list3columns[6],list3columns[7],list3columns[8]))
+            array_d=np.stack((list3columns[9],list3columns[10],list3columns[11]))
+            
+            array_out=np.stack((array_a,array_b,array_c,array_c),axis=0)
+            
+
+        else:
+            print ("Warning: column list improper number of columns")
+            array_out = np.array([])#None
+        return array_out     
     
           
                 
@@ -392,19 +424,48 @@ class wirc_data(object):
         self.source_list = []
 
         for i in range(self.n_sources):
-
+            #print ("starting iteration #",i)
             #Extract the source info from the header
-            xpos = hdulist[i+1].header["XPOS"]
-            ypos = hdulist[i+1].header["YPOS"]
-            #xpos_err = hdulist[i+1].header["XPOS_ERR"]
-            #ypos_err = hdulist[i+1].header["YPOS_ERR"]
+            xpos = hdulist[(2*i)+1].header["XPOS"]
+            ypos = hdulist[(2*i)+1].header["YPOS"]
+            slit_loc = hdulist[(2*i)+1].header["SLIT_LOC"]
+            
+            #if they are there)
+            
+            try:
+                xpos_err = hdulist[(2*i)+1].header["XPOS_ERR"]
+                ypos_err = hdulist[(2*i)+1].header["YPOS_ERR"]
+                new_source = wircpol_source([xpos,ypos,xpos_err,ypos_err],slit_loc, i)
+                
+            except KeyError:
+                new_source = wircpol_source([xpos,ypos],slit_loc, i)
+        
 
-            slit_loc = hdulist[i+1].header["SLIT_LOC"]
+            
+            new_source.trace_images = hdulist[(2*i)+1].data
+            
+            
+            big_table=hdulist[(2*i)+2].data
+            prihdr=hdulist[(2*i)+2].header
+            
+            
+            
+            new_source.trace_spectra = self.table_columns_to_array(big_table,prihdr,[0,1,2,3,4,5,6,7,8,9,10,11])
+            
+            new_source.Q = self.table_columns_to_array(big_table,prihdr,[12,13,14])
+            
+            new_source.U = self.table_columns_to_array(big_table,prihdr,[15,16,17])
+            
+            new_source.P = self.table_columns_to_array(big_table,prihdr,[18,19,20])
+            
+            new_source.theta = self.table_columns_to_array(big_table,prihdr,[21,22,23])
 
-            #Creat the new wircpol_source object
-            #new_source = wircpol_source([xpos,ypos,xpos_err,ypos_err],slit_loc, i)
-            new_source = wircpol_source([xpos,ypos],slit_loc, i)
-            new_source.trace_images = hdulist[i+1].data
+                    
+
+            #Append it to the source_list
+            self.source_list.append(new_source)
+            
+            #print ("ending iteration #",i)
 
             #Append it to the source_list
             self.source_list.append(new_source)
