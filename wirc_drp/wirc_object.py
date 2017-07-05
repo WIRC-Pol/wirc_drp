@@ -536,10 +536,10 @@ class wircpol_source(object):
         plt.show()
 
 
-    def extract_spectra(self, sub_background = False, plot=False):
+    def extract_spectra(self, sub_background = False, plot=False, method = ['skimage']):
         print("Performing Spectral Extraction for source {}".format(self.index))
-        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, plot=plot) 
-
+        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, plot=plot, method = method) 
+        print(spectra.shape)
         spectra_length = spectra.shape[1]
 
         self.trace_spectra = np.zeros((4,3,spectra_length))
@@ -599,7 +599,7 @@ class wircpol_source(object):
             plt.xlabel("Wavelength [um]")
         else:
             plt.xlabel("Wavelength [Arbitrary Unit]")
-        
+        plt.xlim([1.1,1.4])
         plt.legend()
         plt.show()
 

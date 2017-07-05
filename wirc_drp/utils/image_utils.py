@@ -242,6 +242,8 @@ def fit_gaussian_to_cutout(cutout, seeing_pix):
     #print(res[0].amplitude.value, res[0].x_stddev.value)
     return res
 
+
+
 def pointFinder(image, seeing_pix, threshold):
     """Take an image file and identify where point sources are. This is done by utilizing
     Scipy maximum and minimum filters.
@@ -449,6 +451,37 @@ def shift_and_subtract_background(cutout, obj_slit = 1,  slit_gap = 21, masked_s
         #                            ,(0,np.shape(sky_sub[1]-np.shape(cutout)[1]) ) )\
         #                            ,mode = 'constant')
         return sky_sub, sky
+
+def fitFlux(flux_vec, seeing_pix = 4):
+    """
+    This function fits the flux value along a 1d cross section using a
+    sum of polynomial and gaussian. This function is called by fitBkg
+    
+    Inputs:
+    flux_vec: a vector (1d array) containing flux values
+    seeing_pix: a guess of seeing size in pixel. Default = 4 (1").
+    
+    Output:
+    res: result of the fit in astropy format. res[0] is the
+    polynomial part. res[1] is the Gaussian part. 
+    """
+    x = range(len(flux_vec))
+    ###guess amplitude
+    source_amp = np.max(flux_vec)- np.min(flux_vec)
+    #Defing fitting functions and fitter using Astropy fitting routine
+    poly = models.Polynomial1D(2)
+    gauss = models.Gaussian1D(amplitude = source_amp, mean = np.argmax(flux_vec) ,stddev = seeing_pix/2, \
+                                    bounds = {'amplitude': [0, np.inf], 'stddev':[0.5,3] })
+    fitter = fitting.LevMarLSQFitter()
+    #Fit the data, assuming both polynomail and gaussian components
+    res = fitter(poly+gauss, x, flux_vec)
+    
+    #if gaussian peak is smaller than 1sigma of data, use only polynomial
+    if res[1].amplitude.value < 3*np.sqrt(np.var(flux_vec)):
+        #print('no gaussian')
+        res = fitter(poly, x, flux_vec)+ models.Gaussian1D(amplitude = 0)
+    #print(res)
+    return res
 
 def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plotted = False):
     """

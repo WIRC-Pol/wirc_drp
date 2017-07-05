@@ -120,7 +120,7 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
 
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
-def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, method = ['weightedSum']):
+def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, method = ['skimage']):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -161,20 +161,30 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             ######If data is in the slit mode, perform shift and subtract to remove background
             #############################################
 
-            if slit_num != 'slitless':
+            #if slit_num != 'slitless':
 
-                bkg_sub, bkg = shift_and_subtract_background(thumbnail, obj_slit = slit_num)
+             #   bkg_sub, bkg = shift_and_subtract_background(thumbnail, obj_slit = slit_num)
 
                 #Mask out the area outside of the slit hole.
-                thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
-                bkg_sub = bkg_sub * thumb_mask
-                bkg = bkg * thumb_mask
+             #   thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
+             #   bkg_sub = bkg_sub * thumb_mask
+             #   bkg = bkg * thumb_mask
         
             #############################################
             ######For each thumbnail, fit for background
             #############################################
-            else:
-                bkg_sub, bkg = fit_and_subtract_background(thumbnail)
+            #else:
+             #   bkg_sub, bkg = fit_and_subtract_background(thumbnail)
+
+	    #For now, do shift and subtract
+            bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
+            bkg_sub = thumbnail - bkg
+
+                #Mask out the area outside of the slit hole.
+            #thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
+            #bkg_sub = bkg_sub * thumb_mask
+            #bkg = bkg * thumb_mask
+
 
         else: 
             bkg_sub = np.copy(thumbnail)
@@ -196,12 +206,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         ##skimage profile_line trying different interpolation orders
         if 'skimage' in method:
+	    print("Extraction by skimage")
             linewidth = 20 #This should be adjusted based on fitted seeing.
-            for ii in range(6):
+            #for ii in range(6):
+            #only do order = 4
+	    for ii in [4]:
+                #print(ii)
                 spec_res = profile_line(bkg_sub, (0,trace[0]), (len(bkg_sub[1]),trace[-1]), linewidth = linewidth,order =  ii)                
-                spectra.append(spec_res)
+                spectra.append(np.array(spec_res))
                 spectra_std.append((gain*spec_res+linewidth * sigma_ron**2)/gain**2) #poisson + readout
-
+        
         if 'weightedSum' in method:
             #define PSF (Gaussian for now)
             psf = np.zeros((21,21))
@@ -239,13 +253,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 vmax_bkg = np.nanmax( (thumbnail - bkg)[trace_inds] )
 
 
-            im1 = ax.imshow(thumbnail, origin = 'lower', cmap='viridis', vmin=vmin, vmax=vmax,)# norm=LogNorm(vmin=vmin, vmax=vmax))
+            im1 = ax.imshow(thumbnail, origin = 'lower', cmap='YlGnBu', vmin=vmin, vmax=vmax,)# norm=LogNorm(vmin=vmin, vmax=vmax))
             
 
 
         if plot:
             ax2 = fig.add_subplot(2,ntraces,j+1+ntraces)
-            im2 = ax2.imshow(bkg_sub, origin = 'lower', cmap='viridis', vmin = vmin_bkg, vmax = vmax_bkg)#norm=LogNorm(vmin=vmin_bkg, vmax=vmax_bkg))
+            im2 = ax2.imshow(bkg_sub, origin = 'lower', cmap='YlGnBu', vmin = vmin_bkg, vmax = vmax_bkg)#norm=LogNorm(vmin=vmin_bkg, vmax=vmax_bkg))
             #ax2.plot(loc[:,0],loc[:,1])
             # if j == ntraces-1:
             #     plt.colorbar(im2, ax=ax2)
@@ -261,7 +275,17 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #over plot traces                
             ax2.plot(raw,'k')
             ax2.plot(trace,'w')
+	
+    if plot: 
+	plt.show()
+    #print(spectra)
+    #print(np.array(spectra).shape)
+    #pdb.set_trace()
 
+    min_len = min(len(spectra[0]),len(spectra[1]),len(spectra[2]),len(spectra[3]))
+    for i in range(4):
+        spectra[i] = spectra[i][0:min_len]
+        spectra_std[i] = spectra_std[i][0:min_len]
     return np.array(spectra), np.array(spectra_std) #res_spec is a dict, res_stddev and thumbnails are list
 
 def rough_wavelength_calibration_v1(trace, filter_name):
