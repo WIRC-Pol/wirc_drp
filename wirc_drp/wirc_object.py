@@ -210,6 +210,11 @@ class wirc_data(object):
 
         # vers = version.get_version()
         # self.header.set('PL_VERS',vers,'Version of pipeline used for processing')
+        #common indexing notes for save_wirc_object and load_wirc_object:
+        #----#(2*i)+1 is a conversion from the index, i, of the source in source_list to the index of the source in hdulist
+        #----#(2*i)+2 is a conversion from the index, i, of the source in source_list to the index of the source's corresponding table in hdulist
+        
+       
 
         #TODO: Update the header keywords below to include a keyword description like PS_VERS above
 
@@ -305,7 +310,7 @@ class wirc_data(object):
                 #defines keyword string
                 header_keyword="TLENG"+str(k+1)
                 #defines comment string
-                header_comment="Length of "+hdulist[(2*i)+2].data.names[k]
+                header_comment="Length of "+hdulist[(2*i)+2].data.names[k] 
                 
                 
                 hdulist[(2*i)+2].header[header_keyword]=(length_list[k],header_comment) #defines the keyword with value and comment
@@ -417,6 +422,9 @@ class wirc_data(object):
         '''
         Read in the wircpol_object file from a fits file
         '''
+        #common indexing notes for save_wirc_object and load_wirc_object:
+        #----#(2*i)+1 is a conversion from the index, i, of the source in source_list to the index of the source in hdulist
+        #----#(2*i)+2 is a conversion from the index, i, of the source in source_list to the index of the source's corresponding table in hdulist
 
         #Open the fits file
         hdulist = fits.open(wirc_object_filename)
@@ -459,6 +467,8 @@ class wirc_data(object):
                 
             except KeyError:
                 new_source = wircpol_source([xpos,ypos],slit_loc, i)
+                
+            
         
 
             
@@ -486,6 +496,12 @@ class wirc_data(object):
             
             #finds 2D array for theta
             new_source.theta = self.table_columns_to_array(big_table,prihdr,[21,22,23])
+            
+            #adjusting source header statuses
+            self.lambda_calibrated = hdulist[(2*i)+1].header["WL_CBRTD"]#source attribute, later applied to header["WL_CBRTD"]
+            self.polarization_computed = hdulist[(2*i)+1].header["POL_CMPD"] #source attribute, later applied to header["POL_CMPD"]
+            self.spectra_extracted = hdulist[(2*i)+1].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
+            self.thumbnails_cut_out = hdulist[(2*i)+1].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
 
                     
 
@@ -494,8 +510,7 @@ class wirc_data(object):
             
             #print ("ending iteration #",i)
 
-            #Append it to the source_list
-            self.source_list.append(new_source)
+            
 
 
     def find_sources(self, direct_image_fn = None, threshold_sigma = 5, guess_seeing = 4, plot = False):
