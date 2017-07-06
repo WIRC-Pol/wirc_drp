@@ -498,10 +498,10 @@ class wirc_data(object):
             new_source.theta = self.table_columns_to_array(big_table,prihdr,[21,22,23])
             
             #adjusting source header statuses
-            self.lambda_calibrated = hdulist[(2*i)+1].header["WL_CBRTD"]#source attribute, later applied to header["WL_CBRTD"]
-            self.polarization_computed = hdulist[(2*i)+1].header["POL_CMPD"] #source attribute, later applied to header["POL_CMPD"]
-            self.spectra_extracted = hdulist[(2*i)+1].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
-            self.thumbnails_cut_out = hdulist[(2*i)+1].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
+            new_source.lambda_calibrated = hdulist[(2*i)+1].header["WL_CBRTD"]#source attribute, later applied to header["WL_CBRTD"]
+            new_source.polarization_computed = hdulist[(2*i)+1].header["POL_CMPD"] #source attribute, later applied to header["POL_CMPD"]
+            new_source.spectra_extracted = hdulist[(2*i)+1].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
+            new_source.thumbnails_cut_out = hdulist[(2*i)+1].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
 
                     
 
