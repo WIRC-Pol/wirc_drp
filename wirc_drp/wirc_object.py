@@ -51,9 +51,12 @@ class wirc_data(object):
         elif raw_filename != None:
             print("Creating a new wirc_data object from file {}".format(raw_filename))
             self.raw_filename = raw_filename
+            
             hdu = fits.open(raw_filename)
             self.full_image = hdu[0].data
             self.header = hdu[0].header
+            
+            
 
             self.header['RAW_FN'] = raw_filename
 
@@ -248,6 +251,13 @@ class wirc_data(object):
 
             source_hdu.header["SLIT_LOC"] = self.source_list[i].slit_pos
 
+            #Data reduction status headers for each source
+            source_hdu.header["WL_CBRTD"] = (self.source_list[i].lambda_calibrated,"Wavelength Calibrated? status")
+            source_hdu.header["POL_CMPD"] = (self.source_list[i].polarization_computed,"Polarization Computed? status")
+            source_hdu.header["SPC_XTRD"] = (self.source_list[i].spectra_extracted,"Spectra Extracted? status")
+            source_hdu.header["THMB_CUT"] = (self.source_list[i].thumbnails_cut_out,"Thumbnails cut out? status")
+            
+            
             #Append it to the hdu list
             hdulist.append(source_hdu)
             
@@ -553,6 +563,10 @@ class wircpol_source(object):
         U - an array of size 3,m, where each m sized stokes-U has a wavelength, stokes U  and U error
         P - an array of size 3,m, where each m sized stokes-Q has a wavelength, P  and P error
         theta - an array of size 3,m, where each m sized stokes-Q has a wavelength, theta  and theta error
+        lambda_calibrated - value of associated header["WL_CBRTD"]. designates whether wavelength has been calibrated
+        polarization_compute - value of associated header["POL_CMPD"]. designates whether polarization has been computed
+        spectra_extracted - value of associated header["SPC_XTRD"]. designates whether spectra has been extracted
+        thumbnails_cut_out - value of associated header["THMB_CUT"]. designates whether thumbnails have been cut out
         
 
     """
@@ -577,15 +591,21 @@ class wircpol_source(object):
         self.P = None
         self.theta = None
     
-        self.lambda_calibrated = False
+        #source reduction status?
+        self.lambda_calibrated = False #source attribute, later applied to header["WL_CBRTD"]
+        self.polarization_computed = False #source attribute, later applied to header["POL_CMPD"]
+        self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
+        self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
     def get_cutouts(self, image, filter_name, sub_bar=True):
         """
         Cutout thumbnails and put them into self.trace_images
 
         """
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False
-                                    ,filter_name = filter_name, sub_bar = sub_bar)[0])
+        
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar)[0])
+        
+        self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
     def plot_cutouts(self, **kwargs):
 
@@ -624,6 +644,8 @@ class wircpol_source(object):
         self.trace_spectra[:,0,:] = np.arange(spectra_length) #The wavelength axis, to be calibrated later. 
         self.trace_spectra[:,1,:] = spectra
         self.trace_spectra[:,2,:] = spectra_std
+        
+        self.spectra_extracted = True #source attribute, later applied to header["SPC_XTRD"]
 
     def rough_lambda_calibration(self, filter_name="J", method=1):
         #Rough wavelength calibration. Will have to get better later!
@@ -639,7 +661,7 @@ class wircpol_source(object):
             self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[2,1,:], filter_name)
             self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[3,1,:], filter_name)
 
-        self.lambda_calibrated = True
+        self.lambda_calibrated = True #source attribute, later applied to header["WL_CBRTD"]
 
     def compute_polarization(self, cutmin=0, cutmax=160):
 
@@ -658,12 +680,13 @@ class wircpol_source(object):
         self.U[0,:] = wlUp
         self.U[1,:] = u
         self.U[2,:] = du
+        
+        self.polarization_computed = True #source attribute, later applied to header["POL_CMPD"]
 
     def plot_trace_spectra(self, with_errors = False, **kwargs):
 
         fig = plt.figure(figsize=(7,7))
         labels = ["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
-
         for i in range(4):
             if with_errors:
                 plt.errobar(self.trace_spectra[i,0,:], self.trace_spectra[i,1,:],yerr = self.trace_spectra[i,2,:], label=labels[i], **kwargs)
@@ -673,11 +696,15 @@ class wircpol_source(object):
 
         plt.ylabel("Flux [ADU]")
 
-        if self.lambda_calibrated:
+        if self.lambda_calibrated: #plot is not perfectly the same
             plt.xlabel("Wavelength [um]")
+            plt.xlim([1.1,1.4]) #wavelength display range
         else:
             plt.xlabel("Wavelength [Arbitrary Unit]")
-        plt.xlim([1.1,1.4])
+            plt.xlim([0,225]) #arbitrary unit wavelength display range
+            
+        
+        
         plt.legend()
         plt.show()
 
