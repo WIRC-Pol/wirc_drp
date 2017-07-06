@@ -255,7 +255,7 @@ class wirc_data(object):
             #TODO: Add a fits table extension (or a series of them) to contain the spectra
             #Create a TableHDU for each of the sources
             
-            #The source_list attributes, trace_spectra(four separate trace spectra), Q, U, P, theta, are converted into tables of three columns each
+            #The source_list attributes, trace_spectra(four separate trace spectra), Q, U, P, theta, are converted into tables of three columns each. Also returns length lists of each array
             t_ts_0,l0=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_0 wavelength','D','nm'],
 ['trace_spectra_0 flux','D','units?'], ['trace_spectra_0 flux error','D','units?'])#trace spectra 0
             t_ts_1,l1=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_1 wavelength','D','nm'], ['trace_spectra_1 flux','D','units?'], ['trace_spectra_1 flux error','D','units?'])#trace spectra 1
@@ -289,13 +289,16 @@ class wirc_data(object):
             length_list=l0+l1+l2+l3+lQ+lU+lP+ltheta  #making a list of the lengths of columns
             #print ('Ending Iteration #',i);
             
-            
+            #Creates a header keyword, value, and comment. 
+            #The value designates the length the array that would correspond to the column.
             for k in range(len(length_list)):
+                #defines keyword string
                 header_keyword="TLENG"+str(k+1)
+                #defines comment string
                 header_comment="Length of "+hdulist[(2*i)+2].data.names[k]
                 
                 
-                hdulist[(2*i)+2].header[header_keyword]=(length_list[k],header_comment)
+                hdulist[(2*i)+2].header[header_keyword]=(length_list[k],header_comment) #defines the keyword with value and comment
                 
         #For loop ended    
         #print ('No more iterations');
@@ -315,7 +318,7 @@ class wirc_data(object):
         #developed to be called by save_wirc_object (the previously listed function)
         
         #first verifies if array_in has information (not None)
-        length=[]
+        length=[] #initiates list
         if array_in !=None:
                 #print ("array_in != None")
                 
@@ -361,28 +364,35 @@ class wirc_data(object):
                 c2 = fits.Column(name=c2list[0],format=c2list[1],unit=c2list[2], array=np.array([]))
                 c3 = fits.Column(name=c3list[0],format=c3list[1],unit=c3list[2], array=np.array([]))
                 
-        length=[len(c1.array),len(c2.array),len(c2.array)]
-        #returns table equivalent of array_in and corresponding c<#>lists
+        length=[len(c1.array),len(c2.array),len(c2.array)] #defines length list as the length of the arrays given to each column
+        
+        #returns table equivalent of array_in and corresponding c<#>lists, also returns length list
         return fits.BinTableHDU.from_columns(fits.ColDefs([c1,c2,c3])),length
          
     def table_columns_to_array(self,table_in,prihdr,cil):
-        list3columns = []
-        if len(cil) ==3:
+        list3columns = [] #initiates a list of arrays representing the columns
+   
+        if len(cil) ==3: #if there are 3 columns
             
+            #appends the padding-removed arrays (from the columns) to the list3columns
             for j in range(len(cil)):
                 list3columns.append(table_in.field(cil[j])[0:prihdr['TLENG'+str(cil[j]+1)]])
-                
+            
+            #stacks the list together to make 2D output array
             array_out=np.stack((list3columns[0],list3columns[1],list3columns[2]))
 
-        elif len(cil) ==12:
+        elif len(cil) ==12: #if there are 12 columns
             
             for j in range(len(cil)):
                 list3columns.append(table_in.field(cil[j])[0:prihdr['TLENG'+str(cil[j]+1)]])
+            
+            #stacks portion of list together to form 4 2D arrays
             array_a=np.stack((list3columns[0],list3columns[1],list3columns[2]))
             array_b=np.stack((list3columns[3],list3columns[4],list3columns[5]))
             array_c=np.stack((list3columns[6],list3columns[7],list3columns[8]))
             array_d=np.stack((list3columns[9],list3columns[10],list3columns[11]))
             
+            #stacks the 2D arrays to form a 3D output array
             array_out=np.stack((array_a,array_b,array_c,array_c),axis=0)
             
 
@@ -442,22 +452,29 @@ class wirc_data(object):
         
 
             
-            new_source.trace_images = hdulist[(2*i)+1].data
+            new_source.trace_images = hdulist[(2*i)+1].data #finds the i'th source image data in the hdulist
+            
+            #finds the table data of the TableHDU corresponding to the i'th source
+            big_table=hdulist[(2*i)+2].data 
+            
+            #finds the header of the TableHDU corresponding to the i'th source
+            prihdr=hdulist[(2*i)+2].header 
             
             
-            big_table=hdulist[(2*i)+2].data
-            prihdr=hdulist[(2*i)+2].header
             
-            
-            
+            #finds 3D array for trace_spectra
             new_source.trace_spectra = self.table_columns_to_array(big_table,prihdr,[0,1,2,3,4,5,6,7,8,9,10,11])
             
+            #finds 2D array for Q
             new_source.Q = self.table_columns_to_array(big_table,prihdr,[12,13,14])
             
+            #finds 2D array for U
             new_source.U = self.table_columns_to_array(big_table,prihdr,[15,16,17])
             
+            #finds 2D array for P
             new_source.P = self.table_columns_to_array(big_table,prihdr,[18,19,20])
             
+            #finds 2D array for theta
             new_source.theta = self.table_columns_to_array(big_table,prihdr,[21,22,23])
 
                     
