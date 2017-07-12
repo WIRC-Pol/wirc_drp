@@ -196,7 +196,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #trace is the vector of the y location of the trace for each x location in the frame
         #width is the width of the trace at its brightest point. 
         start = time.time()            
-        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = False) #linear fit to the trace          
+        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = True) #linear fit to the trace          
 
         ######################################
         ######Call spectral extraction routine
@@ -221,7 +221,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             psf = np.zeros((21,21))
             xx,yy = np.mgrid[0:np.shape(psf)[0], 0:np.shape(psf)[1]]
             psf = models.Gaussian2D(amplitude = 1, y_mean = psf.shape[0]//2, x_mean = psf.shape[1]//2, \
-                                   y_stddev = 2, x_stddev = 2)(yy,xx)
+                                   y_stddev = width, x_stddev = width)(yy,xx)
+            #psf = models.Gaussian2D(amplitude = 1, y_mean = psf.shape[0]//2, x_mean = psf.shape[1]//2, \
+            #                       y_stddev = 2, x_stddev = 2)(yy,xx)
             #extract
             spec_res, spec_var = weighted_sum_extraction(bkg_sub, trace, psf)
             spectra.append(spec_res)
