@@ -16,6 +16,7 @@ from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
 from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
 from wirc_drp.constants import *
+from wirc_drp.masks.wircpol_masks import *
 from scipy.ndimage import gaussian_filter as gauss
 from scipy.ndimage.filters import median_filter
 import copy
@@ -279,8 +280,8 @@ def locationInIm(wl, location_in_fov):
     dpx = round(dwl/(wlPerPix))
 
     traceLocation = [ [ 453+location_in_fov[0]+dpx , -435 + location_in_fov[1]-dpx],\
-                    [  -459+location_in_fov[0]-dpx, 450+ location_in_fov[1]+dpx], \
-                   [    446+location_in_fov[0]+dpx, 449+location_in_fov[1]+dpx], \
+                    [  -465+location_in_fov[0]-dpx, 445+ location_in_fov[1]+dpx], \
+                   [    440+location_in_fov[0]+dpx, 449+location_in_fov[1]+dpx], \
                     [  -445+location_in_fov[0]-dpx, -455+location_in_fov[1]-dpx]]
     return np.array(traceLocation)
 
@@ -353,7 +354,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
 
                         for xind in range(np.shape(thumbnail)[1]):
                             sub_length = 20 #The number of pixels at the beginning and end to estimate the background
-                            thumbnail[:,xind] -= np.median(np.concatenate([thumbnail[:sub_length-1,xind],thumbnail[-(sub_length):,xind]]))
+                            thumbnail[:,xind] -= np.nanmedian(np.concatenate([thumbnail[:sub_length-1,xind],thumbnail[-(sub_length):,xind]]))
 
 
                     
@@ -363,7 +364,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
 
                         for yind in range(np.shape(thumbnail)[0]):
                             sub_length = 20 #The number of pixels at the beginning and end to estimate the background
-                            thumbnail[yind,:] -= np.median(np.concatenate([thumbnail[yind,:sub_length-2],thumbnail[yind,-(sub_length):]]))
+                            thumbnail[yind,:] -= np.nanmedian(np.concatenate([thumbnail[yind,:sub_length-2],thumbnail[yind,-(sub_length):]]))
 
 
             thumbnails.append(thumbnail)
@@ -595,7 +596,7 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
         #return all_res_even, bkg, flux, var
     return cutout - bkg, bkg
 
-def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False):
+def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_mask=False):
     """
     findTrace iterate through the diagonal of the image, find maximum, fit
     polynomial of order poly_order to it, then return y value of the trace for 
@@ -612,6 +613,11 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False):
     bkg_length = 10
     
     thumbnail = median_filter(thumbnail, 6)
+
+    if diag_mask:
+        mask = makeDiagMask(np.shape(thumbnail)[0],25)
+        thumbnail[~mask] = 0.0
+        # plt.imshow(thumbnail)
     
     for i in range(np.shape(thumbnail)[1]): #iterate through x
         peaks +=[ np.argmax(thumbnail[:,i]) ] 
@@ -632,13 +638,11 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False):
 
         #If the peaks are less than 75% of the brightest peak, set their weight to zero. 
         # weights[weights < 0.75* np.max(weights)] = 0. 
-        # print np.shape(bkg)
-        # print np.shape(weights)
         # weights[weights < 5*bkg] = 0.
 
         #Further scale the weights by their distance from the center of the image
         # weights *= 1/(np.abs(xinds-xcen))
-        weights[(xinds < 60) | (xinds > 110)] = 0. 
+        weights[(xinds < 70) | (xinds > 100)] = 0. 
 
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
     else:
@@ -658,6 +662,36 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False):
 
     return peaks, fit, width
 
+def fitFlux(flux_vec, seeing_pix = 4):
+    """
+    This function fits the flux value along a 1d cross section using a
+    sum of polynomial and gaussian. This function is called by fitBkg
+    
+    Inputs:
+    flux_vec: a vector (1d array) containing flux values
+    seeing_pix: a guess of seeing size in pixel. Default = 4 (1").
+    
+    Output:
+    res: result of the fit in astropy format. res[0] is the
+    polynomial part. res[1] is the Gaussian part. 
+    """
+    x = range(len(flux_vec))
+    ###guess amplitude
+    source_amp = np.max(flux_vec)- np.min(flux_vec)
+    #Defing fitting functions and fitter using Astropy fitting routine
+    poly = models.Polynomial1D(2)
+    gauss = models.Gaussian1D(amplitude = source_amp, mean = np.argmax(flux_vec) ,stddev = seeing_pix/2, \
+                                    bounds = {'amplitude': [0, np.inf], 'stddev':[0.5,3] })
+    fitter = fitting.LevMarLSQFitter()
+    #Fit the data, assuming both polynomail and gaussian components
+    res = fitter(poly+gauss, x, flux_vec)
+    
+    #if gaussian peak is smaller than 1sigma of data, use only polynomial
+    if res[1].amplitude.value < 3*np.sqrt(np.var(flux_vec)):
+        #print('no gaussian')
+        res = fitter(poly, x, flux_vec)+ models.Gaussian1D(amplitude = 0)
+    #print(res)
+    return res
 
 def traceWidth(trace, location, fit_length):
     """

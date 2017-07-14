@@ -1,6 +1,7 @@
 import numpy as np
 from astropy.io import fits
 import matplotlib.pyplot as plt
+import warnings
 
 import warnings
 
@@ -85,95 +86,111 @@ class wirc_data(object):
             self.bkg_fn = bkg_fn
             self.bp_fn = bp_fn
 
-    def calibrate(self, clean_Bad_Pix=True, replace_nans=True, mask_bad_pixels=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False):
         '''
         Apply dark and flat-field correction
         '''
 
         #TODO Add checks to make sure the flatnames are not none
 
-        #Open the master dark
-        master_dark_hdu = fits.open(self.dark_fn)
-        master_dark = master_dark_hdu[0].data
-        dark_shape = np.shape(master_dark)
-        print(("Subtracting {} from each file".format(self.dark_fn)))
-        dark_exp_time = master_dark_hdu[0].header['EXPTIME']
+        if not self.calibrated:
 
-        #Open the master flat
-        master_flat_hdu = fits.open(self.flat_fn)
-        master_flat = master_flat_hdu[0].data
-        print(("Dividing each file by {}".format(self.flat_fn)))
-        dark_exp_time = master_dark_hdu[0].header['EXPTIME']
+            if self.dark_fn != None:
+                #Open the master dark
+                master_dark_hdu = fits.open(self.dark_fn)
+                master_dark = master_dark_hdu[0].data
+                dark_shape = np.shape(master_dark)
+                print(("Subtracting {} from the image".format(self.dark_fn)))
+                dark_exp_time = master_dark_hdu[0].header['EXPTIME']
 
-        #Open the bad pixel map
-        bp_map_hdu = fits.open(self.bp_fn)
-        bad_pixel_map = bp_map_hdu[0].data
-        bad_pixel_map_bool = np.array(bad_pixel_map, dtype=bool)
-        print(("Using bad pixel map {}".format(self.bp_fn)))
+                #Checking Dark Exposure times and scaling if need be
+                if dark_exp_time != self.header["EXPTIME"]:
+                    print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal")
+                    factor = self.header["EXPTIME"]/dark_exp_time
+                else: 
+                    factor = 1. 
 
-        if self.bkg_fn != None:
-            background_hdu = f.open(background_fname)
-            background = background_hdu[0].data
-            print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+                #Subtract the dark
+                self.full_image = self.full_image-factor*master_dark
 
-        if dark_exp_time != self.header["EXPTIME"]:
-            warnings.warn("The master dark file doesn't have the same exposure time as the data. We'll scale the dark for now, but this isn't ideal", UserWarning)
-            factor = self.header["EXPTIME"]/dark_exp_time
+                #Update the header
+                self.header['HISTORY'] = "Subtracting {} from each flat file".format(self.dark_fn)
+                self.header['DARK_FN'] = self.dark_fn
+
+            else:
+                print("No dark filename found, continuing without subtracting a dark")
+
+            if self.flat_fn != None:
+                #Open the master flat
+                master_flat_hdu = fits.open(self.flat_fn)
+                master_flat = master_flat_hdu[0].data
+                print(("Dividing the image by {}".format(self.flat_fn)))
+
+                #Divide the flat
+                self.full_image = self.full_image/master_flat
+
+                #Update the header                
+                self.header['HISTORY'] = "Dividing each file by {}".format(self.flat_fn)
+                self.header["FLAT_FN"] = self.flat_fn
+                
+            else:
+                print("No flat filename found, continuing without divinding by a falt")
+
+            #If a background image is provided then subtract it out
+            if self.bkg_fn != None:
+                background_hdu = fits.open(self.bkg_fn)
+                background = background_hdu[0].data
+                print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+
+                if self.dark_fn != None:
+                    background = background - factor*master_dark
+
+                scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
+
+                #Subtract the background
+                self.full_image -= scale_bkg*background
+
+                #Update the header
+                self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
+                self.header['BKG_FN'] = self.bkg_fn   
+
+            #If a badpixel map is provided then correct for bad pixels, taking into account the clean_bad_pix and mask_mad_pixels flags
+            if self.bp_fn != None:
+                #Open the bad pixel map
+                bp_map_hdu = fits.open(self.bp_fn)
+                bad_pixel_map = bp_map_hdu[0].data
+                bad_pixel_map_bool = np.array(bad_pixel_map, dtype=bool)
+                print(("Using bad pixel map {}".format(self.bp_fn)))
+
+                if clean_bad_pix:
+                    redux = calibration.cleanBadPix(self.full_image, bad_pixel_map_bool)
+                    self.header['HISTORY'] = "Cleaned all bad pixels found in {} using a median filter".format(self.bp_fn)
+                    self.header['CLEAN_BP'] = "True"
+                
+                #Mask the bad pixels if the flag is set
+                if mask_bad_pixels:
+                    redux = self.full_image*~bad_pixel_map_bool
+
+                    #Update the header
+                    self.header['HISTORY'] = "Masking all bad pixels found in {}".format(self.bp_fn)
+                    self.header['BP_FN'] = self.bp_fn
+
+                self.full_image = redux
+
+            else:
+                print("No Bad pixel map filename found, continuing without correcting bad pixels")
+
+
+            #Replace the nans if the flag is set. 
+            if replace_nans: 
+                nanmask = np.isnan(self.full_image) #nan = True, just in case this is useful
+                self.full_image = np.nan_to_num(self.full_image)
+
+            #Turn on the calibrated flag
+            self.calibrated = True
+        
         else: 
-            factor = 1. 
-
-        #Subtract the dark, divide by flat
-        redux = ((self.full_image - factor*master_dark)/master_flat)
-        #get rid of crazy values at bad pixel
-        redux = redux*~bad_pixel_map_bool
-
-        if self.bkg_fn != None:
-            redux -= background
-
-        if clean_Bad_Pix:
-            # plt.plot(bad_pixel_map_bool)
-            redux = calibration.cleanBadPix(redux, bad_pixel_map_bool)
-            #redux = ccdproc.cosmicray_lacosmic(redux, sigclip=5)[0]
-
-            # redux = ccdproc.cosmicray_median(redux, mbox=7, rbox=5, gbox=7)[0]
-
-        #Mask the bad pixels if the flag is set
-        if mask_bad_pixels:
-            redux *= ~bad_pixel_map_bool
-
-        if replace_nans: 
-            # nan_map = ~np.isfinite(redux)
-            # redux = cleanBadPix(redux, nan_map)
-            # plt.imshow(redux-after)
-            nanmask = np.isnan(redux) #nan = True, just in case this is useful
-            redux = np.nan_to_num(redux)
-
-
-        #Put the cablibrated data back in place
-        self.full_image = redux
-
-        #Update the header
-        #Add pipeline version and history keywords
-        self.header['HISTORY'] = "Subtracting {} from each flat file".format(self.dark_fn)
-        self.header['DARK_FN'] = self.dark_fn
-
-        self.header['HISTORY'] = "Dividing each file by {}".format(self.flat_fn)
-        self.header["FLAT_FN"] = self.flat_fn
-
-        if self.bkg_fn != None:
-            self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
-            self.header['BKG_FN'] = self.bkg_fn
-            
-        if mask_bad_pixels:
-            self.header['HISTORY'] = "Masking all bad pixels found in {}".format(self.bp_fn)
-            self.header['BP_FN'] = self.bp_fn
-
-        if clean_Bad_Pix:
-            self.header['HISTORY'] = "Cleaned all bad pixels found in {} using a median filter".format(self.bp_fn)
-            self.header['CLEAN_BP'] = "True"
-
-        #Turn on the calibrated flag
-        self.calibrated = True
+            print("Data already calibrated")
 
 
     def sub_background_image(self, scale_itime=True):
@@ -648,11 +665,11 @@ class wircpol_source(object):
 
         plt.show()
 
-
-    def extract_spectra(self, sub_background = False, plot=False, method = ['skimage']):
+    def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False):
         print("Performing Spectral Extraction for source {}".format(self.index))
-        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, plot=plot, method = method) 
-        print(spectra.shape)
+        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
+            plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask) 
+
         spectra_length = spectra.shape[1]
 
         self.trace_spectra = np.zeros((4,3,spectra_length))
@@ -662,19 +679,30 @@ class wircpol_source(object):
         
         self.spectra_extracted = True #source attribute, later applied to header["SPC_XTRD"]
 
-    def rough_lambda_calibration(self, filter_name="J", method=1):
+    def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
         #Rough wavelength calibration. Will have to get better later!
+
+        """
+
+        lowcut - The lowest pixel to use in the traces
+        highcut - The highest pixel to use in the traces 
+
+        #TODO: It would be good to have lowcut and highcut only apply to the calculation, and not affect the data at this point (I think)
+
+        """
 
         if method == 1:
             self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
             self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[1,1,:], filter_name)
             self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[2,1,:], filter_name)
             self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[3,1,:], filter_name)
+        
+
         if method == 2:
-            self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name)
-            self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[1,1,:], filter_name)
-            self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[2,1,:], filter_name)
-            self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[3,1,:], filter_name)
+            self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+            self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[1,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+            self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[2,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+            self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[3,1,:], filter_name, lowcut=lowcut, highcut=highcut)
 
         self.lambda_calibrated = True #source attribute, later applied to header["WL_CBRTD"]
 
@@ -698,7 +726,7 @@ class wircpol_source(object):
         
         self.polarization_computed = True #source attribute, later applied to header["POL_CMPD"]
 
-    def plot_trace_spectra(self, with_errors = False, **kwargs):
+    def plot_trace_spectra(self, with_errors = False, filter_name="J", **kwargs):
 
         fig = plt.figure(figsize=(7,7))
         labels = ["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
@@ -717,8 +745,6 @@ class wircpol_source(object):
         else:
             plt.xlabel("Wavelength [Arbitrary Unit]")
             plt.xlim([0,225]) #arbitrary unit wavelength display range
-            
-        
         
         plt.legend()
         plt.show()

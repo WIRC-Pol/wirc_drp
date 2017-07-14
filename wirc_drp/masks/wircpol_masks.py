@@ -86,10 +86,10 @@ def makeDiagMask(size, width):
     Output: an array of dimension (size, size) with value 1 within length = "width"
             above and below diagonal, 0 elsewhere.
     """
-    mask = np.zeros((size,size))
+    mask = np.zeros((size,size),dtype="int8")
     for i in range(size):
         mask[int(size-i-1),int( max(i-width,0)): int(min(i+width, size)) ] = 1
-    return mask
+    return mask.astype("bool")
         
     
 

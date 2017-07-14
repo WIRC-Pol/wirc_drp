@@ -34,6 +34,7 @@ import pdb
 #path
 import sys, os, time
 
+import copy
 #import pyklip.klip
 
 wircpol_dir = os.environ['WIRC_DRP']
@@ -59,35 +60,6 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
     # width = len(cutout[0]) #we have square cutout
     # #buffer area on either ends of the trace
     # buffer = int(round(0.85*slit_length/2)) #imported from constant
-    
-    # x = range(width-2*buffer)
-    
-    # #Gather values along trace
-    # spec = []
-    # loc = []
-    # #Looping through columns    
-    # for i in x:
-    #     #if fit_result[i][1].amplitude.value == 0:
-    #         #print(i,' is background')
-    #     if fit_result[i][1].amplitude.value > 0: #If gaussian component is non-zero (Trace there)
-    #         #Generate 2D gaussian centering at this location 
-    #         gauss_filter = models.Gaussian2D(amplitude = 1, y_mean = width-buffer-i, \
-    #                                             x_mean = i + fit_result[i][1].mean.value, \
-    #                                             x_stddev = fit_result[i][1].stddev.value, \
-    #                                             y_stddev = fit_result[i][1].stddev.value)
-    #         xx,yy = np.mgrid[0:np.shape(cutout)[0], 0:np.shape(cutout)[1]]
-    #         #plt.subplot(131)
-    #         #plt.imshow(gauss_filter(xx,yy),origin = 'lower')
-    #         #plt.subplot(132)
-    #         #plt.imshow(cutout-bkg,origin = 'lower')
-    #         #plt.subplot(133)
-    #         #plt.imshow(gauss_filter(xx,yy)*(cutout-bkg),origin = 'lower')
-    #         #plt.show()
-    #         flux = np.sum((cutout-bkg)*gauss_filter(xx,yy))
-    #         spec += [ flux]
-    #         loc += [[width-buffer-i, i + fit_result[i][1].mean.value]]
-    #         #plt.show()
-    # return np.array(loc), np.array(spec)
 
     #width = len(cutout[0])
     spec = []
@@ -98,7 +70,6 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
         dim = np.array(cutout.shape) + np.array(psf.shape)
         #print(dim)
         weight = np.zeros( dim) #padded, to be cropped later
-
 
         #case where trace i is not in the image
         if trace[i] < 0 or trace[i] > cutout.shape[0]:
@@ -115,44 +86,43 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
             #plt.imshow(weight*cutout,origin = 'lower')
             #plt.show()
 
-            spec += [np.sum(weight * cutout)]
+            spec += [np.sum(weight * cutout)/np.sum(weight)]
+            #TODO: Is the variance calculation correct? Might need another weighted term. 
             var += [np.sum(weight * (cutout/gain + (ron/gain)**2))] #variance assuming readout noise and photon noise
 
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
-def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, method = ['skimage']):
+def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, 
+    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
     """
-    # Define lists to collect results.
 
+    # Define lists to collect results.
     wavelengths = []
     spectra = [] #This vector collects extracted spectra from 4 traces
     spectra_std = []
 
     ntraces = 4 #how many traces? 4 for WIRC-POL
 
-    if filter_name == 'J':
-        cutout_size = 60 #Make cutout of each trace. This has to chage for J/H bands
-    elif filter_name == 'H':
-        cutout_size = 150
 
     if plot:
         fig = plt.figure(figsize=(11,4))
 
-    
+    thumbnails_copy = copy.deepcopy(thumbnails)
+
     #Flip some of the traces around. 
-    thumbnails[1,:,:] = thumbnails[1,-1::-1, -1::-1] #flip y, x. Bottom-right
-    thumbnails[2,:,:] = thumbnails[2,:,-1::-1] #flip x #Top-right
-    thumbnails[3,:,:] = thumbnails[3,-1::-1, :] #flip y #Bottom-left
+    thumbnails_copy[1,:,:] = thumbnails[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+    thumbnails_copy[2,:,:] = thumbnails[2,:,-1::-1] #flip x #Top-right
+    thumbnails_copy[3,:,:] = thumbnails[3,-1::-1, :] #flip y #Bottom-left
 
     trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
     
     for j in range(ntraces):    
         trace_title = trace_titles[j]
 
-        thumbnail = thumbnails[j,:,:]
+        thumbnail = thumbnails_copy[j,:,:]
         print("Extracting spectra from trace {} of 4".format(j))
 
         #Should we subtrack the background? 
@@ -176,15 +146,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #else:
              #   bkg_sub, bkg = fit_and_subtract_background(thumbnail)
 
-	    #For now, do shift and subtract
-            bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
+	    #For now, do shift and subtract always
+            # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
+            bkg_stack = np.dstack((shift( thumbnail, [0,-21]),shift( thumbnail, [0,21] ),thumbnail))
+            bkg = np.nanmedian(bkg_stack, axis=2)
             bkg_sub = thumbnail - bkg
 
-                #Mask out the area outside of the slit hole.
-            #thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
-            #bkg_sub = bkg_sub * thumb_mask
-            #bkg = bkg * thumb_mask
-
+            #Mask out the area outside of the slit hole.
+            # thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
+            # bkg_sub = bkg_sub * thumb_mask
+            # bkg = bkg * thumb_mask
 
         else: 
             bkg_sub = np.copy(thumbnail)
@@ -196,7 +167,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #trace is the vector of the y location of the trace for each x location in the frame
         #width is the width of the trace at its brightest point. 
         start = time.time()            
-        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = True) #linear fit to the trace          
+
+        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = False, diag_mask=diag_mask) #linear fit to the trace          
+
+        print("Trace width {}".format(width))
+
+        weight_width = width*width_scale
+
+        if diag_mask:
+            mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
+            bkg_sub[~mask] = 0.
 
         ######################################
         ######Call spectral extraction routine
@@ -205,29 +185,33 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         ##Sketchy fit across trace
 
         ##skimage profile_line trying different interpolation orders
-        if 'skimage' in method:
-	    print("Extraction by skimage")
+        if method == 'skimage':
+    	    print("Extraction by skimage")
             linewidth = 20 #This should be adjusted based on fitted seeing.
-            #for ii in range(6):
-            #only do order = 4
-	    for ii in [4]:
-                #print(ii)
-                spec_res = profile_line(bkg_sub, (0,trace[0]), (len(bkg_sub[1]),trace[-1]), linewidth = linewidth,order =  ii)                
-                spectra.append(np.array(spec_res))
-                spectra_std.append((gain*spec_res+linewidth * sigma_ron**2)/gain**2) #poisson + readout
-        
-        if 'weightedSum' in method:
+            
+            spec_res = profile_line(bkg_sub, (0,trace[0]), (len(bkg_sub[1]),trace[-1]), linewidth = linewidth,order =  skimage_order)                
+            spectra.append(spec_res)
+            spectra_std.append((gain*spec_res+linewidth * sigma_ron**2)/gain**2) #poisson + readout
+
+        elif method == 'weightedSum':
             #define PSF (Gaussian for now)
             psf = np.zeros((21,21))
             xx,yy = np.mgrid[0:np.shape(psf)[0], 0:np.shape(psf)[1]]
+
+
+
             psf = models.Gaussian2D(amplitude = 1, y_mean = psf.shape[0]//2, x_mean = psf.shape[1]//2, \
-                                   y_stddev = width, x_stddev = width)(yy,xx)
+                                   y_stddev = weight_width, x_stddev = weight_width)(yy,xx)
             #psf = models.Gaussian2D(amplitude = 1, y_mean = psf.shape[0]//2, x_mean = psf.shape[1]//2, \
             #                       y_stddev = 2, x_stddev = 2)(yy,xx)
+
             #extract
             spec_res, spec_var = weighted_sum_extraction(bkg_sub, trace, psf)
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var))
+        else:
+            print("method keyword not understood, please choose method='weightedSum' or method='skimage'")
+            return None, None
         
         #Plotting
         if plot:
@@ -260,7 +244,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
 
         if plot:
-            ax2 = fig.add_subplot(2,ntraces,j+1+ntraces)
+            ax2 = fig.add_subplot(2,ntraces,j+1+ntraces)    
+
             im2 = ax2.imshow(bkg_sub, origin = 'lower', cmap='YlGnBu', vmin = vmin_bkg, vmax = vmax_bkg)#norm=LogNorm(vmin=vmin_bkg, vmax=vmax_bkg))
             #ax2.plot(loc[:,0],loc[:,1])
             # if j == ntraces-1:
@@ -288,6 +273,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     for i in range(4):
         spectra[i] = spectra[i][0:min_len]
         spectra_std[i] = spectra_std[i][0:min_len]
+
     return np.array(spectra), np.array(spectra_std) #res_spec is a dict, res_stddev and thumbnails are list
 
 def rough_wavelength_calibration_v1(trace, filter_name):
@@ -354,9 +340,16 @@ def rough_wavelength_calibration_v1(trace, filter_name):
     # plt.show()    
     return res.x[1] + res.x[0]*x
    # 
-def rough_wavelength_calibration_v2(trace, filter_name):
+
+def rough_wavelength_calibration_v2(trace, filter_name, lowcut=0, highcut=-1):
     """
     """
+
+    #Make a copy
+    trace_copy = copy.deepcopy(trace)
+
+    trace = trace[lowcut:highcut]
+
     lb,dlb,f0,filter_trans_int, central_wl_pix = getFilterInfo(filter_name) 
     wla = np.linspace(lb-dlb, lb+dlb, len(trace))
     x = np.arange(len(trace))
@@ -370,6 +363,8 @@ def rough_wavelength_calibration_v2(trace, filter_name):
     wl_down = wla[np.argmin(grad_trans)]
     
     slope = (wl_down - wl_up )/(np.argmin(grad) - np.argmax(grad))
+
+    x = np.arange(len(trace_copy))
     return slope*(x - np.argmax(grad)) + wl_up
 
 def compute_stokes_from_traces(trace_plus, trace_plus_err,trace_minus, trace_minus_err, plotted = False):
