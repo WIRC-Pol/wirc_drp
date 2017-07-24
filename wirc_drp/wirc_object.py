@@ -85,6 +85,12 @@ class wirc_data(object):
             self.flat_fn = flat_fn
             self.bkg_fn = bkg_fn
             self.bp_fn = bp_fn
+        else: #for a blank wirc object
+            self.calibrated = False
+            self.bkg_subbed = False
+            self.n_sources = 0
+            self.source_list = []
+            
 
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False):
         '''
@@ -266,7 +272,7 @@ class wirc_data(object):
 
             #only write position errors if they exist. 
             if len(self.source_list[i].pos)>2:
-            	source_hdu.header["XPOS_ERR"] = self.source_list[i].pos[2]
+                source_hdu.header["XPOS_ERR"] = self.source_list[i].pos[2]
                 source_hdu.header['YPOS_ERR'] = self.source_list[i].pos[3]
             
            
@@ -627,6 +633,7 @@ class wircpol_source(object):
         self.lambda_calibrated = False #source attribute, later applied to header["WL_CBRTD"]
         self.polarization_computed = False #source attribute, later applied to header["POL_CMPD"]
         self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
+        self.spectra_aligned = False
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
     def get_cutouts(self, image, filter_name, sub_bar=True):
@@ -665,11 +672,21 @@ class wircpol_source(object):
 
         plt.show()
 
-    def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False):
+    def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, align = True):
         print("Performing Spectral Extraction for source {}".format(self.index))
+
+        #call spec_extraction to actually extract spectra
         spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
             plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask) 
-
+        #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
+        for i in spectra:
+            plt.plot(i)
+        plt.show()
+        if align:
+            spectra = spec_utils.align_set_of_traces(spectra, spectra[0])
+        for i in spectra:
+            plt.plot(i)
+        plt.show()
         spectra_length = spectra.shape[1]
 
         self.trace_spectra = np.zeros((4,3,spectra_length))
@@ -678,6 +695,7 @@ class wircpol_source(object):
         self.trace_spectra[:,2,:] = spectra_std
         
         self.spectra_extracted = True #source attribute, later applied to header["SPC_XTRD"]
+        self.spectra_aligned = align
 
     def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
         #Rough wavelength calibration. Will have to get better later!
@@ -690,19 +708,33 @@ class wircpol_source(object):
         #TODO: It would be good to have lowcut and highcut only apply to the calculation, and not affect the data at this point (I think)
 
         """
+        aligned = self.spectra_aligned
 
-        if method == 1:
-            self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
-            self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[1,1,:], filter_name)
-            self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[2,1,:], filter_name)
-            self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[3,1,:], filter_name)
-        
+        if aligned: #do wavelength calibration to Qp, then apply it to eveerything else
+            if method == 1:
+                self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
+                self.trace_spectra[1,0,:] = self.trace_spectra[0,0,:]
+                self.trace_spectra[2,0,:] = self.trace_spectra[0,0,:]
+                self.trace_spectra[3,0,:] = self.trace_spectra[0,0,:]
+            if method == 2:
+                self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+                self.trace_spectra[1,0,:] = self.trace_spectra[0,0,:]
+                self.trace_spectra[2,0,:] = self.trace_spectra[0,0,:]
+                self.trace_spectra[3,0,:] = self.trace_spectra[0,0,:]
 
-        if method == 2:
-            self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name, lowcut=lowcut, highcut=highcut)
-            self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[1,1,:], filter_name, lowcut=lowcut, highcut=highcut)
-            self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[2,1,:], filter_name, lowcut=lowcut, highcut=highcut)
-            self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[3,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+        else:
+            if method == 1:
+                self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
+                self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[1,1,:], filter_name)
+                self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[2,1,:], filter_name)
+                self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[3,1,:], filter_name)
+            
+
+            elif method == 2:
+                self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+                self.trace_spectra[1,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[1,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+                self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[2,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+                self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[3,1,:], filter_name, lowcut=lowcut, highcut=highcut)
 
         self.lambda_calibrated = True #source attribute, later applied to header["WL_CBRTD"]
 

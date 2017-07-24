@@ -15,18 +15,33 @@ from matplotlib import pyplot as plt
 from wirc_drp.constants import *
 
 from scipy.optimize import basinhopping
-from scipy.ndimage import shift
+from scipy.ndimage import shift, median_filter
 from scipy import ndimage as ndi
+from scipy.signal import fftconvolve
 
 from skimage.measure import profile_line
 
-from astropy.modeling import models
+from astropy.modeling import models, fitting
 from astropy.convolution import Gaussian1DKernel, convolve
 from astropy.io import fits as f
 
 #From other packages
 from wirc_drp.utils.image_utils import locationInIm, shift_and_subtract_background, fit_and_subtract_background, findTrace
 from wirc_drp.masks.wircpol_masks import *
+
+#Import for vip functions
+import warnings
+try:
+    import cv2
+    no_opencv = False
+except ImportError:
+    msg = "Opencv python binding are missing (consult VIP documentation for "
+    msg += "Opencv installation instructions). Scikit-image will be used instead."
+    warnings.warn(msg, ImportWarning)
+    no_opencv = True
+
+from skimage.transform import rotate
+
 
 #debugging
 import pdb
@@ -38,6 +53,159 @@ import copy
 #import pyklip.klip
 
 wircpol_dir = os.environ['WIRC_DRP']
+
+
+def frame_rotate(array, angle, imlib='opencv', interpolation='bicubic', cxy=None):
+    """ Rotates a frame.
+    
+    Parameters
+    ----------
+    array : array_like 
+        Input frame, 2d array.
+    angle : float
+        Rotation angle.
+    imlib : {'opencv', 'skimage'}, str optional
+        Library used for image transformations. Opencv is faster than ndimage or
+        skimage.
+    interpolation : {'bicubic', 'bilinear', 'nearneig'}, optional
+        'nneighbor' stands for nearest-neighbor interpolation,
+        'bilinear' stands for bilinear interpolation,
+        'bicubic' for interpolation over 4x4 pixel neighborhood.
+        The 'bicubic' is the default. The 'nearneig' is the fastest method and
+        the 'bicubic' the slowest of the three. The 'nearneig' is the poorer
+        option for interpolation of noisy astronomical images.
+    cxy : float, optional
+        Coordinates X,Y  of the point with respect to which the rotation will be 
+        performed. By default the rotation is done with respect to the center 
+        of the frame; central pixel if frame has odd size.
+        
+    Returns
+    -------
+    array_out : array_like
+        Resulting frame.
+        
+    """
+    if not array.ndim == 2:
+        raise TypeError('Input array is not a frame or 2d array.')
+    array = np.float32(array)
+    y, x = array.shape
+    
+    if not cxy:  
+        cy, cx = frame_center(array)
+    else:
+        cx, cy = cxy
+
+    if imlib not in ['skimage', 'opencv']:
+        raise ValueError('Imlib not recognized, try opencv or ndimage')
+
+    if imlib=='skimage' or no_opencv:
+        if interpolation == 'bilinear':
+            order = 1
+        elif interpolation == 'bicubic':
+            order = 3
+        elif interpolation == 'nearneig':
+            order = 0
+        else:
+            raise TypeError('Interpolation method not recognized.')
+
+        min_val = np.min(array)
+        im_temp = array - min_val
+        max_val = np.max(im_temp)
+        im_temp /= max_val
+
+        array_out = rotate(im_temp, angle, order=order, center=cxy, cval=np.nan)
+
+        array_out *= max_val
+        array_out += min_val
+        array_out = np.nan_to_num(array_out)
+
+    else:
+        if interpolation == 'bilinear':
+            intp = cv2.INTER_LINEAR
+        elif interpolation == 'bicubic':
+            intp= cv2.INTER_CUBIC
+        elif interpolation == 'nearneig':
+            intp = cv2.INTER_NEAREST
+        else:
+            raise TypeError('Interpolation method not recognized.')
+
+        M = cv2.getRotationMatrix2D((cx,cy), angle, 1)
+        array_out = cv2.warpAffine(array.astype(np.float32), M, (x, y), flags=intp)
+             
+    return array_out
+
+def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plotted =  False):
+    """This function iterates the cutout from bottom right to top left, makes
+        a diagonal cut (perpendicular to the trace) and fits gaussian along that cut.
+        
+        Input: cutout: an array representing the image. This should be background
+                        subtracted.
+
+
+
+
+               note: assume the cutout is subtracted by global background model. Will be derotated
+                     with the spectral trace aligned with x axis grid and close to the center in y
+                     ------------
+                     |          |
+                     |          |
+                     |**********|
+                     |          |
+                     |          |
+                     ------------
+
+        Output: a 1D array containing the background-subtracted spectrum.    
+
+    ###TO DO: add trace back in and compute angle             
+    
+    """
+    width = len(cutout[0]) #we have square cutout
+    x = range(width)
+    #y = range(width)
+    
+    cutout_rot = frame_rotate(cutout, -45, cxy=[width/2,width/2])
+    plt.imshow(cutout_rot, origin = 'lower')
+    plt.show()
+
+    #vector to contain results
+    #flux = []
+    results = []
+    
+    for i in x:
+        cross_section=cutout_rot[55:90,i] #hard coded! change this 
+        #fit models
+        y = range(len(cross_section))
+        psf_gauss1d = models.Gaussian1D(mean = np.argmax(cross_section), stddev = stddev_seeing, amplitude = np.max(cross_section))  
+        poly = models.Polynomial1D(2)  
+        f = fitting.LevMarLSQFitter()
+        res = f(psf_gauss1d+poly, y, cross_section)[0]
+        
+        #plotting
+        if plotted:
+            plt.plot(y,res(y),'--r')
+            plt.text(10,max(cross_section)/2, str(np.argmax(cross_section)),color ='r')
+            plt.plot(y, cross_section,'b')
+            #plt.show()
+        
+        #flux += np.sum(res(y))     
+        #flux += [res.amplitude.value * res.stddev.value *np.sqrt(2*np.pi) ]
+        results += [res] #just a list of results
+    stddev_vector  = [i.stddev.value for i in results] #all stddev, only use results with stddev within 3 sigmas from median
+    loc_vector = [i.mean.value for i in results]
+    valid = np.logical_and(np.abs(stddev_vector - np.median(stddev_vector)) < 1*np.sqrt(np.var(stddev_vector)) , np.abs(loc_vector - np.median(loc_vector)) < 1*np.sqrt(np.var(loc_vector)))
+
+    flux = [i.stddev.value*i.amplitude.value*np.sqrt(2*np.pi) for i in results]*valid
+    
+
+    plt.plot(stddev_vector, 'r')
+    plt.plot(loc_vector, 'k')
+    plt.plot(flux/np.max(flux),'b')
+    plt.show()  
+
+    if box_size > 1:
+        flux = median_filter(flux, box_size)
+        
+    return np.array(flux), np.array(flux)**2 #fake variance for now. 
 
 def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
     """
@@ -146,7 +314,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #else:
              #   bkg_sub, bkg = fit_and_subtract_background(thumbnail)
 
-	    #For now, do shift and subtract always
+        #For now, do shift and subtract always
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
             bkg_stack = np.dstack((shift( thumbnail, [0,-21]),shift( thumbnail, [0,21] ),thumbnail))
             bkg = np.nanmedian(bkg_stack, axis=2)
@@ -186,9 +354,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         ##skimage profile_line trying different interpolation orders
         if method == 'skimage':
-    	    print("Extraction by skimage")
+            print("Extraction by skimage")
             linewidth = 20 #This should be adjusted based on fitted seeing.
-            
             spec_res = profile_line(bkg_sub, (0,trace[0]), (len(bkg_sub[1]),trace[-1]), linewidth = linewidth,order =  skimage_order)                
             spectra.append(spec_res)
             spectra_std.append((gain*spec_res+linewidth * sigma_ron**2)/gain**2) #poisson + readout
@@ -197,8 +364,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #define PSF (Gaussian for now)
             psf = np.zeros((21,21))
             xx,yy = np.mgrid[0:np.shape(psf)[0], 0:np.shape(psf)[1]]
-
-
 
             psf = models.Gaussian2D(amplitude = 1, y_mean = psf.shape[0]//2, x_mean = psf.shape[1]//2, \
                                    y_stddev = weight_width, x_stddev = weight_width)(yy,xx)
@@ -209,6 +374,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spec_res, spec_var = weighted_sum_extraction(bkg_sub, trace, psf)
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var))
+
+        elif method == 'fit_across_trace':
+            start = time.time()
+            spec_res, spec_var = fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plotted =  0) #Do not use variance from this method
+            print('fit_across_trace takes {} s'.format(time.time()-start))
+            spectra.append(spec_res)
+            spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet. 
         else:
             print("method keyword not understood, please choose method='weightedSum' or method='skimage'")
             return None, None
@@ -262,9 +434,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #over plot traces                
             ax2.plot(raw,'k')
             ax2.plot(trace,'w')
-	
+    
     if plot: 
-	plt.show()
+        plt.show()
     #print(spectra)
     #print(np.array(spectra).shape)
     #pdb.set_trace()
@@ -366,6 +538,24 @@ def rough_wavelength_calibration_v2(trace, filter_name, lowcut=0, highcut=-1):
 
     x = np.arange(len(trace_copy))
     return slope*(x - np.argmax(grad)) + wl_up
+
+def align_set_of_traces(traces_cube, ref_trace):
+    """
+    align_set_of_traces takes a cube of traces with dimension (number_of_traces, length_of_each_trace) 
+    and align them with respect to the reference trace of the same length. 
+    """
+    new_cube = np.zeros(traces_cube.shape)
+    #fig, (ax, ax2) = plt.subplots(2,4, figsize = (20,10))
+    for i, j in enumerate(traces_cube):
+        ref = ref_trace
+        corr = fftconvolve(ref/np.max(ref), j/np.max(j))
+        #plt.plot(corr)
+        #plt.show()
+        shift_size = np.argmax(corr) - len(ref) +1
+        #print(shift_size)
+        new_cube[i] = shift(traces_cube[i], -shift_size)
+            
+    return new_cube
 
 def compute_stokes_from_traces(trace_plus, trace_plus_err,trace_minus, trace_minus_err, plotted = False):
     """
