@@ -22,7 +22,7 @@ from scipy.signal import fftconvolve
 from skimage.measure import profile_line
 
 from astropy.modeling import models, fitting
-from astropy.convolution import Gaussian1DKernel, convolve
+from astropy.convolution import Gaussian1DKernel, Box1DKernel, convolve
 from astropy.io import fits as f
 
 #From other packages
@@ -134,7 +134,8 @@ def frame_rotate(array, angle, imlib='opencv', interpolation='bicubic', cxy=None
              
     return array_out
 
-def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plotted =  False):
+def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  False, return_residual = False, \
+                            fitfunction = 'Moffat', sum_method = 'model_sum', poly_order = 4):
     """This function iterates the cutout from bottom right to top left, makes
         a diagonal cut (perpendicular to the trace) and fits gaussian along that cut.
         
@@ -159,8 +160,14 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plotted =  F
     ###TO DO: add trace back in and compute angle             
     
     """
+    lowcut = 55
+    highcut = 100
+
     width = len(cutout[0]) #we have square cutout
-    x = range(width)
+    #print(width//box_size)
+    #print(box_size)
+    x = range(width//box_size) #number of bins here
+    #print(x)
     #y = range(width)
     
     cutout_rot = frame_rotate(cutout, -45, cxy=[width/2,width/2])
@@ -168,44 +175,97 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plotted =  F
     plt.show()
 
     #vector to contain results
-    #flux = []
-    results = []
+    results = [] #gaussian fits
+    poly_results = [] #background polynomial fit
+    if return_residual: #compute the background image from the fit. This is from the polynomial fit.
+        residual = np.zeros(cutout_rot.shape)
     
     for i in x:
-        cross_section=cutout_rot[55:90,i] #hard coded! change this 
+        #print(box_size*i, (box_size)*(i+1))
+        if box_size > 1:
+            cross_section=cutout_rot[lowcut:highcut,box_size*i:(box_size)*(i+1)] #hard coded! change this 
+        else:
+            cross_section=cutout_rot[lowcut:highcut,i]
+        #print(cross_section.shape)
+        #if box_size > 1, median combine cross_section
+        if box_size > 1:
+            cross_section = np.median(cross_section, axis = 1) 
+        #print(cross_section.shape)
         #fit models
         y = range(len(cross_section))
-        psf_gauss1d = models.Gaussian1D(mean = np.argmax(cross_section), stddev = stddev_seeing, amplitude = np.max(cross_section))  
-        poly = models.Polynomial1D(2)  
+        poly = models.Polynomial1D(poly_order)
+        if fitfunction == 'Moffat':
+            psf_moffat1d = models.Moffat1D(x_0 = np.argmax(cross_section), gamma = stddev_seeing, alpha = 1,  amplitude = np.max(cross_section))
+            model = psf_moffat1d + poly
+        elif fitfunction == 'Gaussian':
+            psf_gauss1d = models.Gaussian1D(mean = np.argmax(cross_section), stddev = stddev_seeing, amplitude = np.max(cross_section))  
+            model = psf_gauss1d + poly
+          
         f = fitting.LevMarLSQFitter()
-        res = f(psf_gauss1d+poly, y, cross_section)[0]
-        
+        all_res = f(model, y, cross_section)
+        res = all_res[0]
+        poly_res = all_res[1]
         #plotting
-        if plotted:
-            plt.plot(y,res(y),'--r')
+        if plot:
+            plt.subplot(121)
+            plt.plot(y,res(y) + poly_res(y),'--r')
             plt.text(10,max(cross_section)/2, str(np.argmax(cross_section)),color ='r')
             plt.plot(y, cross_section,'b')
-            #plt.show()
+            plt.subplot(122)
+            plt.plot(y, cross_section- (res(y) + poly_res(y) ))
+            plt.show()
+
+        if return_residual:
+            if box_size > 1:
+                foo =res(y) +poly_res(y)
+                residual[lowcut:highcut,box_size*i:(box_size)*(i+1)] = cutout_rot[lowcut:highcut,box_size*i:(box_size)*(i+1)] - np.tile(foo, (box_size,1)).T
+            else:
+                residual[lowcut:highcut,i] = cutout_rot[lowcut:highcut,i] - res(y) - poly_res(y)
         
         #flux += np.sum(res(y))     
         #flux += [res.amplitude.value * res.stddev.value *np.sqrt(2*np.pi) ]
         results += [res] #just a list of results
-    stddev_vector  = [i.stddev.value for i in results] #all stddev, only use results with stddev within 3 sigmas from median
-    loc_vector = [i.mean.value for i in results]
-    valid = np.logical_and(np.abs(stddev_vector - np.median(stddev_vector)) < 1*np.sqrt(np.var(stddev_vector)) , np.abs(loc_vector - np.median(loc_vector)) < 1*np.sqrt(np.var(loc_vector)))
+        poly_results += [poly_res]
+    if fitfunction == 'Gaussian':
+        stddev_vector  = [i.stddev.value for i in results] #all stddev, only use results with stddev within 3 sigmas from median
+        loc_vector = [i.mean.value for i in results]
+    elif fitfunction == 'Moffat':
+        stddev_vector  = [i.gamma.value for i in results] #all stddev, only use results with stddev within 3 sigmas from median
+        loc_vector = [i.x_0.value for i in results]       
+    #valid = np.logical_and(np.abs(stddev_vector - np.median(stddev_vector)) < 1*np.sqrt(np.var(stddev_vector)) , np.abs(loc_vector - np.median(loc_vector)) < 1*np.sqrt(np.var(loc_vector)))
+    valid = np.abs(loc_vector - np.median(loc_vector)) < 1*np.sqrt(np.var(loc_vector))
 
-    flux = [i.stddev.value*i.amplitude.value*np.sqrt(2*np.pi) for i in results]*valid
-    
+    if fitfunction == 'Gaussian':
+        if sum_method =='model_sum':
+            flux = [i.stddev.value*i.amplitude.value*np.sqrt(2*np.pi) for i in results]*valid
+        elif sum_method == 'weighted_sum':
+            flux = [np.sum( np.median(cutout_rot[lowcut:highcut,box_size*i:(box_size)*(i+1)],axis = 1) * results[i](y))/np.sum(results[i](y)) for i in x]*valid #sum(data*model)/sum(model)
+        else:
+            raise ValueError(sum_method+' is invalid. Choose from model_sum or weighted_sum')
+    elif fitfunction == 'Moffat':
+        if sum_method == 'model_sum':
+            flux = [np.sum(i(y)) for i in results]*valid
+        elif sum_method == 'weighted_sum':
+            flux = [np.sum( np.median(cutout_rot[lowcut:highcut,box_size*i:(box_size)*(i+1)], axis = 1) * results[i](y))/np.sum(results[i](y)) for i in x]*valid #sum(data*model)/sum(model)
+        else:
+            raise ValueError(sum_method+' is invalid. Choose from model_sum or weighted_sum')
+    else:
+        raise ValueError(fitfunction+' is in valid. Choose from Moffat or Gaussian.')
 
+    plt.plot(valid, 'c')
     plt.plot(stddev_vector, 'r')
     plt.plot(loc_vector, 'k')
     plt.plot(flux/np.max(flux),'b')
     plt.show()  
 
-    if box_size > 1:
-        flux = median_filter(flux, box_size)
-        
-    return np.array(flux), np.array(flux)**2 #fake variance for now. 
+    #if box_size > 1:
+    #    flux = median_filter(flux, box_size)
+    
+    if return_residual:
+        return np.array(flux), np.array(flux)**2, residual
+    else:
+        return np.array(flux), np.array(flux)**2 #fake variance for now. 
+
 
 def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
     """
@@ -261,10 +321,44 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, 
-    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False):
+    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
+
+    ##########
+    Parameters
+    ##########
+
+    thumbnails:     a cube containing 4 spectral traces Qp, Qm, Up, Um.
+    slit_num:       the number of slit the source is in | (0) (1) (2) |, or 'slitless'
+    filter_name:    a string of which filter the source is in.
+    plot:           whether or not to plot results here. Should plot later using plot_trace_spectra
+    output_name:    name of the fits file to write the result. If None, no file is written 
+    sub_background: whether or not to run a background subtraction routine by shift and subtracting
+    *method:        method for spectral extraction. Choices are
+                        (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
+                                        is in skimage_order parameter (fast).
+                        (ii) weightedSum: this is 2D weighted sum assuming Gaussian profile. Multiply the PSF with data
+                                        and sum for each location along the dispersion direction (fast). The width of the Gaussian
+                                        is based on the measured value by 'findTrace'. One can adjust this using the parameter 'width_scale'.
+                        (iii) fit_across_trace: this method rotates the trace, loops along the dispersion direction, and fit a profile in the 
+                                        spatial direction. The fit function is either 'Moffat' or 'Gaussian'. One can also
+                                        select how to extract flux: by summing the fitted model, or the data weighted by the model.
+                                        ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
+                                        box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
+                                        fit the background. 
+    diag_mask:      if True, the area away from the trace will be masked out 
+
+    skimage_order, width_scale, fitfunction, sum_method, see method above. 
+
+    #######
+    Outputs
+    #######
+
+    spectra:        flux in ADU 
+    spectra_std:    standard deviation of flux
+
     """
 
     # Define lists to collect results.
@@ -350,7 +444,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         ######Call spectral extraction routine
         ######################################
                 
-        ##Sketchy fit across trace
 
         ##skimage profile_line trying different interpolation orders
         if method == 'skimage':
@@ -377,7 +470,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         elif method == 'fit_across_trace':
             start = time.time()
-            spec_res, spec_var = fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plotted =  0) #Do not use variance from this method
+            spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  0, return_residual = 1, \
+                                                                        fitfunction = 'Moffat', box_size = box_size, poly_order = poly_order) #Do not use variance from this method
+            plt.imshow(residual, origin = 'lower',vmin = -200, vmax = 200)
+            plt.colorbar()
+            plt.show()
+            #spec_res, spec_var = fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plotted =  0, return_residual = 0) #Do not use variance from this method
+
             print('fit_across_trace takes {} s'.format(time.time()-start))
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet. 
@@ -556,6 +655,32 @@ def align_set_of_traces(traces_cube, ref_trace):
         new_cube[i] = shift(traces_cube[i], -shift_size)
             
     return new_cube
+
+def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3):
+    """
+    Convolve the spectra with either Gaussian or Box kernel of the specified size, using astropy.
+    Spectra can be either a 1-d array or a 2d array of spectra
+    """
+    if smooth_size > 1: #only go through all this if smooth_size > 1
+        if kernel == 'box':
+            smooth_ker = Box1DKernel(smooth_size)
+        elif kernel == 'Gaussian':
+            smooth_ker = Gaussian1DKernel(smooth_size)
+        else:
+            raise ValueError('Kernel can be either box or Gaussian')
+        #one spectrum or a cube of spec
+        if len(spectra.shape) ==1 : #just one spectrum
+            out_spectra = convolve(spectra, smooth_ker)
+
+        else:
+            out_spectra = np.zeros(spectra.shape)
+            for i in range(spectra.shape[0]):
+                out_spectra[i] = convolve(spectra,smooth_ker)
+    else:
+        out_spectra = spectra
+
+    return out_spectra #same dimension as spectra
+
 
 def compute_stokes_from_traces(trace_plus, trace_plus_err,trace_minus, trace_minus_err, plotted = False):
     """

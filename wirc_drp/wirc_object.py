@@ -672,12 +672,27 @@ class wircpol_source(object):
 
         plt.show()
 
-    def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, align = True):
+    def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
+         fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True):
+        """
+        *method:        method for spectral extraction. Choices are
+                            (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
+                                            is in skimage_order parameter (fast).
+                            (ii) weightedSum: this is 2D weighted sum assuming Gaussian profile. Multiply the PSF with data
+                                            and sum for each location along the dispersion direction (fast). The width of the Gaussian
+                                            is based on the measured value by 'findTrace'. One can adjust this using the parameter 'width_scale'.
+                            (iii) fit_across_trace: this method rotates the trace, loops along the dispersion direction, and fit a profile in the 
+                                            spatial direction. The fit function is either 'Moffat' or 'Gaussian'. One can also
+                                            select how to extract flux: by summing the fitted model, or the data weighted by the model.
+                                            ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
+                                            box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
+                                            fit the background. 
+        """
         print("Performing Spectral Extraction for source {}".format(self.index))
 
         #call spec_extraction to actually extract spectra
         spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
-            plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask) 
+            plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, box_size = box_size, poly_order = poly_order) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         for i in spectra:
             plt.plot(i)
@@ -758,16 +773,21 @@ class wircpol_source(object):
         
         self.polarization_computed = True #source attribute, later applied to header["POL_CMPD"]
 
-    def plot_trace_spectra(self, with_errors = False, filter_name="J", **kwargs):
+    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', **kwargs):
 
         fig = plt.figure(figsize=(7,7))
         labels = ["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
         for i in range(4):
+            wl = self.trace_spectra[i,0,:]
+            flux = self.trace_spectra[i,1,:]
+            err = self.trace_spectra[i,2,:]
+            if smooth_size > 1:
+                flux = spec_utils.smooth_spectra(flux, smooth_ker, smooth_size)
             if with_errors:
-                plt.errobar(self.trace_spectra[i,0,:], self.trace_spectra[i,1,:],yerr = self.trace_spectra[i,2,:], label=labels[i], **kwargs)
+                plt.errobar(wl, flux,yerr = err, label=labels[i], **kwargs)
 
             else:
-                plt.plot(self.trace_spectra[i,0,:], self.trace_spectra[i,1,:], label=labels[i], **kwargs)
+                plt.plot(wl, flux, label=labels[i], **kwargs)
 
         plt.ylabel("Flux [ADU]")
 
