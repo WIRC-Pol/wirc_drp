@@ -171,8 +171,8 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
     #y = range(width)
     
     cutout_rot = frame_rotate(cutout, -45, cxy=[width/2,width/2])
-    plt.imshow(cutout_rot, origin = 'lower')
-    plt.show()
+    #plt.imshow(cutout_rot, origin = 'lower')
+    #plt.show()
 
     #vector to contain results
     results = [] #gaussian fits
@@ -252,19 +252,19 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
     else:
         raise ValueError(fitfunction+' is in valid. Choose from Moffat or Gaussian.')
 
-    plt.plot(valid, 'c')
-    plt.plot(stddev_vector, 'r')
-    plt.plot(loc_vector, 'k')
-    plt.plot(flux/np.max(flux),'b')
-    plt.show()  
+    #plt.plot(valid, 'c')
+    #plt.plot(stddev_vector, 'r')
+    #plt.plot(loc_vector, 'k')
+    #plt.plot(flux/np.max(flux),'b')
+    #plt.show()  
 
     #if box_size > 1:
     #    flux = median_filter(flux, box_size)
     
     if return_residual:
-        return np.array(flux), np.array(flux)**2, residual
+        return np.array(flux[::-1]), np.array(flux[::-1])**2, residual #flip flux so the array index increases as a function of wavelength
     else:
-        return np.array(flux), np.array(flux)**2 #fake variance for now. 
+        return np.array(flux[::-1]), np.array(flux[::-1])**2 #fake variance for now. 
 
 
 def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
@@ -472,16 +472,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             start = time.time()
             spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  0, return_residual = 1, \
                                                                         fitfunction = 'Moffat', box_size = box_size, poly_order = poly_order) #Do not use variance from this method
-            plt.imshow(residual, origin = 'lower',vmin = -200, vmax = 200)
-            plt.colorbar()
-            plt.show()
+            #plt.imshow(residual, origin = 'lower',vmin = -200, vmax = 200)
+            #plt.colorbar()
+            #plt.show()
             #spec_res, spec_var = fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plotted =  0, return_residual = 0) #Do not use variance from this method
 
             print('fit_across_trace takes {} s'.format(time.time()-start))
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet. 
         else:
-            print("method keyword not understood, please choose method='weightedSum' or method='skimage'")
+            print("method keyword not understood, please choose method='weightedSum', 'fit_across_trace', or method='skimage'")
             return None, None
         
         #Plotting
