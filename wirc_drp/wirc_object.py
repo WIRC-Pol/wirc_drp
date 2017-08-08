@@ -85,6 +85,10 @@ class wirc_data(object):
             self.flat_fn = flat_fn
             self.bkg_fn = bkg_fn
             self.bp_fn = bp_fn
+
+            #TODO Determine whether the type is spec or pol
+            # self.type = 
+        
         else: #for a blank wirc object
             self.calibrated = False
             self.bkg_subbed = False
@@ -295,7 +299,7 @@ class wirc_data(object):
             
             #The source_list attributes, trace_spectra(four separate trace spectra), Q, U, P, theta, are converted into tables of three columns each. Also returns length lists of each array
             t_ts_0,l0=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_0 wavelength','D','nm'],
-['trace_spectra_0 flux','D','units?'], ['trace_spectra_0 flux error','D','units?'])#trace spectra 0
+            ['trace_spectra_0 flux','D','units?'], ['trace_spectra_0 flux error','D','units?'])#trace spectra 0
             t_ts_1,l1=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_1 wavelength','D','nm'], ['trace_spectra_1 flux','D','units?'], ['trace_spectra_1 flux error','D','units?'])#trace spectra 1
             t_ts_2,l2=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_2 wavelength','D','nm'], ['trace_spectra_2 flux','D','units?'], ['trace_spectra_2 flux error','D','units?'])#trace spectra 2
             t_ts_3,l3=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_3 wavelength','D','nm'], ['trace_spectra_3 flux','D','units?'], ['trace_spectra_3 flux error','D','units?'])#trace spectra 3
@@ -533,10 +537,8 @@ class wirc_data(object):
             
             #print ("ending iteration #",i)
 
-            
 
-
-    def find_sources(self, direct_image_fn = None, threshold_sigma = 5, guess_seeing = 4, plot = False):
+    def find_sources(self, direct_image_fn = None, threshold_sigma = 5, guess_seeing = 4, plot = False, mode = 'pol'):
         """
         Find the number of sources in the image and create a wircpol_source objects for each one
 
@@ -545,32 +547,35 @@ class wirc_data(object):
 
         """
         
-        if direct_image_fn != None:
+        if mode == 'pol':
+            if direct_image_fn != None:
 
-            #Open the direct image
-            direct_image = fits.open(direct_image_fn)[0].data
-            
-            #Get the focal plane mask. 
-            mask = cross_mask_ns.astype('bool') #What does our mask look like? 
+                #Open the direct image
+                direct_image = fits.open(direct_image_fn)[0].data
+                
+                #Get the focal plane mask. 
+                mask = cross_mask_ns.astype('bool') #What does our mask look like? 
 
-            #Find the sources 
-            locations = image_utils.find_sources_in_direct_image(direct_image, mask, threshold_sigma = threshold_sigma, guess_seeing = guess_seeing, plot = plot)
+                #Find the sources 
+                locations = image_utils.find_sources_in_direct_image(direct_image, mask, threshold_sigma = threshold_sigma, guess_seeing = guess_seeing, plot = plot)
 
-            #How many sources are there? 
-            self.n_sources = np.shape(locations[0,:])[0]+1
+                #How many sources are there? 
+                self.n_sources = np.shape(locations[0,:])[0]+1
 
-            #Append all the new objects
-            for source in range(self.n_sources):
-                self.source_list.append(wircpol_source(locations[source, 0], locations[source,1],source))
+                #Append all the new objects
+                for source in range(self.n_sources):
+                    self.source_list.append(wircpol_source(locations[source, 0], locations[source,1],source))
 
-        else: 
-            print("No direct image filename given. For now we can only find sources automatically in a direct image, so we'll assume that there's a source in the middle slit. If you wish you can add other sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) \
-            #where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1")
+            else: 
+                print("No direct image filename given. For now we can only find sources automatically in a direct image, so we'll assume that there's a source in the middle slit. If you wish you can add other sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) \
+                #where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1")
 
-            self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
-            self.n_sources = 1
-            
-        self.header['NSOURCES'] = self.n_sources
+                self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
+                self.n_sources = 1
+                
+            self.header['NSOURCES'] = self.n_sources
+        elif mode == 'spec':
+            print("AUTOMATIC Identification of spec mode sources is not yet implemented. Hopefully soon.")
 
     
     def get_source_cutouts(self):
@@ -834,6 +839,83 @@ class wircpol_source(object):
     # def wavelength_calibration():
 
     # def show_traces():
+
+
+class wircspec_source(object):
+    """
+    A point-source in a a wircspec_data image    
+
+    Args:
+        pos - [x,y] - the location in the image of the source
+
+    Attributes:
+        trace_images - An array of size [N,N], where n is the width of the box, and there is one image for each trace
+        raw_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
+        calibrated_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
+
+        lambda_calibrated - value of associated header["WL_CBRTD"]. designates whether wavelength has been calibrated
+        spectra_extracted - value of associated header["SPC_XTRD"]. designates whether spectra has been extracted
+        thumbnails_cut_out - value of associated header["THMB_CUT"]. designates whether thumbnails have been cut out
+        
+
+    """
+    def __init__(self, pos, index):
+
+        #The source position
+        self.pos = pos
+
+        #The image of the spectrum
+        self.trace_image = None
+
+        #The source index (from the parent object)
+        self.index = index 
+
+        #Extracted spectra 
+        self.raw_spectrum = None
+        self.calibrated_spectrum = None
+
+    
+        #Source reduction status keywords
+        self.lambda_calibrated = False #source attribute, later applied to header["WL_CBRTD"]
+        self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
+        self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
+
+    def get_cutouts(self, image, filter_name, sub_bar=True):
+        """
+        Cutout thumbnails and put them into self.trace_images
+
+        """
+        #Put a cutout of the spectrum into self.trace_image
+
+        # self.thumbnails_cut_out = True
+
+    def plot_trace_cutout(self):
+
+        #Plot an image of self.trace_image
+
+
+    def extract_spectra(self):
+
+        #Extract the spectrum in self.trace_image and put it in self.raw_spectrum
+
+        # self.spectra_extracted = True
+
+
+    def rough_lambda_calibration(self):
+
+        #Calibrate the wavelength
+
+        # self.lambda_calibrated = True
+
+
+    def plot_trace_spectra(self):
+
+        # 
+
+
+
+
+
 
 
 
