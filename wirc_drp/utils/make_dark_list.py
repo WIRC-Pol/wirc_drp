@@ -6,7 +6,7 @@ import glob, os
 import astropy.io.fits as fits
 import numpy
 
-os.chdir('/hcig1-nas/wircpol/data/20170613/')
+os.chdir('/hcig1-nas/wircpol/data/20170711/')
 
 #Grab all files
 all_files = glob.glob('*.fits')
@@ -17,10 +17,12 @@ for i in all_files:
 	if fits.getheader(i)['FORE'] == 'BrGamma__(2.17)' and fits.getheader(i)['AFT'] == 'J__(1.25)':
 		#found a dark file, check if the exp time is new
 		exp_time = fits.getheader(i)['EXPTIME']
-		if exp_time in darks:
-			darks[exp_time] += [i] #add file name to that index
+		coadds = fits.getheader(i)['COADDS']
+		exp_time_str = str(coadds)+'_'+str(exp_time) 
+		if exp_time_str in darks:
+			darks[exp_time_str] += [i] #add file name to that index
 		else:
-			darks[exp_time] = [i] #create an index with that exposure time
+			darks[exp_time_str] = [i] #create an index with that exposure time
 
 print(darks)
 

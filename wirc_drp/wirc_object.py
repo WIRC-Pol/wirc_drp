@@ -694,14 +694,14 @@ class wircpol_source(object):
         spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
             plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, box_size = box_size, poly_order = poly_order) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
-        for i in spectra:
-            plt.plot(i)
-        plt.show()
+        #for i in spectra:
+        #    plt.plot(i)
+        #plt.show()
         if align:
             spectra = spec_utils.align_set_of_traces(spectra, spectra[0])
-        for i in spectra:
-            plt.plot(i)
-        plt.show()
+        #for i in spectra:
+        #    plt.plot(i)
+        #plt.show()
         spectra_length = spectra.shape[1]
 
         self.trace_spectra = np.zeros((4,3,spectra_length))
