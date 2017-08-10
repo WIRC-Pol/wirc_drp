@@ -6,7 +6,8 @@ import glob, os
 import astropy.io.fits as fits
 import numpy
 
-os.chdir('/hcig1-nas/wircpol/data/20170711/')
+#os.chdir('/hcig1-nas/wircpol/data/20170809/')
+
 
 #Grab all files
 all_files = glob.glob('*.fits')
@@ -24,7 +25,7 @@ for i in all_files:
 		else:
 			darks[exp_time_str] = [i] #create an index with that exposure time
 
-print(darks)
+#print(darks)
 
 #go through each exposure time and write file
 for i in darks.keys():

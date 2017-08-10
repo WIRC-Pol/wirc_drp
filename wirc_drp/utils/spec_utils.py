@@ -444,8 +444,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
 
-        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = False, diag_mask=diag_mask) #linear fit to the trace          
-
+        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask) #linear fit to the trace          
+	#plt.imshow(bkg_sub,origin = 'lower')	
+	#plt.show()
         print("Trace width {}".format(width))
 
         weight_width = width*width_scale

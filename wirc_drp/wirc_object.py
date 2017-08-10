@@ -880,35 +880,25 @@ class wircspec_source(object):
         self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
-    def get_cutouts(self, image, filter_name, sub_bar=True):
+  #  def get_cutouts(self, image, filter_name, sub_bar=True):
         """
         Cutout thumbnails and put them into self.trace_images
 
         """
         #Put a cutout of the spectrum into self.trace_image
-
         # self.thumbnails_cut_out = True
-
-    def plot_trace_cutout(self):
-
+   # def plot_trace_cutout(self):
         #Plot an image of self.trace_image
-
-
-    def extract_spectra(self):
-
+   # def extract_spectra(self):
         #Extract the spectrum in self.trace_image and put it in self.raw_spectrum
-
         # self.spectra_extracted = True
-
-
-    def rough_lambda_calibration(self):
-
+    #def rough_lambda_calibration(self):
         #Calibrate the wavelength
 
         # self.lambda_calibrated = True
 
 
-    def plot_trace_spectra(self):
+    #def plot_trace_spectra(self):
 
         # 
 
