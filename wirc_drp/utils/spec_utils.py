@@ -24,6 +24,7 @@ from skimage.measure import profile_line
 from astropy.modeling import models, fitting
 from astropy.convolution import Gaussian1DKernel, Box1DKernel, convolve
 from astropy.io import fits as f
+from astropy import stats
 
 #From other packages
 from wirc_drp.utils.image_utils import locationInIm, shift_and_subtract_background, fit_and_subtract_background, findTrace
@@ -194,14 +195,25 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
         #fit models
         y = range(len(cross_section))
         poly = models.Polynomial1D(poly_order)
+
+        smooth_cross = median_filter(cross_section, 5) #use this to find actual peak, rejecting bad pixels
+        #bad_pix = stats.sigma_clip((cross_section - smooth_cross)/smooth_cross, sigma = 5) 
+        if plot:
+            plt.subplot(122)
+            plt.plot(cross_section - smooth_cross)
+            plt.plot(bad_pix.mask*100)
+
+        #cross_section = cross_section*~bad_pix.mask + smooth_cross*bad_pix.mask #fill bad pixels
+
         if fitfunction == 'Moffat':
-            psf_moffat1d = models.Moffat1D(x_0 = np.argmax(cross_section), gamma = stddev_seeing, alpha = 1,  amplitude = np.max(cross_section))
+            psf_moffat1d = models.Moffat1D(x_0 = np.argmax(smooth_cross), gamma = stddev_seeing, alpha = 1,  amplitude = np.max(smooth_cross))
             model = psf_moffat1d + poly
         elif fitfunction == 'Gaussian':
-            psf_gauss1d = models.Gaussian1D(mean = np.argmax(cross_section), stddev = stddev_seeing, amplitude = np.max(cross_section))  
+            psf_gauss1d = models.Gaussian1D(mean = np.argmax(smooth_cross), stddev = stddev_seeing, amplitude = np.max(smooth_cross))  
             model = psf_gauss1d + poly
           
         f = fitting.LevMarLSQFitter()
+        #f = fitting.FittingWithOutlierRemoval(fitting.LevMarLSQFitter(), stats.sigma_clip)
         all_res = f(model, y, cross_section)
         res = all_res[0]
         poly_res = all_res[1]
@@ -209,10 +221,12 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
         if plot:
             plt.subplot(121)
             plt.plot(y,res(y) + poly_res(y),'--r')
-            plt.text(10,max(cross_section)/2, str(np.argmax(cross_section)),color ='r')
+            #plt.text(10,max(cross_section)/2, str(np.argmax(cross_section)),color ='r')
             plt.plot(y, cross_section,'b')
-            plt.subplot(122)
-            plt.plot(y, cross_section- (res(y) + poly_res(y) ))
+            plt.plot(y, smooth_cross, 'c')
+            #plt.plot(y, bad_pix.mask*50,'k')
+            #plt.subplot(122)
+            #plt.plot(y, cross_section- (res(y) + poly_res(y) ))
             plt.show()
 
         if return_residual:
@@ -252,11 +266,11 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
     else:
         raise ValueError(fitfunction+' is in valid. Choose from Moffat or Gaussian.')
 
-    #plt.plot(valid, 'c')
-    #plt.plot(stddev_vector, 'r')
-    #plt.plot(loc_vector, 'k')
-    #plt.plot(flux/np.max(flux),'b')
-    #plt.show()  
+    # plt.plot(valid, 'c')
+    # plt.plot(stddev_vector, 'r')
+    # plt.plot(loc_vector, 'k')
+    # plt.plot(flux/np.max(flux),'b')
+    # plt.show()  
 
     #if box_size > 1:
     #    flux = median_filter(flux, box_size)
