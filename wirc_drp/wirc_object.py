@@ -697,7 +697,8 @@ class wircpol_source(object):
 
         #call spec_extraction to actually extract spectra
         spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
-            plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, box_size = box_size, poly_order = poly_order) 
+            plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, 
+            box_size = box_size, poly_order = poly_order) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
@@ -841,45 +842,46 @@ class wircpol_source(object):
     # def show_traces():
 
 
-class wircspec_source(object):
-    """
-    A point-source in a a wircspec_data image    
+# class wircspec_source(object):
+#     """
+#     A point-source in a a wircspec_data image    
 
-    Args:
-        pos - [x,y] - the location in the image of the source
+#     Args:
+#         pos - [x,y] - the location in the image of the source
 
-    Attributes:
-        trace_images - An array of size [N,N], where n is the width of the box, and there is one image for each trace
-        raw_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
-        calibrated_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
+#     Attributes:
+#         trace_images - An array of size [N,N], where n is the width of the box, and there is one image for each trace
+#         raw_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
+#         calibrated_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
 
-        lambda_calibrated - value of associated header["WL_CBRTD"]. designates whether wavelength has been calibrated
-        spectra_extracted - value of associated header["SPC_XTRD"]. designates whether spectra has been extracted
-        thumbnails_cut_out - value of associated header["THMB_CUT"]. designates whether thumbnails have been cut out
+#         lambda_calibrated - value of associated header["WL_CBRTD"]. designates whether wavelength has been calibrated
+#         spectra_extracted - value of associated header["SPC_XTRD"]. designates whether spectra has been extracted
+#         thumbnails_cut_out - value of associated header["THMB_CUT"]. designates whether thumbnails have been cut out
         
 
-    """
-    def __init__(self, pos, index):
+#     """
+#     def __init__(self, pos, index):
 
-        #The source position
-        self.pos = pos
+#         #The source position
+#         self.pos = pos
 
-        #The image of the spectrum
-        self.trace_image = None
+#         #The image of the spectrum
+#         self.trace_image = None
 
-        #The source index (from the parent object)
-        self.index = index 
+#         #The source index (from the parent object)
+#         self.index = index 
 
-        #Extracted spectra 
-        self.raw_spectrum = None
-        self.calibrated_spectrum = None
+#         #Extracted spectra 
+#         self.raw_spectrum = None
+#         self.calibrated_spectrum = None
 
     
-        #Source reduction status keywords
-        self.lambda_calibrated = False #source attribute, later applied to header["WL_CBRTD"]
-        self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
-        self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
+#         #Source reduction status keywords
+#         self.lambda_calibrated = False #source attribute, later applied to header["WL_CBRTD"]
+#         self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
+#         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
+<<<<<<< Updated upstream
   #  def get_cutouts(self, image, filter_name, sub_bar=True):
         """
         Cutout thumbnails and put them into self.trace_images
@@ -894,13 +896,43 @@ class wircspec_source(object):
         # self.spectra_extracted = True
     #def rough_lambda_calibration(self):
         #Calibrate the wavelength
+=======
+#     def get_cutouts(self, image, filter_name, sub_bar=True):
+#         """
+#         Cutout thumbnails and put them into self.trace_images
 
-        # self.lambda_calibrated = True
+#         """
+#         #Put a cutout of the spectrum into self.trace_image
+
+#         # self.thumbnails_cut_out = True
+
+#     def plot_trace_cutout(self):
+
+#         #Plot an image of self.trace_image
 
 
+#     def extract_spectra(self):
+
+#         #Extract the spectrum in self.trace_image and put it in self.raw_spectrum
+
+#         # self.spectra_extracted = True
+
+
+#     def rough_lambda_calibration(self):
+
+#         #Calibrate the wavelength
+>>>>>>> Stashed changes
+
+#         # self.lambda_calibrated = True
+
+
+<<<<<<< Updated upstream
     #def plot_trace_spectra(self):
+=======
+#     def plot_trace_spectra(self):
+>>>>>>> Stashed changes
 
-        # 
+#         # 
 
 
 

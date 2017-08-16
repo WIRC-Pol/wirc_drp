@@ -193,6 +193,7 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
             cross_section = np.median(cross_section, axis = 1) 
         #print(cross_section.shape)
         #fit models
+
         y = range(len(cross_section))
         poly = models.Polynomial1D(poly_order)
 
@@ -211,22 +212,24 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
         elif fitfunction == 'Gaussian':
             psf_gauss1d = models.Gaussian1D(mean = np.argmax(smooth_cross), stddev = stddev_seeing, amplitude = np.max(smooth_cross))  
             model = psf_gauss1d + poly
-          
+
         f = fitting.LevMarLSQFitter()
         #f = fitting.FittingWithOutlierRemoval(fitting.LevMarLSQFitter(), stats.sigma_clip)
         all_res = f(model, y, cross_section)
         res = all_res[0]
         poly_res = all_res[1]
+        
         #plotting
         if plot:
-            plt.subplot(121)
+            plt.subplot(131)
             plt.plot(y,res(y) + poly_res(y),'--r')
             #plt.text(10,max(cross_section)/2, str(np.argmax(cross_section)),color ='r')
             plt.plot(y, cross_section,'b')
-            plt.plot(y, smooth_cross, 'c')
-            #plt.plot(y, bad_pix.mask*50,'k')
-            #plt.subplot(122)
-            #plt.plot(y, cross_section- (res(y) + poly_res(y) ))
+            plt.subplot(132)
+            plt.plot(y, cross_section- (res(y) + poly_res(y) ))
+            plt.subplot(133)
+            plt.plot(y, cross_section - poly_res(y))
+            plt.plot(y, res(y))
             plt.show()
 
         if return_residual:
@@ -253,24 +256,36 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
         if sum_method =='model_sum':
             flux = [i.stddev.value*i.amplitude.value*np.sqrt(2*np.pi) for i in results]*valid
         elif sum_method == 'weighted_sum':
-            flux = [np.sum( np.median(cutout_rot[lowcut:highcut,box_size*i:(box_size)*(i+1)],axis = 1) * results[i](y))/np.sum(results[i](y)) for i in x]*valid #sum(data*model)/sum(model)
+            for i in x: 
+                results[i].amplitude=1.
+            cutout_rot_subbkg = [np.mean(cutout_rot[lowcut:highcut,box_size*i:(box_size)*(i+1)],axis=1) -  poly_results[i](y) for i in x]#Subtract the background
+            flux = [np.sum( cutout_rot_subbkg * results[i](y))/np.sum(results[i](y)**2) for i in x]*valid #sum(data*model)/sum(model)
+
         else:
             raise ValueError(sum_method+' is invalid. Choose from model_sum or weighted_sum')
+    
     elif fitfunction == 'Moffat':
         if sum_method == 'model_sum':
             flux = [np.sum(i(y)) for i in results]*valid
         elif sum_method == 'weighted_sum':
-            flux = [np.sum( np.median(cutout_rot[lowcut:highcut,box_size*i:(box_size)*(i+1)], axis = 1) * results[i](y))/np.sum(results[i](y)) for i in x]*valid #sum(data*model)/sum(model)
+            for i in x: 
+                results[i].amplitude=1./np.sum(results[i](y))
+            
+            cutout_rot_subbkg = [np.mean(cutout_rot[lowcut:highcut,box_size*i:(box_size)*(i+1)],axis=1) -  poly_results[i](y) for i in x]#Subtract the background
+            flux = [np.sum( cutout_rot_subbkg * results[i](y))/np.sum(results[i](y)**2) for i in x]*valid #sum(data*model)/sum(model)
+            # flux = [np.sum( np.median(cutout_rot_subbkg[lowcut:highcut,box_size*i:(box_size)*(i+1)], axis = 1) * results[i](y))/np.sum(results[i](y)) for i in x]*valid #sum(data*model)/sum(model)
         else:
             raise ValueError(sum_method+' is invalid. Choose from model_sum or weighted_sum')
     else:
-        raise ValueError(fitfunction+' is in valid. Choose from Moffat or Gaussian.')
+        raise ValueError(fitfunction+' is invalid. Choose from Moffat or Gaussian.')
 
-    # plt.plot(valid, 'c')
-    # plt.plot(stddev_vector, 'r')
-    # plt.plot(loc_vector, 'k')
-    # plt.plot(flux/np.max(flux),'b')
-    # plt.show()  
+    flux[~valid] = 0.
+    flux[flux != flux] = 0.
+    #plt.plot(valid, 'c')
+    #plt.plot(stddev_vector, 'r')
+    #plt.plot(loc_vector, 'k')
+    #plt.plot(flux/np.max(flux),'b')
+    #plt.show()  
 
     #if box_size > 1:
     #    flux = median_filter(flux, box_size)
@@ -389,9 +404,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     thumbnails_copy = copy.deepcopy(thumbnails)
 
     #Flip some of the traces around. 
-    thumbnails_copy[1,:,:] = thumbnails[1,-1::-1, -1::-1] #flip y, x. Bottom-right
-    thumbnails_copy[2,:,:] = thumbnails[2,:,-1::-1] #flip x #Top-right
-    thumbnails_copy[3,:,:] = thumbnails[3,-1::-1, :] #flip y #Bottom-left
+    thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+    thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
+    thumbnails_copy[3,:,:] = thumbnails_copy[3,-1::-1, :] #flip y #Bottom-left
 
     trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
     
@@ -485,8 +500,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         elif method == 'fit_across_trace':
             start = time.time()
-            spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  0, return_residual = 1, \
-                                                                        fitfunction = 'Moffat', box_size = box_size, poly_order = poly_order) #Do not use variance from this method
+            spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  False, return_residual = 1, \
+                                                                        fitfunction = fitfunction, box_size = box_size, poly_order = poly_order,
+                                                                        sum_method = sum_method) #Do not use variance from this method
             #plt.imshow(residual, origin = 'lower',vmin = -200, vmax = 200)
             #plt.colorbar()
             #plt.show()
