@@ -21,6 +21,233 @@ from scipy.ndimage import gaussian_filter as gauss
 from scipy.ndimage.filters import median_filter
 import copy
 
+def find_traces(science_file, sky_file, sigmalim = 5, plot = False):
+    """
+    This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
+    Input:
+        science_file: full path to science image
+        sky_file: full path to sky (offset) image to subtract
+        sigmalim: sigma limit for detection threshold above background noise
+        plot: if True, UL quadrant of sky subtracted science_image is shown along with locations of the
+                    traces found. Thumbnail cutouts of all traces are also plotted in a separate figure.
+                    
+    Output: Dictionary of objects found. Each item contains of five keys with pairs of x and y coordinates (index starts at 0) of upper left, upper right, lower right, and lower left trace, and 0th order locations, as well as a flag set to True if trace is very noisy or crossing quadrant limit. The last item in the dictionary always contains the central hole/slit and trace locations 
+    """    
+
+    # TODO:
+    # - Implement for H images too
+    # - Include location of the two sky background holes/slits and traces
+
+    # Mean location of traces in reference sequence (x1,y1),(x2,y2)
+    # This was measured for a bright unpolarized standard 
+    UL_trace = [(553.48, 1726.52), (619, 1661)] 
+    LR_trace = [(1442.25, 814.25), (1500.25, 754.25)]
+    LL_trace = [(544.2, 763.55), (608, 826.75)]
+    UR_trace = [(1451.5, 1655.75), (1510.3, 1713.35)]
+    spot0 = (1029, 1242)
+    UL_slit_trace = (573, 1024+500) # This should always be the same. Added even if not found.
+    # Distance of 0th order, UR, LR, and LL traces to UL traces
+    UL = ((UL_trace[0][0]+UL_trace[1][0])/2, (UL_trace[0][1]+UL_trace[1][1])/2)
+    LR = ((LR_trace[0][0]+LR_trace[1][0])/2, (LR_trace[0][1]+LR_trace[1][1])/2)
+    LL = ((LL_trace[0][0]+LL_trace[1][0])/2, (LL_trace[0][1]+LL_trace[1][1])/2)
+    UR = ((UR_trace[0][0]+UR_trace[1][0])/2, (UR_trace[0][1]+UR_trace[1][1])/2)
+    UR_diff = (UR[0]-UL[0], UR[1]-UL[1])
+    LR_diff = (LR[0]-UL[0], LR[1]-UL[1])
+    LL_diff = (LL[0]-UL[0], LL[1]-UL[1]) 
+    spot0_diff = (spot0[0]-UL[0], spot0[1]-UL[1])
+    ############
+
+    # MAIN CODE ###########
+
+    # Load cropped and centered trace template image
+    trace_template_hdulist = fits.open('./single_trace_template2.fits')
+    trace_template = trace_template_hdulist[0].data
+    # # Plot trace template image
+    # fig = plt.figure()
+    # plt.imshow(trace_template, origin='lower')
+    # plt.title('Trace template')
+
+    # Cross-correlate image with itself
+    trace_selfcorr = fftconvolve(trace_template,trace_template, mode='same')
+    # Find best_match value. Normalize correlation image with this later. 
+    best_match_val = np.max(trace_selfcorr)
+
+    # Load sky (offset) image
+    sky_image_hdulist = fits.open(sky_file) 
+    sky_image = sky_image_hdulist[0].data
+    # Filter sky image to remove bad pixels
+    sky_image_filt = ndimage.median_filter(sky_image,3)
+
+
+    print('Processing science file '+ science_file + ' ...')
+
+    # Load science image
+    science_image_hdulist = fits.open(science_file)
+    science_image = science_image_hdulist[0].data
+
+    # Filter science image to remove bad pixels
+    science_image_filt = ndimage.median_filter(science_image,3)
+    # # Plot science image
+    # fig = plt.figure()
+    # plt.imshow(science_image_filt, origin='lower')
+    # plt.title('Science image')
+
+    # Subtract sky image from science image
+    stars_image = science_image_filt - sky_image_filt
+
+    # Cut out upper left quadrant of stars_image
+    stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
+
+    # Cross-correlate trace template image with stars_image_UL
+    corr_image_UL = fftconvolve(stars_image_UL, trace_template, mode='same')
+
+    # Calculate median and standard deviation in corr_image_UL. Exclude very low and very high pixel values (indicating sources)    
+    corr_image_UL_med = np.median(corr_image_UL[(corr_image_UL < 2000) & (corr_image_UL > -2000)])
+    corr_image_UL_std = np.std(corr_image_UL[(corr_image_UL < 2000) & (corr_image_UL > -2000)])
+
+    # Threshold and mask corr_image_UL
+    corr_image_UL_threshold = corr_image_UL_med + sigmalim * corr_image_UL_std
+    diff = (corr_image_UL > corr_image_UL_threshold)
+    corr_image_UL_masked = np.array(corr_image_UL, copy=True)
+    corr_image_UL_masked[diff == 0] = 0
+    corr_image_UL_masked[diff != 0] = 1
+
+    # Label features in masked array
+    labeled, num_objects = ndimage.label(corr_image_UL_masked.astype(int))
+
+    # Find "objects" in labeled array
+    traces = ndimage.find_objects(labeled)
+
+    # Lists for saving x and y coordinates of peaks in each correlation image
+    x_locs, y_locs = [], []
+
+    # Get trace coordinates and add to x and y lists
+    for dy,dx in traces:
+        x_center = (dx.start + dx.stop - 1)/2
+        x_locs.append(x_center)
+        y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
+        y_locs.append(y_center)
+    # Trace locations array with all coordinates
+    locs_UL = np.array([x_locs, y_locs])
+    # Add slit trace position to trace locations
+    locs_UL = np.append(locs_UL, np.swapaxes(np.array([UL_slit_trace]),0,1), 1)
+
+    # Print list of trace location coordinates in UL quadrant
+    print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
+    for tr in range(0,locs_UL.shape[1]):
+        print('Trace', str(tr+1), ': (', locs_UL[:,tr][0], locs_UL[:,tr][1], ')')
+
+    # Calculate location of corresponding traces (and 0th order) in other three quadrants
+    locs_UR = locs_UL + np.swapaxes(np.array([UR_diff]),0,1)
+    locs_LR = locs_UL + np.swapaxes(np.array([LR_diff]),0,1)
+    locs_LL = locs_UL + np.swapaxes(np.array([LL_diff]),0,1)
+    locs_spot0 = locs_UL + np.swapaxes(np.array([spot0_diff]),0,1)
+
+    # Flag suspicious traces by checking mid-diagonals
+    trace_diag_val = []
+    trace_diag_flag = []
+    for n in range(0,locs_UL.shape[1]):
+        thumbn = stars_image[int(round(locs_UL[1,n]))-50:int(round(locs_UL[1,n]))+50, int(round(locs_UL[0,n]))-50:int(round(locs_UL[0,n]))+50]
+        diag_val = []
+        for diag_offset in range(-10,11):
+            diag = np.diagonal(np.flipud(thumbn), diag_offset).copy()
+            diag_val.append(np.sum(diag))
+        opt_diag_offset = diag_val.index(max(diag_val)) - 10
+        #print(opt_diag_offset)
+        diag0 = np.diagonal(np.flipud(thumbn), opt_diag_offset).copy()
+        diag_plus = np.diagonal(np.flipud(thumbn), opt_diag_offset+1).copy()
+        diag_minus = np.diagonal(np.flipud(thumbn), opt_diag_offset-1).copy()
+        full_diag = np.concatenate((diag0[20:-20], diag_plus[20:-20], diag_minus[20:-20]), axis=0)
+        #norm_diag = full_diag / np.max(full_diag)
+        trace_diag_val.append(np.median(full_diag))
+        td_sig = 3
+        td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
+        if (np.median(full_diag) > td_thres) & (np.median(np.flipud(thumbn[0:19,80:99]).diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(np.flipud(thumbn[80:99,0:19]).diagonal(opt_diag_offset).copy()) < td_thres):
+            trace_diag_flag.append(False)
+        else:
+            trace_diag_flag.append(True)
+            print('Trace', str(n+1), 'too noisy or crossing quadrant limit. Flagging!')
+    #print(trace_diag_val, '\n', trace_diag_flag)
+
+    # Gather all trace and 0th order locations (and flags) in dictionary
+    locs = {'UL': locs_UL, 'UR': locs_UR, 'LR': locs_LR, 'LL': locs_LL, 'spot0': locs_spot0, 'flag': trace_diag_flag}
+
+    # Show cutout of all traces in stars_image
+    if plot == True:
+        plt.ion() # Turning on interactive mode for plotting (shows figure and releases terminal prompt)
+        fig, axes = plt.subplots(nrows=locs_UL.shape[1], ncols=5)
+        for n in range(0,locs_UL.shape[1]):
+            #plt.subplot(peaks.shape[1]+1,5,n*5+1)
+            axes[n,0].imshow(stars_image[int(round(locs_UL[1,n])-50):int(round(locs_UL[1,n])+50), int(round(locs_UL[0,n])-50):int(round(locs_UL[0,n])+50)], origin='lower')
+            axes[n,0].set_yticks([])
+            axes[n,0].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,0].spines[pos].set_color('red')
+            #plt.subplot(peaks.shape[1]+1,5,n*5+2)
+            axes[n,1].imshow(stars_image[int(round(locs_UR[1,n])-50):int(round(locs_UR[1,n])+50), int(round(locs_UR[0,n])-50):int(round(locs_UR[0,n])+50)], origin='lower')
+            axes[n,1].set_yticks([])
+            axes[n,1].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,1].spines[pos].set_color('red')
+            #plt.subplot(peaks.shape[1]+1,5,n*5+3)
+            axes[n,2].imshow(stars_image[int(round(locs_LR[1,n])-50):int(round(locs_LR[1,n])+50), int(round(locs_LR[0,n])-50):int(round(locs_LR[0,n])+50)], origin='lower')
+            axes[n,2].set_yticks([])
+            axes[n,2].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,2].spines[pos].set_color('red')
+            #plt.subplot(peaks.shape[1]+1,5,n*5+4)
+            axes[n,3].imshow(stars_image[int(round(locs_LL[1,n])-50):int(round(locs_LL[1,n])+50), int(round(locs_LL[0,n])-50):int(round(locs_LL[0,n])+50)], origin='lower')
+            axes[n,3].set_yticks([])
+            axes[n,3].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,3].spines[pos].set_color('red')
+            #plt.subplot(peaks.shape[1]+1,5,n*5+5)
+            axes[n,4].imshow(stars_image[int(round(locs_spot0[1,n])-50):int(round(locs_spot0[1,n])+50), int(round(locs_spot0[0,n])-50):int(round(locs_spot0[0,n])+50)], origin='lower')
+            axes[n,4].set_yticks([])
+            axes[n,4].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,4].spines[pos].set_color('red')
+        plt.suptitle('Thumbnail cutouts of found sources', size='large')
+        for row in range(0,locs_UL.shape[1]-1):
+            axes[row,0].set_ylabel('Source '+str(row+1))
+        axes[locs_UL.shape[1]-1,0].set_ylabel('Source in slit')
+        ytitle = ['UL', 'UR', 'LR', 'LL', '0th order']
+        for col in range(0,5):
+            axes[0,col].set_title(ytitle[col], size='medium')
+        #fig.savefig(target_file[0:target_file.find('.fits')]+'.pdf', format='pdf')
+
+        # Plot UL quadrant of sky subtracted science image with found traces labelled
+        plt.figure()
+        plt.imshow(stars_image, origin='lower', clim=(0,np.median(stars_image_UL)+sigmalim*np.std(stars_image_UL)))
+        plt.xlim(0,1023)
+        plt.ylim(1024,2047)
+        for n in range(0,locs_UL.shape[1]-1):
+            if trace_diag_flag[n] == True:
+                #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
+                plt.annotate('Trace '+str(n+1), (locs_UL[0,n],locs_UL[1,n]),color='red')
+            else:
+                #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
+                plt.annotate('Trace '+str(n+1), (locs_UL[0,n],locs_UL[1,n]),color='white')
+        if trace_diag_flag[locs_UL.shape[1]-1] == True:
+            #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
+            plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='red')
+        else:
+            #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
+            plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='white')
+        print('\n')
+
+    print('UL quadrant trace locations:\n',locs['UL'].T,'\n')
+    print('UR quadrant trace locations:\n',locs['UR'].T,'\n')
+    print('LR quadrant trace locations:\n',locs['LR'].T,'\n')
+    print('LL quadrant trace locations:\n',locs['LL'].T,'\n')
+
+    return locs
+
 def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seeing, plot = False):
     #Previously named coarse_regis
     """
