@@ -15,10 +15,13 @@ from astropy.io import fits as f
 from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
 from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
+from scipy.signal import fftconvolve
 from wirc_drp.constants import *
 from wirc_drp.masks.wircpol_masks import *
 from scipy.ndimage import gaussian_filter as gauss
 from scipy.ndimage.filters import median_filter
+import scipy.ndimage as ndimage
+import scipy.ndimage.filters as filters
 import copy
 
 def find_traces(science_file, sky_file, sigmalim = 5, plot = False):
@@ -60,7 +63,7 @@ def find_traces(science_file, sky_file, sigmalim = 5, plot = False):
     # MAIN CODE ###########
 
     # Load cropped and centered trace template image
-    trace_template_hdulist = fits.open('./single_trace_template2.fits')
+    trace_template_hdulist = f.open('./single_trace_template2.fits')
     trace_template = trace_template_hdulist[0].data
     # # Plot trace template image
     # fig = plt.figure()
@@ -73,7 +76,7 @@ def find_traces(science_file, sky_file, sigmalim = 5, plot = False):
     best_match_val = np.max(trace_selfcorr)
 
     # Load sky (offset) image
-    sky_image_hdulist = fits.open(sky_file) 
+    sky_image_hdulist = f.open(sky_file) 
     sky_image = sky_image_hdulist[0].data
     # Filter sky image to remove bad pixels
     sky_image_filt = ndimage.median_filter(sky_image,3)
@@ -82,7 +85,7 @@ def find_traces(science_file, sky_file, sigmalim = 5, plot = False):
     print('Processing science file '+ science_file + ' ...')
 
     # Load science image
-    science_image_hdulist = fits.open(science_file)
+    science_image_hdulist = f.open(science_file)
     science_image = science_image_hdulist[0].data
 
     # Filter science image to remove bad pixels
