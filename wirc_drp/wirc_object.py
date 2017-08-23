@@ -842,103 +842,157 @@ class wircpol_source(object):
     # def show_traces():
 
 
-# class wircspec_source(object):
-#     """
-#     A point-source in a a wircspec_data image    
+class wircspec_source(object):
+    """
+    A point-source in a a wircspec_data image
 
-#     Args:
-#         pos - [x,y] - the location in the image of the source
+    Args:
+        pos - [x,y] - the location in the image of the source
+    Attributes:
+        trace_images - An array of size [N,N], where n is the width of the box, and there is one image for each trace
+        raw_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
+        calibrated_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
 
-#     Attributes:
-#         trace_images - An array of size [N,N], where n is the width of the box, and there is one image for each trace
-#         raw_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
-#         calibrated_spectrum - An array of size [3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
-
-#         lambda_calibrated - value of associated header["WL_CBRTD"]. designates whether wavelength has been calibrated
-#         spectra_extracted - value of associated header["SPC_XTRD"]. designates whether spectra has been extracted
-#         thumbnails_cut_out - value of associated header["THMB_CUT"]. designates whether thumbnails have been cut out
+        lambda_calibrated - value of associated header["WL_CBRTD"]. designates whether wavelength has been calibrated
+        spectra_extracted - value of associated header["SPC_XTRD"]. designates whether spectra has been extracted
+        thumbnails_cut_out - value of associated header["THMB_CUT"]. designates whether thumbnails have been cut out
+    """
+    def __init__(self, pos, slit_pos, index):
         
+        #The source position
+        self.pos = pos
 
-#     """
-#     def __init__(self, pos, index):
+        #The source locationr relative to the slit
+        self.slit_pos = slit_pos
+        
+        #The traces of each spectra
+        self.trace_images = None
+        
+        #The source index (from the parent object)
+        self.index = index
+        
+        #Extracted spectra
+        self.trace_spectra = None
 
-#         #The source position
-#         self.pos = pos
+        #source reduction status?
+        self.lambda_calibrated = False #source attribute, later applied to header["WL_CBRTD"]
+        self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
+        self.spectra_aligned = False
+        self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
-#         #The image of the spectrum
-#         self.trace_image = None
+    def get_cutouts(self, image, filter_name, sub_bar=True, cutout_size=80, flip=False):
+        """
+        Cutout thumbnails and put them into self.trace_images.  Thumbnails are placed directly on input positions.
+        Optional: set cutout size.
+        """
+            
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0),flip=flip,filter_name = filter_name, sub_bar = sub_bar,mode = 'spec', cutout_size = cutout_size)[0])
+                
+        self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
-#         #The source index (from the parent object)
-#         self.index = index 
-
-#         #Extracted spectra 
-#         self.raw_spectrum = None
-#         self.calibrated_spectrum = None
-
+    def plot_cutouts(self, **kwargs):
     
-#         #Source reduction status keywords
-#         self.lambda_calibrated = False #source attribute, later applied to header["WL_CBRTD"]
-#         self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
-#         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
-
-<<<<<<< Updated upstream
-  #  def get_cutouts(self, image, filter_name, sub_bar=True):
+        fig = plt.figure(figsize = (12,8))
+        
+        ax = fig.add_subplot(141)
+        plt.imshow(self.trace_images[0,:,:], **kwargs)
+        
+        #fig.subplots_adjust(right=0.85)
+        cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
+        plt.colorbar(cax = cbar_ax)
+        plt.show()
+    
+    def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
+                        fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True):
         """
-        Cutout thumbnails and put them into self.trace_images
-
+        *method:        method for spectral extraction. Choices are
+        (i) skimage: this is just the profile_line method from skimage. Order for interpolation
+        is in skimage_order parameter (fast).
+        (ii) weightedSum: this is 2D weighted sum assuming Gaussian profile. Multiply the PSF with data
+        and sum for each location along the dispersion direction (fast). The width of the Gaussian
+        is based on the measured value by 'findTrace'. One can adjust this using the parameter 'width_scale'.
+        (iii) fit_across_trace: this method rotates the trace, loops along the dispersion direction, and fit a profile in the
+        spatial direction. The fit function is either 'Moffat' or 'Gaussian'. One can also
+        select how to extract flux: by summing the fitted model, or the data weighted by the model.
+        ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
+        box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
+        fit the background.
         """
-        #Put a cutout of the spectrum into self.trace_image
-        # self.thumbnails_cut_out = True
-   # def plot_trace_cutout(self):
-        #Plot an image of self.trace_image
-   # def extract_spectra(self):
-        #Extract the spectrum in self.trace_image and put it in self.raw_spectrum
-        # self.spectra_extracted = True
-    #def rough_lambda_calibration(self):
-        #Calibrate the wavelength
-=======
-#     def get_cutouts(self, image, filter_name, sub_bar=True):
-#         """
-#         Cutout thumbnails and put them into self.trace_images
-
-#         """
-#         #Put a cutout of the spectrum into self.trace_image
-
-#         # self.thumbnails_cut_out = True
-
-#     def plot_trace_cutout(self):
-
-#         #Plot an image of self.trace_image
-
-
-#     def extract_spectra(self):
-
-#         #Extract the spectrum in self.trace_image and put it in self.raw_spectrum
-
-#         # self.spectra_extracted = True
-
-
-#     def rough_lambda_calibration(self):
-
-#         #Calibrate the wavelength
->>>>>>> Stashed changes
-
-#         # self.lambda_calibrated = True
-
-
-<<<<<<< Updated upstream
-    #def plot_trace_spectra(self):
-=======
-#     def plot_trace_spectra(self):
->>>>>>> Stashed changes
-
-#         # 
-
-
-
-
-
+        print("Performing Spectral Extraction for source {}".format(self.index))
+        
+        #call spec_extraction to actually extract spectra
+        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec')
+        #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
+        #for i in spectra:
+        #    plt.plot(i)
+        #plt.show()
+        if align:
+            spectra = spec_utils.align_set_of_traces(spectra, spectra[0])
+        #for i in spectra:
+        #    plt.plot(i)
+        #plt.show()
+        spectra_length = spectra.shape[1]
+    
+        self.trace_spectra = np.zeros((1,3,spectra_length))
+        self.trace_spectra[:,0,:] = np.arange(spectra_length) #The wavelength axis, to be calibrated later.
+        self.trace_spectra[:,1,:] = spectra
+        self.trace_spectra[:,2,:] = spectra_std
+        
+        self.spectra_extracted = True #source attribute, later applied to header["SPC_XTRD"]
+        self.spectra_aligned = align
+    
+    def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
+        #Rough wavelength calibration. Will have to get better later!
+        
+        """
+            
+        lowcut - The lowest pixel to use in the traces
+        highcut - The highest pixel to use in the traces
+            
+        #TODO: It would be good to have lowcut and highcut only apply to the calculation, and not affect the data at this point (I think)
+            
+        """
+        aligned = self.spectra_aligned
+        
+        if aligned:
+            if method == 1:
+                self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
+            if method == 2:
+                self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+        
+        else:
+            if method == 1:
+                self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
+            elif method == 2:
+                self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+        
+        self.lambda_calibrated = True #source attribute, later applied to header["WL_CBRTD"]
 
 
+    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', **kwargs):
+        
+        fig = plt.figure(figsize=(7,7))
+        #labels = ["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
+        for i in range(1):
+            wl = self.trace_spectra[i,0,:]
+            flux = self.trace_spectra[i,1,:]
+            err = self.trace_spectra[i,2,:]
+            if smooth_size > 1:
+                flux = spec_utils.smooth_spectra(flux, smooth_ker, smooth_size)
+            if with_errors:
+                plt.errobar(wl, flux,yerr = err, **kwargs) #label=labels[i]
+            
+            else:
+                plt.plot(wl, flux, **kwargs) #label=labels[i],
 
+        plt.ylabel("Flux [ADU]")
+    
+        if self.lambda_calibrated: #plot is not perfectly the same
+            plt.xlabel("Wavelength [um]")
+            plt.xlim([1.1,1.4]) #wavelength display range
+        else:
+            plt.xlabel("Wavelength [Arbitrary Unit]")
+            plt.xlim([0,np.size(wl)]) #arbitrary unit wavelength display range
 
+        plt.legend()
+        plt.show()

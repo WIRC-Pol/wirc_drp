@@ -514,23 +514,30 @@ def locationInIm(wl, location_in_fov):
 
     #Functions for spectral image
 
-def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True):
+def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = 80):
     '''
     This function Extracts the thumbnails of each trace for a given image give a locations list. 
     image - the image where you want to extract the traces
     locations - the locations in the image that you want to use as a basis for extraction
     flip - An optional switch that allows you to flip all the trace thumbnails to be orientated in the same direction 
             (i.e. wavelength increasing in the same direction)
-    filter_name  - the filter. This determines the cutout size. 
+    filter_name  - the filter. This determines the cutout size.
+    mode - use either 'pol' or 'spec'.  If set to spec, return cutouts at positions of input positions
+    cutout_size - instead of auto-selecting cutout size, allow this as input 
     '''
 
-    if filter_name == 'J':
-        cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands
-    elif filter_name == 'H':
-        cutout_size =150
-    else:
-        print('Filter name %s not recognized, assuming J' %filter_name)
-        cutout_size = 80
+    if mode == 'pol':
+        if filter_name == 'J':
+            cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands
+        elif filter_name == 'H':
+            cutout_size =150
+        else:
+            print('Filter name %s not recognized, assuming J' %filter_name)
+            cutout_size = 80
+
+    if mode == 'spec':
+        if cutout_size is None:
+            print('Need to define cutout size for wirc_spec object')
 
     cutouts = [] #A list of thumbnails lists
 
@@ -538,10 +545,14 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
 
         thumbnails = [] #A thumbnail list of each traces
         
-        traceLocation = locationInIm(lb, i).astype(int) #These are locations in Q+,Q-,U+,U- respectively. 
-        #print(traceLocation)        
+        if mode == 'pol':
+            traceLocation = locationInIm(lb, i).astype(int) #These are locations in Q+,Q-,U+,U- respectively. 
+            #print(traceLocation)        
 
-
+        if mode == 'spec':
+            traceLocation = np.array([i]) #These are locations in Q+,Q-,U+,U- respectively.
+            trace_title='Source '+np.str(k+1)
+            
         ###This part is just to get show 4 traces of a source
         ntraces = len(traceLocation) #how many traces? 4 for WIRC-POL
 
@@ -556,7 +567,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
             thumbnail = copy.deepcopy(image)[cutout]
                        
             #flip the thumbnail so that it's in the Q+ orientation (from top left to bottom right)
-            if flip: 
+            if flip and mode=='pol': 
                 trace_title = "Top Left (Q+)"
                 if j == 1: #Q-
                     thumbnail = thumbnail[-1::-1, -1::-1] #flip y, x
@@ -571,7 +582,11 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
                     trace_title = "Bottom Left (U-)"
                     # print(np.shape(thumbnail))
 
-            if filter_name == 'J':
+            if flip and mode=='spec':
+                #rotate image by 90 degrees
+                thumbnail = np.rot90(thumbnail[-1::-1, -1::-1])
+
+            if filter_name == 'J' and mode=='pol':
                 if sub_bar:
                     #Check to see if the traces hit the vertical bars of doom
                     if ((i[1] > slit_position_x+300) & (i[1] < slit_position_x+600)) | ((i[1] < slit_position_x-300) & (i[1] > slit_position_x-600)):
@@ -823,14 +838,18 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
         #return all_res_even, bkg, flux, var
     return cutout - bkg, bkg
 
-def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_mask=False):
+def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_mask=False,mode='pol'):
     """
-    findTrace iterate through the diagonal of the image, find maximum, fit
-    polynomial of order poly_order to it, then return y value of the trace for 
+    mode='pol' or 'spec'
+    
+    findTrace iterates through the diagonal of the image, finds the maximum, fits a
+    polynomial of order poly_order to it, then returns the y value of the trace for 
     each pixel on the x axis.
 
+    HK: seems like it iterates along rows and not diagnals?
+
     At the location of maximum flux, it calls traceWidth to get the stddev of 
-    the gaussian fit to the trace at that location. 
+    the gaussian fit to the trace at that location.
     """
     peaks = []
     peak_size = []
@@ -841,7 +860,7 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
     
     thumbnail = median_filter(thumbnail, 6)
 
-    if diag_mask:
+    if diag_mask and mode=='pol':
         mask = makeDiagMask(np.shape(thumbnail)[0],25)
         thumbnail[~mask] = 0.0
         # plt.imshow(thumbnail)
@@ -869,7 +888,10 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
 
         #Further scale the weights by their distance from the center of the image
         # weights *= 1/(np.abs(xinds-xcen))
-        weights[(xinds < 70) | (xinds > 100)] = 0. 
+        if mode=='pol':
+            weights[(xinds < 70) | (xinds > 100)] = 0.
+        #if mode=='spec':
+        #    weights[(xinds < 10) | (xinds > np.maximum(xinds)-10)] = 0.
 
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
     else:

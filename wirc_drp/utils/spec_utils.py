@@ -350,7 +350,7 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, 
-    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4):
+    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol'):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -379,7 +379,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                                         fit the background. 
     diag_mask:      if True, the area away from the trace will be masked out 
 
-    skimage_order, width_scale, fitfunction, sum_method, see method above. 
+    skimage_order, width_scale, fitfunction, sum_method, see method above.
+    mode - use either 'pol' or 'spec'
 
     #######
     Outputs
@@ -395,26 +396,37 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     spectra = [] #This vector collects extracted spectra from 4 traces
     spectra_std = []
 
-    ntraces = 4 #how many traces? 4 for WIRC-POL
-
-
-    if plot:
-        fig = plt.figure(figsize=(11,4))
+    if mode=='pol':
+        ntraces = 4 #how many traces? 4 for WIRC-POL
+        if plot:
+            fig = plt.figure(figsize=(11,4))
+        
+    if mode=='spec':
+        ntraces = 1 #how many traces? 1 for WIRC-SPEC
+        if plot:
+            fig = plt.figure(figsize=(11,4))
 
     thumbnails_copy = copy.deepcopy(thumbnails)
 
-    #Flip some of the traces around. 
-    thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
-    thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
-    thumbnails_copy[3,:,:] = thumbnails_copy[3,-1::-1, :] #flip y #Bottom-left
+    #Flip some of the traces around.
+    if mode=='pol': 
+        thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+        thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
+        thumbnails_copy[3,:,:] = thumbnails_copy[3,-1::-1, :] #flip y #Bottom-left
 
-    trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
-    
+        trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
+
+    if mode=='spec':
+        trace_titles=['Extracted Spectrum']
+        
     for j in range(ntraces):    
         trace_title = trace_titles[j]
 
         thumbnail = thumbnails_copy[j,:,:]
-        print("Extracting spectra from trace {} of 4".format(j))
+        if mode=='pol':
+            print("Extracting spectra from trace {} of 4".format(j))
+        if mode=='spec':
+            print("Extracting spectrum".format(j))
 
         #Should we subtrack the background? 
         if sub_background:        
@@ -459,7 +471,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
 
-        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask) #linear fit to the trace          
+        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace          
 	#plt.imshow(bkg_sub,origin = 'lower')	
 	#plt.show()
         print("Trace width {}".format(width))
@@ -571,10 +583,11 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     #print(np.array(spectra).shape)
     #pdb.set_trace()
 
-    min_len = min(len(spectra[0]),len(spectra[1]),len(spectra[2]),len(spectra[3]))
-    for i in range(4):
-        spectra[i] = spectra[i][0:min_len]
-        spectra_std[i] = spectra_std[i][0:min_len]
+    if mode=='pol':
+        min_len = min(len(spectra[0]),len(spectra[1]),len(spectra[2]),len(spectra[3]))
+        for i in range(4):
+            spectra[i] = spectra[i][0:min_len]
+            spectra_std[i] = spectra_std[i][0:min_len]
 
     return np.array(spectra), np.array(spectra_std) #res_spec is a dict, res_stddev and thumbnails are list
 
