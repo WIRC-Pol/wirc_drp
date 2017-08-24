@@ -350,7 +350,7 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, 
-    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol'):
+    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', verbose = True):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -425,7 +425,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         thumbnail = thumbnails_copy[j,:,:]
         if mode=='pol':
             print("Extracting spectra from trace {} of 4".format(j))
-        if mode=='spec':
+        if mode=='spec' and verbose:
             print("Extracting spectrum".format(j))
 
         #Should we subtrack the background? 
@@ -474,7 +474,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace          
 	#plt.imshow(bkg_sub,origin = 'lower')	
 	#plt.show()
-        print("Trace width {}".format(width))
+        if verbose:
+            print("Trace width {}".format(width))
 
         weight_width = width*width_scale
 

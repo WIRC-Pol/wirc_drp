@@ -37,8 +37,8 @@ class wirc_data(object):
         source_list: A list of n_sources wircpol_source objects
 
     """
-    def __init__(self, raw_filename=None, wirc_object_filename=None, dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None):
-
+    def __init__(self, raw_filename=None, wirc_object_filename=None, dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):
+        ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file
         if raw_filename != None and wirc_object_filename != None:
             print("Can't open both a raw file and wircpol_object, ignoring the raw file and loading the wirc_object_file ")
@@ -46,7 +46,8 @@ class wirc_data(object):
             self.load_wirc_object(wirc_object_filename)
 
         elif wirc_object_filename != None:
-            print("Loading a wirc_data object from file {}".format(wirc_object_filename))
+            if verbose:
+                print("Loading a wirc_data object from file {}".format(wirc_object_filename))
             self.load_wirc_object(wirc_object_filename)
 
         elif raw_filename != None:
@@ -903,7 +904,7 @@ class wircspec_source(object):
         plt.show()
     
     def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
-                        fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True):
+                        fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose = True):
         """
         *method:        method for spectral extraction. Choices are
         (i) skimage: this is just the profile_line method from skimage. Order for interpolation
@@ -918,10 +919,11 @@ class wircspec_source(object):
         box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
         fit the background.
         """
-        print("Performing Spectral Extraction for source {}".format(self.index))
+        if verbose:
+            print("Performing Spectral Extraction for source {}".format(self.index))
         
         #call spec_extraction to actually extract spectra
-        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec')
+        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec', verbose = True)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)

@@ -893,8 +893,11 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
         # weights *= 1/(np.abs(xinds-xcen))
         if mode=='pol':
             weights[(xinds < 70) | (xinds > 100)] = 0.
-        #if mode=='spec':
-        #    weights[(xinds < 10) | (xinds > np.maximum(xinds)-10)] = 0.
+        if mode=='spec':
+            #If the peaks are less than 10% of the brightest peak, set their weight to zero. 
+            weights[weights < 0.1* np.max(weights)] = 0.
+            if plot:  #print out locations of masked pixels when making plots
+                print(np.where(weights==0))
 
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
     else:
