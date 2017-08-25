@@ -10,7 +10,7 @@ import wirc_drp.utils.spec_utils as spec_utils
 import wirc_drp.utils.calibration as calibration
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
-
+from astropy import time as ap_time, coordinates as coord, units as u
 
 class wirc_data(object):
 
@@ -35,6 +35,7 @@ class wirc_data(object):
 
         n_sources: the number of sources in the full_image
         source_list: A list of n_sources wircpol_source objects
+        bjd: mid-exposure time in BJD_TDB
 
     """
     def __init__(self, raw_filename=None, wirc_object_filename=None, dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):
@@ -88,7 +89,17 @@ class wirc_data(object):
             self.bp_fn = bp_fn
 
             #TODO Determine whether the type is spec or pol
-            # self.type = 
+            # self.type =
+
+            #get mid-exposure time in BJD_TDB
+            date_in=self.header['UTSHUT']
+            target_pos=coord.SkyCoord(self.header['RA'],self.header['DEC'],unit=(u.hourangle,u.deg),frame='icrs')
+            palomar=coord.EarthLocation.of_site('palomar')
+            time=ap_time.Time(date_in,format='isot',scale='utc',location=palomar)
+            mid_exptime=0.5*self.header['EXPTIME']*self.header['COADDS']/(24*3600) #in units of days
+            ltt_bary=time.light_travel_time(target_pos)
+            time=time.tdb+ltt_bary #convert from UTC to TDB standard, apply barycentric correction
+            self.bjd=time.jd+mid_exptime
         
         else: #for a blank wirc object
             self.calibrated = False
@@ -923,7 +934,7 @@ class wircspec_source(object):
             print("Performing Spectral Extraction for source {}".format(self.index))
         
         #call spec_extraction to actually extract spectra
-        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec', verbose = True)
+        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
