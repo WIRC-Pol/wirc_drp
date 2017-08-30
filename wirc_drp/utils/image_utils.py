@@ -2,7 +2,7 @@
 """
 Created on Fri June 2 2017
 
-@author: Kaew Tinyanont, Max Millar-Blanchaer
+@author: Kaew Tinyanont, Max Millar-Blanchaer, Ricky Nilsson
 
 Imaging Utilities for the WIRC-POL DRP
 
@@ -24,7 +24,7 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
 
-def find_traces(science, sky, sigmalim = 5, plot = False):
+def locate_traces(science, sky, sigmalim = 5, plot = False):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
