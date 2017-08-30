@@ -24,12 +24,12 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
 
-def find_traces(science_file, sky_file, sigmalim = 5, plot = False):
+def find_traces(science, sky, sigmalim = 5, plot = False):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
-        science_file: full path to science image
-        sky_file: full path to sky (offset) image to subtract
+        science: science image, either as np array or full path+filename
+        sky: sky (offset) image to subtract, either as np array or full path+filename
         sigmalim: sigma limit for detection threshold above background noise
         plot: if True, UL quadrant of sky subtracted science_image is shown along with locations of the
                     traces found. Thumbnail cutouts of all traces are also plotted in a separate figure.
@@ -75,18 +75,24 @@ def find_traces(science_file, sky_file, sigmalim = 5, plot = False):
     # Find best_match value. Normalize correlation image with this later. 
     best_match_val = np.max(trace_selfcorr)
 
-    # Load sky (offset) image
-    sky_image_hdulist = f.open(sky_file) 
-    sky_image = sky_image_hdulist[0].data
+    # Load sky (offset) image, either from file or as np array
+    if isinstance(sky, str):
+        sky_image_hdulist = f.open(sky) 
+        sky_image = sky_image_hdulist[0].data
+    else:
+        sky_image = sky.copy()
     # Filter sky image to remove bad pixels
     sky_image_filt = ndimage.median_filter(sky_image,3)
 
 
-    print('Processing science file '+ science_file + ' ...')
+    print('Processing science file '+ science + ' ...')
 
-    # Load science image
-    science_image_hdulist = f.open(science_file)
-    science_image = science_image_hdulist[0].data
+    # Load science image, either from file or as np array
+    if isinstance(science, str):
+        science_image_hdulist = f.open(science)
+        science_image = science_image_hdulist[0].data
+    else:
+        science_image = science.copy()
 
     # Filter science image to remove bad pixels
     science_image_filt = ndimage.median_filter(science_image,3)
