@@ -38,9 +38,12 @@ class wirc_data(object):
         bjd: mid-exposure time in BJD_TDB
 
     """
-    def __init__(self, raw_filename=None, wirc_object_filename=None, dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):
+    def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True,\
+                 dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):
         ## set verbose=False to suppress print outputs
-        ## Load in either the raw file, or the wircpol_object file
+        ## Load in either the raw file, or the wircpol_object file, 
+        ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once. 
+        ## 
         if raw_filename != None and wirc_object_filename != None:
             print("Can't open both a raw file and wircpol_object, ignoring the raw file and loading the wirc_object_file ")
             print("Loading a wircpol_data object from file {}".format(wirc_object_filename))
@@ -49,7 +52,7 @@ class wirc_data(object):
         elif wirc_object_filename != None:
             if verbose:
                 print("Loading a wirc_data object from file {}".format(wirc_object_filename))
-            self.load_wirc_object(wirc_object_filename)
+            self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image)
 
         elif raw_filename != None:
             print("Creating a new wirc_data object from file {}".format(raw_filename))
@@ -457,9 +460,13 @@ class wirc_data(object):
     
           
                 
-    def load_wirc_object(self, wirc_object_filename):
+    def load_wirc_object(self, wirc_object_filename, load_full_image = True):
         '''
         Read in the wircpol_object file from a fits file
+
+        Loading in a full_image is optional, in case you only need to look at extracted spectra and cutouts.
+        Set load_full_image = False to not load full image.
+
         '''
         #common indexing notes for save_wirc_object and load_wirc_object:
         #----#(2*i)+1 is a conversion from the index, i, of the source in source_list to the index of the source in hdulist
@@ -469,7 +476,11 @@ class wirc_data(object):
         hdulist = fits.open(wirc_object_filename)
 
         #Read in the full image and the primary header
-        self.full_image = hdulist[0].data
+        if load_full_image:
+            self.full_image = hdulist[0].data
+        else:
+            self.full_image = None
+
         self.header = hdulist[0].header
 
         #What are the calibration filenames?
@@ -690,7 +701,7 @@ class wircpol_source(object):
         plt.show()
 
     def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
-         fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True):
+         trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True):
         """
         *method:        method for spectral extraction. Choices are
                             (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
@@ -703,14 +714,15 @@ class wircpol_source(object):
                                             select how to extract flux: by summing the fitted model, or the data weighted by the model.
                                             ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
                                             box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
-                                            fit the background. 
+                                            fit the background. trace_angle is the angle to rotate the cutout so it's aligned with the pixel grid.
+                                            If None, it uses value from fitTraces.
         """
         print("Performing Spectral Extraction for source {}".format(self.index))
 
         #call spec_extraction to actually extract spectra
         spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
             plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, 
-            box_size = box_size, poly_order = poly_order) 
+            box_size = box_size, poly_order = poly_order, trace_angle = trace_angle) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
