@@ -895,7 +895,7 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
         # weights[weights < 0.75* np.max(weights)] = 0. 
         # weights[weights < 5*bkg] = 0.
 
-        #Further scale the weights by their distance from the center of the image
+        #Further scale the weights by their distance from the center of the image: this is hard coded!
         # weights *= 1/(np.abs(xinds-xcen))
         if mode=='pol':
             weights[(xinds < 70) | (xinds > 100)] = 0.
@@ -921,7 +921,11 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
     y_bigpeak = peaks[x_bigpeak]
     width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
 
-    return peaks, fit, width
+    #now the angle
+    #second to last element of p is the linear order.
+    angle = np.degrees(np.arctan(p[-2]))
+
+    return peaks, fit, width, angle
 
 def fitFlux(flux_vec, seeing_pix = 4):
     """
