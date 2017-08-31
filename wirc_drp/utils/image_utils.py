@@ -2,7 +2,7 @@
 """
 Created on Fri June 2 2017
 
-@author: Kaew Tinyanont, Max Millar-Blanchaer
+@author: Kaew Tinyanont, Max Millar-Blanchaer, Ricky Nilsson
 
 Imaging Utilities for the WIRC-POL DRP
 
@@ -24,7 +24,7 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
 
-def find_traces(science, sky, sigmalim = 5, plot = False):
+def locate_traces(science, sky, sigmalim = 5, plot = False):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -895,7 +895,7 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
         # weights[weights < 0.75* np.max(weights)] = 0. 
         # weights[weights < 5*bkg] = 0.
 
-        #Further scale the weights by their distance from the center of the image
+        #Further scale the weights by their distance from the center of the image: this is hard coded!
         # weights *= 1/(np.abs(xinds-xcen))
         if mode=='pol':
             weights[(xinds < 70) | (xinds > 100)] = 0.
@@ -921,7 +921,11 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
     y_bigpeak = peaks[x_bigpeak]
     width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
 
-    return peaks, fit, width
+    #now the angle
+    #second to last element of p is the linear order.
+    angle = np.degrees(np.arctan(p[-2]))
+
+    return peaks, fit, width, angle
 
 def fitFlux(flux_vec, seeing_pix = 4):
     """

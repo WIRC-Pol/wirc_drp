@@ -136,7 +136,7 @@ def frame_rotate(array, angle, imlib='opencv', interpolation='bicubic', cxy=None
     return array_out
 
 def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  False, return_residual = False, \
-                            fitfunction = 'Moffat', sum_method = 'model_sum', poly_order = 4):
+                            trace_angle = -45, fitfunction = 'Moffat', sum_method = 'model_sum', poly_order = 4):
     """This function iterates the cutout from bottom right to top left, makes
         a diagonal cut (perpendicular to the trace) and fits gaussian along that cut.
         
@@ -171,7 +171,9 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
     #print(x)
     #y = range(width)
     
-    cutout_rot = frame_rotate(cutout, -45, cxy=[width/2,width/2])
+    #rotate the image
+    cutout_rot = frame_rotate(cutout, trace_angle, cxy=[width/2,width/2])
+
     #plt.imshow(cutout_rot, origin = 'lower')
     #plt.show()
 
@@ -349,8 +351,9 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
 
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
-def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, 
-    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', verbose = True):
+def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, \
+    method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
+     fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', verbose = True):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -471,13 +474,15 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
 
-        raw, trace, width = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace          
-	#plt.imshow(bkg_sub,origin = 'lower')	
-	#plt.show()
+        raw, trace, width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
+        
+    #plt.imshow(bkg_sub,origin = 'lower')   
+    #plt.show()
         if verbose:
             print("Trace width {}".format(width))
 
         weight_width = width*width_scale
+        
 
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
@@ -512,10 +517,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spectra_std.append(np.sqrt(spec_var))
 
         elif method == 'fit_across_trace':
+            print("trace angle is ", measured_trace_angle," deg")
+            if trace_angle == None:
+                rotate_spec_angle = measured_trace_angle #use the measured angle
+            else:
+                rotate_spec_angle = trace_angle #use the given value
+                print("use given ", trace_angle," instead. change this by setting trace_angle to None")
             start = time.time()
             spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  False, return_residual = 1, \
                                                                         fitfunction = fitfunction, box_size = box_size, poly_order = poly_order,
-                                                                        sum_method = sum_method) #Do not use variance from this method
+                                                                        sum_method = sum_method, trace_angle = rotate_spec_angle) #Do not use variance from this method
             #plt.imshow(residual, origin = 'lower',vmin = -200, vmax = 200)
             #plt.colorbar()
             #plt.show()
