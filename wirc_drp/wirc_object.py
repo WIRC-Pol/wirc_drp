@@ -271,6 +271,9 @@ class wirc_data(object):
         self.header["CALBRTED"] = self.calibrated
         self.header["BKG_SUBD"] = self.bkg_subbed
 
+        #add in time stamp
+        self.header["BJD"]=self.bjd
+        
         hdu = fits.PrimaryHDU(self.full_image)
         hdu.header = self.header
 
@@ -497,6 +500,9 @@ class wirc_data(object):
 
         #How many sources are there
         self.n_sources = self.header["NSOURCES"]
+
+        #BJD_TDB
+        self.bjd = self.header["BJD"]
 
         #Create one source object for each source and append it to source_list
         self.source_list = []
