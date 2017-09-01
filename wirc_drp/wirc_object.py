@@ -933,7 +933,7 @@ class wircspec_source(object):
         plt.show()
     
     def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
-                        fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose = True):
+                        fitfunction = 'Moffat', sum_method = 'weighted_sum', trace_angle = None, box_size = 1, poly_order = 4, align = True, verbose = True):
         """
         *method:        method for spectral extraction. Choices are
         (i) skimage: this is just the profile_line method from skimage. Order for interpolation
@@ -947,12 +947,14 @@ class wircspec_source(object):
         ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
         box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
         fit the background.
+        trace_angle is the angle used to rotate the spectral trace for the fit_across_trace method; None uses the
+        measured angle for each individual spectrum
         """
         if verbose:
             print("Performing Spectral Extraction for source {}".format(self.index))
         
         #call spec_extraction to actually extract spectra
-        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
+        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, trace_angle = None, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
