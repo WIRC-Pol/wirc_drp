@@ -351,6 +351,79 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
 
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
+def optimal_extraction(data, background, gain, read_out_noise, extraction_range, plot = 0):
+    """
+    This is Horne 1986 optimal extraction algorithm. This function assumes that background estimation
+    is done prior to calling this function.
+    
+    Inputs: 
+        data: 2D numpy array of the data, *before background subtraction.
+        background: 2D numpy array of the background used for background subtraction
+        gain: detector gain in electron/ADU, 1.2 for WIRC
+        read_out_noise: standard deviation of read-out noise in electron. 12e- for WIRC
+    """
+
+    #background = median_filter(background, 11) #assume no fine structure in background
+    #First construct the variance estimate (eq 12, Horne 1986)
+    variance = (read_out_noise/gain)**2 + data/gain
+    #Compute a "standard" spectrum estimator by summing across trace
+    flux_0, var_0 = sum_across_trace(data-background, variance, extraction_range)
+    sky_flux, sky_var = sum_across_trace(background, variance, extraction_range)
+    
+    #Profile image; first pass, eq 14, then smooth with a median filter
+    P_0 = np.copy(data)
+    P_0 = (data - background)/flux_0 #this is dividing each column (x) in data-background by the sum in that column
+    #smooth with a median filter only in the dispersion direction (x); note that the index is (y,x) here
+    P_0 = median_filter(P_0, size = (1,10))
+    #enforce non negativity and unity sum in the spatial direction
+    P_0[P_0 < 0] = 0
+    P_sum, var_Psum = sum_across_trace(P_0, variance, extraction_range)
+    P_0 = P_0/P_sum
+    
+    #for i in range(P_0.shape[1]):
+    #    plt.scatter(i, np.sum(P_0[extraction_range[0]:extraction_range[1],i]))
+    if plot:
+        plt.figure()
+        for i in range(extraction_range[0], extraction_range[1]):
+            plt.plot(P_0[i,:])
+            #plt.plot(median_filter(P_0[i,:], 10))
+            plt.ylim([-0.05,0.2])
+            plt.xlim([30,140])
+            plt.ylabel('P')
+            plt.xlabel('Spectral pixel')
+        plt.title('Spectral Profile')
+        plt.show()
+
+    #Now, optimization step. This version makes no attempts to deal with bad pixel
+    print(flux_0.shape, P_0.shape)
+    
+    #optimal 
+    variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
+    #plt.imshow(variance_opt,origin ='lower', norm = LogNorm())
+    #sum P(D-S)/V
+    sum1, foo = sum_across_trace( P_0*(data-background)/variance_opt, variance, extraction_range) 
+    #sum P
+    sumP, foo = sum_across_trace(P_0,variance, extraction_range) 
+    #sum P**2/V
+    sum3, foo = sum_across_trace(P_0**2/variance_opt,variance, extraction_range) 
+    
+    #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0])
+    #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'b')
+    
+    
+    
+    #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0],'c')
+    #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'r')
+    #plt.plot(sum1 ,'r')
+    #plt.plot(sumP,'g')
+    #plt.plot(sum3,'b')
+    #plt.show()
+    flux_opt_final = np.nan_to_num(sum1/sum3)
+    variance_opt_final = np.nan_to_num(sumP/sum3 )
+    
+    #plt.show()
+    return flux_opt_final, variance_opt_final
+
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, \
     method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
      fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', verbose = True):
@@ -371,7 +444,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     *method:        method for spectral extraction. Choices are
                         (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
                                         is in skimage_order parameter (fast).
-                        (ii) weightedSum: this is 2D weighted sum assuming Gaussian profile. Multiply the PSF with data
+                        (ii) weightedSum: this is 2D weighted sum assfuming Gaussian profile. Multiply the PSF with data
                                         and sum for each location along the dispersion direction (fast). The width of the Gaussian
                                         is based on the measured value by 'findTrace'. One can adjust this using the parameter 'width_scale'.
                         (iii) fit_across_trace: this method rotates the trace, loops along the dispersion direction, and fit a profile in the 
@@ -474,7 +547,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
 
-        raw, trace, width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
         
     #plt.imshow(bkg_sub,origin = 'lower')   
     #plt.show()
@@ -487,6 +559,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.
+
+        raw, trace, width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
+
 
         ######################################
         ######Call spectral extraction routine
@@ -523,7 +598,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             else:
                 rotate_spec_angle = trace_angle #use the given value
                 print("use given ", trace_angle," instead. change this by setting trace_angle to None")
-            start = time.time()
+            #start = time.time()
             spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  False, return_residual = 1, \
                                                                         fitfunction = fitfunction, box_size = box_size, poly_order = poly_order,
                                                                         sum_method = sum_method, trace_angle = rotate_spec_angle) #Do not use variance from this method
@@ -534,7 +609,28 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             print('fit_across_trace takes {} s'.format(time.time()-start))
             spectra.append(spec_res)
-            spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet. 
+            spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
+             
+        elif method == 'optimal_extraction':
+            print("trace angle is ", measured_trace_angle," deg")
+            if trace_angle == None:
+                rotate_spec_angle = measured_trace_angle #use the measured angle
+            else:
+                rotate_spec_angle = trace_angle #use the given value
+                print("use given ", trace_angle," instead. change this by setting trace_angle to None")
+            #rotate the spectra here
+            width = bkg_sub.shape[0]
+            sub_rotated = frame_rotate(bkg_sub, angle+180,cxy=[width/2,width/2])
+            rotated = frame_rotate(thumbnail, angle+180,cxy=[width/2,width/2])
+            #how to automatically determine this???
+            lower = 75
+            upper = 100
+            spec_res, spec_var = optimal_extraction( rot_data[i],rot_data[i] - rot_bkg_subs[i], 1.2, 12, [lower, upper], plot = 0)
+
+            spectra.append(spec_res)
+            spectra_std.append(np.sqrt(spec_var)) 
+
+    
         else:
             print("method keyword not understood, please choose method='weightedSum', 'fit_across_trace', or method='skimage'")
             return None, None
@@ -700,15 +796,16 @@ def align_set_of_traces(traces_cube, ref_trace):
     and align them with respect to the reference trace of the same length. 
     """
     new_cube = np.zeros(traces_cube.shape)
+    ref = ref_trace
     #fig, (ax, ax2) = plt.subplots(2,4, figsize = (20,10))
     for i, j in enumerate(traces_cube):
-        ref = ref_trace
-        corr = fftconvolve(ref/np.max(ref), j/np.max(j))
-        #plt.plot(corr)
-        #plt.show()
-        shift_size = np.argmax(corr) - len(ref) +1
-        #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], -shift_size)
+        #print(np.max(ref), np.max(j))
+        #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
+        corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j/np.nanmax(j))[::-1]) )
+
+        shift_size = np.nanargmax(corr) - len(ref) +1
+        print(shift_size)
+        new_cube[i] = shift(traces_cube[i], shift_size)
             
     return new_cube
 
