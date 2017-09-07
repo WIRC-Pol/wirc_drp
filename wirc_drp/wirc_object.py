@@ -502,7 +502,11 @@ class wirc_data(object):
         self.n_sources = self.header["NSOURCES"]
 
         #BJD_TDB
-        self.bjd = self.header["BJD"]
+        try:
+            self.bjd = self.header["BJD"]
+        except KeyError as err:
+            print(err)
+
 
         #Create one source object for each source and append it to source_list
         self.source_list = []
