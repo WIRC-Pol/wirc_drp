@@ -351,16 +351,43 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
 
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
-def optimal_extraction(data, background, gain, read_out_noise, extraction_range, plot = 0):
+def sum_across_trace(data, variance, extraction_range):
+    """
+    extract spectrum by simply summing in the spatial direction
+    This also serves as a helper function for optimal_extraction
+    Input:
+        data: 2D numpy array of the data, background subtracted
+        variance: 2D numpy array of the variance of the data
+        extraction_range: a list of [y_begin, y_end], assuming that y is the spatial direction. 
+                (TO BE IMPLEMENTED:
+                If y_range == None, sum the trace in the spectral direction to get a total profile, fit a gaussian 
+                and use the result as a limit.) 
+    Output:
+        flux
+        flux_var
+        
+    """
+    #if y_range == None:
+    #    vert_profile = np.sum(data, axis = 1)
+    #    plt.plot(vert_profile)
+    #    plt.show()
+    #    y_range = [83,94]
+    return np.sum(data[extraction_range[0]:extraction_range[1],:], axis = 0), \
+                    np.sum(variance[extraction_range[0]:extraction_range[1],:], axis = 0)   
+
+def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_noise = 12, plot = 0):
     """
     This is Horne 1986 optimal extraction algorithm. This function assumes that background estimation
-    is done prior to calling this function.
+    is done prior to calling this function. In this implementation, no bad pixel finding is in place
     
     Inputs: 
         data: 2D numpy array of the data, *before background subtraction.
         background: 2D numpy array of the background used for background subtraction
         gain: detector gain in electron/ADU, 1.2 for WIRC
         read_out_noise: standard deviation of read-out noise in electron. 12e- for WIRC
+    Outputs:
+        flux
+        variance of the measured flux
     """
 
     #background = median_filter(background, 11) #assume no fine structure in background
@@ -395,7 +422,7 @@ def optimal_extraction(data, background, gain, read_out_noise, extraction_range,
         plt.show()
 
     #Now, optimization step. This version makes no attempts to deal with bad pixel
-    print(flux_0.shape, P_0.shape)
+    #print(flux_0.shape, P_0.shape)
     
     #optimal 
     variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
@@ -426,7 +453,8 @@ def optimal_extraction(data, background, gain, read_out_noise, extraction_range,
 
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, \
     method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
-     fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', verbose = True):
+     fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,\
+     verbose = True):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -453,6 +481,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                                         ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
                                         box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
                                         fit the background. 
+                        (iv) optimal_extraction: This is a preferred method. 
     diag_mask:      if True, the area away from the trace will be masked out 
 
     skimage_order, width_scale, fitfunction, sum_method, see method above.
@@ -547,21 +576,15 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
 
-        
-    #plt.imshow(bkg_sub,origin = 'lower')   
-    #plt.show()
-        if verbose:
-            print("Trace width {}".format(width))
-
-        weight_width = width*width_scale
-        
 
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.
 
-        raw, trace, width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
-
+        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
+        weight_width = trace_width*width_scale
+        if verbose:
+            print("Trace width {}".format(trace_width))
 
         ######################################
         ######Call spectral extraction routine
@@ -571,7 +594,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         ##skimage profile_line trying different interpolation orders
         if method == 'skimage':
             print("Extraction by skimage")
-            linewidth = 20 #This should be adjusted based on fitted seeing.
+            #linewidth = 20 #This should be adjusted based on fitted seeing.
+            linewidth = 2*trace_width #use the measured trace width
             spec_res = profile_line(bkg_sub, (0,trace[0]), (len(bkg_sub[1]),trace[-1]), linewidth = linewidth,order =  skimage_order)                
             spectra.append(spec_res)
             spectra_std.append((gain*spec_res+linewidth * sigma_ron**2)/gain**2) #poisson + readout
@@ -610,22 +634,58 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             print('fit_across_trace takes {} s'.format(time.time()-start))
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
+        elif method == 'sum_across_trace':
+            #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
+            print("trace angle is ", measured_trace_angle," deg")
+            if trace_angle == None: #if the trace angle is not given, use the measured angle
+                rotate_spec_angle = measured_trace_angle 
+            else: #otherwise, use the given value
+                rotate_spec_angle = trace_angle 
+                print("using given angle of ", trace_angle," deg. change this by setting trace_angle to None")
+
+            #rotate the spectrum here. rotation axis is the middle of the image
+            width_thumbnail = bkg_sub.shape[0]
+            sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+            rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+
+            #determine the extraction range based on the width parameter
+            #first, find the peak
+            spatial_profile = np.sum(sub_rotated, axis = 1) #sum in the spectral direction to get a net spatial profile
+            vert_max = np.argmax(spatial_profile) #locate the peak in this profile
+            #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
+            #because the pixel width changes as we rotate the image 
+            lower = int(np.floor(vert_max - spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))))) #is this LISP or what?
+            upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
+            #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
+            spec_res, spec_var = sum_across_trace( rotated, rotated - sub_rotated, [lower, upper]) 
+
+            spectra.append(spec_res)
+            spectra_std.append(np.sqrt(spec_var)) 
              
         elif method == 'optimal_extraction':
+            #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle == None:
-                rotate_spec_angle = measured_trace_angle #use the measured angle
-            else:
-                rotate_spec_angle = trace_angle #use the given value
-                print("use given ", trace_angle," instead. change this by setting trace_angle to None")
-            #rotate the spectra here
-            width = bkg_sub.shape[0]
-            sub_rotated = frame_rotate(bkg_sub, angle+180,cxy=[width/2,width/2])
-            rotated = frame_rotate(thumbnail, angle+180,cxy=[width/2,width/2])
-            #how to automatically determine this???
-            lower = 75
-            upper = 100
-            spec_res, spec_var = optimal_extraction( rot_data[i],rot_data[i] - rot_bkg_subs[i], 1.2, 12, [lower, upper], plot = 0)
+            if trace_angle == None: #if the trace angle is not given, use the measured angle
+                rotate_spec_angle = measured_trace_angle 
+            else: #otherwise, use the given value
+                rotate_spec_angle = trace_angle 
+                print("using given angle of ", trace_angle," deg. change this by setting trace_angle to None")
+
+            #rotate the spectrum here. rotation axis is the middle of the image
+            width_thumbnail = bkg_sub.shape[0]
+            sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+            rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+
+            #determine the extraction range based on the width parameter
+            #first, find the peak
+            spatial_profile = np.sum(sub_rotated, axis = 1) #sum in the spectral direction to get a net spatial profile
+            vert_max = np.argmax(spatial_profile) #locate the peak in this profile
+            #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
+            #because the pixel width changes as we rotate the image 
+            lower = int(np.floor(vert_max - spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))))) #is this LISP or what?
+            upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
+            #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
+            spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, [lower, upper], 1.2, 12, plot = 0) 
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
@@ -804,7 +864,7 @@ def align_set_of_traces(traces_cube, ref_trace):
         corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j/np.nanmax(j))[::-1]) )
 
         shift_size = np.nanargmax(corr) - len(ref) +1
-        print(shift_size)
+        #print(shift_size)
         new_cube[i] = shift(traces_cube[i], shift_size)
             
     return new_cube

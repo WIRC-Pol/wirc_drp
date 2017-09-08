@@ -710,7 +710,7 @@ class wircpol_source(object):
 
         plt.show()
 
-    def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
+    def extract_spectra(self, sub_background = True, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
          trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True):
         """
         *method:        method for spectral extraction. Choices are
