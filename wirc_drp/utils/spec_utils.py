@@ -375,6 +375,30 @@ def sum_across_trace(data, variance, extraction_range):
     return np.sum(data[extraction_range[0]:extraction_range[1],:], axis = 0), \
                     np.sum(variance[extraction_range[0]:extraction_range[1],:], axis = 0)   
 
+def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3):
+    """helper function for optimal_extraction and sum_across_trace extraction. This function sums
+    the given rotated thumbnail in the spectral direction, find the peak (assume one trace only),
+    and return the range based on the given width of the trace (from findTrace) and the given 'sigmas'.
+
+    Inputs:
+        thumbnail: a 2D numpy array of the trace thumbnail. This must be rotated so that the spectral trace
+                    is along x (axis 1).
+        width: this is the trace width determined by findTrace
+        sigma_spatial: how may widths away you want to extract. 
+    Output:
+        extraction_range: a 2-element list of [peak - sigma*width, peak + sigma*width]
+
+    """
+    spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
+    vert_max = np.argmax(spatial_profile) #locate the peak in this profile
+    #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
+    #because the pixel width changes as we rotate the image 
+    lower = int(np.floor(vert_max - spatial_sigma*trace_width)) #is this LISP or what?
+    upper = int(np.ceil(vert_max + spatial_sigma*trace_width))
+
+    return [lower, upper]
+
+
 def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_noise = 12, plot = 0):
     """
     This is Horne 1986 optimal extraction algorithm. This function assumes that background estimation
@@ -383,6 +407,7 @@ def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_
     Inputs: 
         data: 2D numpy array of the data, *before background subtraction.
         background: 2D numpy array of the background used for background subtraction
+        extraction_range: a 2-element list of the lower and upper limit in spatial (y) direction to extract the spectrum 
         gain: detector gain in electron/ADU, 1.2 for WIRC
         read_out_noise: standard deviation of read-out noise in electron. 12e- for WIRC
     Outputs:
@@ -650,14 +675,12 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #determine the extraction range based on the width parameter
             #first, find the peak
-            spatial_profile = np.sum(sub_rotated, axis = 1) #sum in the spectral direction to get a net spatial profile
-            vert_max = np.argmax(spatial_profile) #locate the peak in this profile
-            #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
-            #because the pixel width changes as we rotate the image 
-            lower = int(np.floor(vert_max - spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))))) #is this LISP or what?
-            upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
-            #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
-            spec_res, spec_var = sum_across_trace( rotated, rotated - sub_rotated, [lower, upper]) 
+            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
+
+
+
+            #call the optimal extraction method, remember it's sum_across_trace(bkg_sub_data, bkg, extraction_range, etc)
+            spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range) 
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
@@ -678,14 +701,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #determine the extraction range based on the width parameter
             #first, find the peak
-            spatial_profile = np.sum(sub_rotated, axis = 1) #sum in the spectral direction to get a net spatial profile
-            vert_max = np.argmax(spatial_profile) #locate the peak in this profile
-            #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
-            #because the pixel width changes as we rotate the image 
-            lower = int(np.floor(vert_max - spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))))) #is this LISP or what?
-            upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
+            # spatial_profile = np.sum(sub_rotated, axis = 1) #sum in the spectral direction to get a net spatial profile
+            # vert_max = np.argmax(spatial_profile) #locate the peak in this profile
+            # #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
+            # #because the pixel width changes as we rotate the image 
+            # lower = int(np.floor(vert_max - spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))))) #is this LISP or what?
+            # upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
+
+            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
-            spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, [lower, upper], 1.2, 12, plot = 0) 
+            spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, 1.2, 12, plot = 0) 
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
