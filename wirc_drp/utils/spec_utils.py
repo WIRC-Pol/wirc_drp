@@ -611,9 +611,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         weight_width = width*width_scale
         
-
-
-=======
         raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
         weight_width = trace_width*width_scale
         if verbose:
