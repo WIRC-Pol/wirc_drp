@@ -550,17 +550,18 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         
     #plt.imshow(bkg_sub,origin = 'lower')   
     #plt.show()
-        if verbose:
-            print("Trace width {}".format(width))
-
-        weight_width = width*width_scale
-        
 
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.
 
         raw, trace, width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
+        if verbose:
+            print("Trace width {}".format(width))
+
+        weight_width = width*width_scale
+        
+
 
 
         ######################################
@@ -592,7 +593,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spectra_std.append(np.sqrt(spec_var))
 
         elif method == 'fit_across_trace':
-            print("trace angle is ", measured_trace_angle," deg")
+            if verbose:
+                print("trace angle is ", measured_trace_angle," deg")
             if trace_angle == None:
                 rotate_spec_angle = measured_trace_angle #use the measured angle
             else:
@@ -607,7 +609,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #plt.show()
             #spec_res, spec_var = fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plotted =  0, return_residual = 0) #Do not use variance from this method
 
-            print('fit_across_trace takes {} s'.format(time.time()-start))
+            if verbose:
+                print('fit_across_trace takes {} s'.format(time.time()-start))
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
              
