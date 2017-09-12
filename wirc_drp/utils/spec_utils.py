@@ -479,7 +479,7 @@ def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, \
     bkg_sub_shift_size = 21, method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
      fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,\
-     verbose = True):
+     verbose = True, quiet=False):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -553,7 +553,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         trace_title = trace_titles[j]
 
         thumbnail = thumbnails_copy[j,:,:]
-        if mode=='pol':
+        if mode=='pol' and verbose:
             print("Extracting spectra from trace {} of 4".format(j))
         if mode=='spec' and verbose:
             print("Extracting spectrum".format(j))
@@ -601,11 +601,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
 
-
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.
 
+        raw, trace, width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
+        if verbose:
+            print("Trace width {}".format(width))
+
+        weight_width = width*width_scale
+        
         raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
         weight_width = trace_width*width_scale
         if verbose:
@@ -618,7 +623,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         ##skimage profile_line trying different interpolation orders
         if method == 'skimage':
-            print("Extraction by skimage")
+            if verbose:
+                print("Extraction by skimage")
             #linewidth = 20 #This should be adjusted based on fitted seeing.
             linewidth = 2*trace_width #use the measured trace width
             spec_res = profile_line(bkg_sub, (0,trace[0]), (len(bkg_sub[1]),trace[-1]), linewidth = linewidth,order =  skimage_order)                
@@ -641,12 +647,14 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spectra_std.append(np.sqrt(spec_var))
 
         elif method == 'fit_across_trace':
-            print("trace angle is ", measured_trace_angle," deg")
+            if verbose:
+                print("trace angle is ", measured_trace_angle," deg")
             if trace_angle == None:
                 rotate_spec_angle = measured_trace_angle #use the measured angle
             else:
                 rotate_spec_angle = trace_angle #use the given value
-                print("use given ", trace_angle," instead. change this by setting trace_angle to None")
+                if verbose:
+                    print("use given ", trace_angle," instead. change this by setting trace_angle to None")
             #start = time.time()
             spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  False, return_residual = 1, \
                                                                         fitfunction = fitfunction, box_size = box_size, poly_order = poly_order,
@@ -656,17 +664,20 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #plt.show()
             #spec_res, spec_var = fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plotted =  0, return_residual = 0) #Do not use variance from this method
 
-            print('fit_across_trace takes {} s'.format(time.time()-start))
+            if verbose:
+                print('fit_across_trace takes {} s'.format(time.time()-start))
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
         elif method == 'sum_across_trace':
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
-            print("trace angle is ", measured_trace_angle," deg")
+            if verbose:
+                print("trace angle is ", measured_trace_angle," deg")
             if trace_angle == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
                 rotate_spec_angle = trace_angle 
-                print("using given angle of ", trace_angle," deg. change this by setting trace_angle to None")
+                if verbose:
+                    print("using given angle of ", trace_angle," deg. change this by setting trace_angle to None")
 
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = bkg_sub.shape[0]
@@ -687,12 +698,14 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
              
         elif method == 'optimal_extraction':
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
-            print("trace angle is ", measured_trace_angle," deg")
+            if verbose:
+                print("trace angle is ", measured_trace_angle," deg")
             if trace_angle == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
                 rotate_spec_angle = trace_angle 
-                print("using given angle of ", trace_angle," deg. change this by setting trace_angle to None")
+                if verbose:
+                    print("using given angle of ", trace_angle," deg. change this by setting trace_angle to None")
 
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = bkg_sub.shape[0]

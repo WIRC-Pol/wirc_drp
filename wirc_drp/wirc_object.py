@@ -611,6 +611,10 @@ class wirc_data(object):
             print("AUTOMATIC Identification of spec mode sources is not yet implemented. Hopefully soon.")
 
     
+    def add_source(self, x,y, slit_pos = "slitless"):
+        self.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
+        wirc_data.n_sources += 1
+
     def get_source_cutouts(self):
         """
         Get thumbnail cutouts for the spectra of for each source in the image. 
@@ -710,8 +714,10 @@ class wircpol_source(object):
 
         plt.show()
 
+
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
-         trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True):
+         trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True):
+
         """
         *method:        method for spectral extraction. Choices are
                             (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
@@ -733,7 +739,7 @@ class wircpol_source(object):
         spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
             bkg_sub_shift_size = bkg_sub_shift_size ,
             plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, 
-            box_size = box_size, poly_order = poly_order, trace_angle = trace_angle) 
+            box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
