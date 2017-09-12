@@ -715,7 +715,8 @@ class wircpol_source(object):
         plt.show()
 
 
-    def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
+    def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, plot=False, method = 'optimal_extraction', spatial_sigma = 3,
+          width_scale=1., diag_mask=False, \
          trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True):
 
         """
