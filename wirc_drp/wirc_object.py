@@ -611,6 +611,10 @@ class wirc_data(object):
             print("AUTOMATIC Identification of spec mode sources is not yet implemented. Hopefully soon.")
 
     
+    def add_source(self, x,y, slit_pos = "slitless"):
+        self.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
+        wirc_data.n_sources += 1
+
     def get_source_cutouts(self):
         """
         Get thumbnail cutouts for the spectra of for each source in the image. 
