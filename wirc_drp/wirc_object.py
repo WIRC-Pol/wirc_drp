@@ -715,7 +715,7 @@ class wircpol_source(object):
         plt.show()
 
     def extract_spectra(self, sub_background = True, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
-         trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True):
+         trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True):
         """
         *method:        method for spectral extraction. Choices are
                             (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
@@ -736,7 +736,7 @@ class wircpol_source(object):
         #call spec_extraction to actually extract spectra
         spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
             plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, 
-            box_size = box_size, poly_order = poly_order, trace_angle = trace_angle) 
+            box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
