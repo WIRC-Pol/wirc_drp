@@ -306,6 +306,10 @@ class wirc_data(object):
             source_hdu.header["POL_CMPD"] = (self.source_list[i].polarization_computed,"Polarization Computed? status")
             source_hdu.header["SPC_XTRD"] = (self.source_list[i].spectra_extracted,"Spectra Extracted? status")
             source_hdu.header["THMB_CUT"] = (self.source_list[i].thumbnails_cut_out,"Thumbnails cut out? status")
+
+            #widths and angles of the traces
+            source_hdu.header["TRACES_WIDTH"] = (np.array2string(self.source_list[i].spectra_widths), "Widths of spectra in unrotated image")
+            source_hdu.header["TRACES_ANGLE"]=  (np.array2string(self.source_list[i].spectra_angles), "Angles of spectra in unrotated image")
             
             
             #Append it to the hdu list
@@ -563,6 +567,12 @@ class wirc_data(object):
             new_source.spectra_extracted = hdulist[(2*i)+1].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
             new_source.thumbnails_cut_out = hdulist[(2*i)+1].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
 
+            try:
+                new_source.spectra_widths = np.fromstring(hdulist[(2*i)+1].header["TRACES_WIDTH"][1:-1], sep = ' ')
+                new_source.spectra_angles = np.fromstring(hdulist[(2*i)+1].header["TRACES_ANGLE"][1:-1], sep = ' ')
+            except KeyError:
+                None
+
                     
 
             #Append it to the source_list
@@ -737,21 +747,18 @@ class wircpol_source(object):
         print("Performing Spectral Extraction for source {}".format(self.index))
 
         #call spec_extraction to actually extract spectra
-        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
+        spectra, spectra_std, spectra_widths, spectra_angles = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
             bkg_sub_shift_size = bkg_sub_shift_size ,
             plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, 
             box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
-        #for i in spectra:
-        #    plt.plot(i)
-        #plt.show()
+        
         if align:
             spectra = spec_utils.align_set_of_traces(spectra, spectra[0])
-        #for i in spectra:
-        #    plt.plot(i)
-        #plt.show()
+ 
         spectra_length = spectra.shape[1]
 
+        #set values
         self.trace_spectra = np.zeros((4,3,spectra_length))
         self.trace_spectra[:,0,:] = np.arange(spectra_length) #The wavelength axis, to be calibrated later. 
         self.trace_spectra[:,1,:] = spectra
@@ -759,6 +766,9 @@ class wircpol_source(object):
         
         self.spectra_extracted = True #source attribute, later applied to header["SPC_XTRD"]
         self.spectra_aligned = align
+
+        self.spectra_widths = spectra_widths
+        self.spectra_angles = spectra_angles
 
     def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
         #Rough wavelength calibration. Will have to get better later!

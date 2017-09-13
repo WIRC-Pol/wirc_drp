@@ -548,6 +548,10 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
     if mode=='spec':
         trace_titles=['Extracted Spectrum']
+
+    #lists to collect widths and angles of the traces
+    widths = []
+    angles = []
         
     for j in range(ntraces):    
         trace_title = trace_titles[j]
@@ -605,16 +609,19 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.
 
-        raw, trace, width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
-        if verbose:
-            print("Trace width {}".format(width))
-
-        weight_width = width*width_scale
-        
         raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
-        weight_width = trace_width*width_scale
         if verbose:
             print("Trace width {}".format(trace_width))
+
+        weight_width = trace_width*width_scale
+
+        widths += [trace_width]
+        angles += [measured_trace_angle]
+        
+        #raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
+        #weight_width = trace_width*width_scale
+        #if verbose:
+        #    print("Trace width {}".format(trace_width))
 
         ######################################
         ######Call spectral extraction routine
@@ -795,7 +802,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spectra[i] = spectra[i][0:min_len]
             spectra_std[i] = spectra_std[i][0:min_len]
 
-    return np.array(spectra), np.array(spectra_std) #res_spec is a dict, res_stddev and thumbnails are list
+    return np.array(spectra), np.array(spectra_std), np.array(widths), np.array(angles)  #res_spec is a dict, res_stddev and thumbnails are list
 
 def rough_wavelength_calibration_v1(trace, filter_name):
     """
