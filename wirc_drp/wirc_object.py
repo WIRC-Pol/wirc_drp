@@ -286,7 +286,9 @@ class wirc_data(object):
             
             #Create an ImageHDU for each of the sources
             # source_hdu = fits.ImageHDU(self.source_list[i].trace_images)
-            source_hdu = fits.PrimaryHDU(self.source_list[i].trace_images)
+
+            source_hdu = fits.PrimaryHDU(np.concatenate(self.source_list[i].trace_images, 
+                                                        self.source_list[i].trace_images_extracted)
 
             #Put in the source info
             source_hdu.header["XPOS"] = self.source_list[i].pos[0]
@@ -536,7 +538,8 @@ class wirc_data(object):
         
 
             
-            new_source.trace_images = hdulist[(2*i)+1].data #finds the i'th source image data in the hdulist
+            new_source.trace_images = hdulist[(2*i)+1].data[0:4] #finds the i'th source image data in the hdulist, first 4 are raw images
+            new_source.trace_images_extracted = hdulist[(2*i)+1].data[4:] #last 4 images are from which extraction is done. 
             
             #finds the table data of the TableHDU corresponding to the i'th source
             big_table=hdulist[(2*i)+2].data 
@@ -747,7 +750,7 @@ class wircpol_source(object):
         print("Performing Spectral Extraction for source {}".format(self.index))
 
         #call spec_extraction to actually extract spectra
-        spectra, spectra_std, spectra_widths, spectra_angles = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
+        spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
             bkg_sub_shift_size = bkg_sub_shift_size ,
             plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, fitfunction = fitfunction, sum_method = sum_method, 
             box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose) 
@@ -766,6 +769,8 @@ class wircpol_source(object):
         
         self.spectra_extracted = True #source attribute, later applied to header["SPC_XTRD"]
         self.spectra_aligned = align
+
+        self.trace_images_extracted = thumbnail_to_extract #these are thumbnails on which the extraction was done
 
         self.spectra_widths = spectra_widths
         self.spectra_angles = spectra_angles
@@ -976,7 +981,7 @@ class wircspec_source(object):
             print("Performing Spectral Extraction for source {}".format(self.index))
         
         #call spec_extraction to actually extract spectra
-        spectra, spectra_std = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, trace_angle = None, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
+        spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract= spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, trace_angle = None, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
@@ -995,6 +1000,11 @@ class wircspec_source(object):
         
         self.spectra_extracted = True #source attribute, later applied to header["SPC_XTRD"]
         self.spectra_aligned = align
+
+        self.trace_images_extracted = thumbnail_to_extract #these are thumbnails on which the extraction was done
+
+        self.spectra_widths = spectra_widths
+        self.spectra_angles = spectra_angles
     
     def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
         #Rough wavelength calibration. Will have to get better later!

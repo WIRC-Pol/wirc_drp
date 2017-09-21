@@ -552,7 +552,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     #lists to collect widths and angles of the traces
     widths = []
     angles = []
-        
+    thumbnails_to_extract = [] #This is to collect the thumbnails that will actually be extracted (e.g. bkg subtracted/rotated)
     for j in range(ntraces):    
         trace_title = trace_titles[j]
 
@@ -653,6 +653,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var))
 
+            thumbnails_to_extract.append(bkg_sub) #add background subtracted image
+
         elif method == 'fit_across_trace':
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
@@ -675,6 +677,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 print('fit_across_trace takes {} s'.format(time.time()-start))
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
+            thumbnails_to_extract.append(bkg_sub) #add background subtracted image
         elif method == 'sum_across_trace':
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
@@ -702,6 +705,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
+            thumbnails_to_extract.append(sub_rotated)#add background subtracted, rotated, image
              
         elif method == 'optimal_extraction':
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
@@ -734,6 +738,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
+            thumbnails_to_extract.append(sub_rotated)#add background subtracted, rotated, image
 
     
         else:
@@ -802,7 +807,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spectra[i] = spectra[i][0:min_len]
             spectra_std[i] = spectra_std[i][0:min_len]
 
-    return np.array(spectra), np.array(spectra_std), np.array(widths), np.array(angles)  #res_spec is a dict, res_stddev and thumbnails are list
+    return np.array(spectra), np.array(spectra_std), np.array(widths), np.array(angles), np.array(thumbnails_to_extract)  #res_spec is a dict, res_stddev and thumbnails are list
 
 def rough_wavelength_calibration_v1(trace, filter_name):
     """
