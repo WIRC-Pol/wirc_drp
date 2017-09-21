@@ -291,7 +291,6 @@ class wirc_data(object):
 
             source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, 
                                                         self.source_list[i].trace_images_extracted]))
-            pdb.set_trace()
 
             #Put in the source info
             source_hdu.header["XPOS"] = self.source_list[i].pos[0]
