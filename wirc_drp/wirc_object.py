@@ -287,8 +287,8 @@ class wirc_data(object):
             #Create an ImageHDU for each of the sources
             # source_hdu = fits.ImageHDU(self.source_list[i].trace_images)
 
-            source_hdu = fits.PrimaryHDU(np.concatenate(self.source_list[i].trace_images, 
-                                                        self.source_list[i].trace_images_extracted)
+            source_hdu = fits.PrimaryHDU(np.concatenate(self.source_list[i].trace_images, \
+                                                        self.source_list[i].trace_images_extracted))
 
             #Put in the source info
             source_hdu.header["XPOS"] = self.source_list[i].pos[0]
@@ -539,7 +539,7 @@ class wirc_data(object):
 
             
             new_source.trace_images = hdulist[(2*i)+1].data[0:4] #finds the i'th source image data in the hdulist, first 4 are raw images
-            new_source.trace_images_extracted = hdulist[(2*i)+1].data[4:] #last 4 images are from which extraction is done. 
+            new_source.trace_images_extracted = hdulist[(2*i)+1].data[4:] #last 4 images are from which extraction is done. ©
             
             #finds the table data of the TableHDU corresponding to the i'th source
             big_table=hdulist[(2*i)+2].data 
