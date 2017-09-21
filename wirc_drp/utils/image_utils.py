@@ -704,6 +704,26 @@ def shift_and_subtract_background(cutout, obj_slit = 1,  slit_gap = 21, masked_s
         #                            ,mode = 'constant')
         return sky_sub, sky
 
+def fit_background_2d_polynomial(cutout, mask, polynomial_order = 2):
+    """
+    Takes a given 2d cutout of trace with the actual spectral trace masked out. 
+    This mask is from makeDiagMask, or in the same format: 1 on trace and 0 off trace
+    Then fits a 2d polynomial to estimate the sky background.
+    """
+    #first get x, y coordinates
+    y, x = np.mgrid[:cutout.shape[0],:cutout.shape[1]]
+    #call astropy fitter
+    poly = models.Polynomial2D(polynomial_order)
+    fitter = fitting.LinearLSQFitter()
+
+    res = fitter(poly, y[~mask], x[~mask], cutout[~mask]) 
+
+    sky = res(y,x)
+
+    return cutout-sky, sky
+
+
+
 def fitFlux(flux_vec, seeing_pix = 4):
     """
     This function fits the flux value along a 1d cross section using a
