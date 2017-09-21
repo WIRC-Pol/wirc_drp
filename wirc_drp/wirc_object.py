@@ -289,8 +289,8 @@ class wirc_data(object):
             #Create an ImageHDU for each of the sources
             # source_hdu = fits.ImageHDU(self.source_list[i].trace_images)
 
-            source_hdu = fits.PrimaryHDU(np.concatenate(self.source_list[i].trace_images, 
-                                                        self.source_list[i].trace_images_extracted))
+            source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, 
+                                                        self.source_list[i].trace_images_extracted]))
             pdb.set_trace()
 
             #Put in the source info
