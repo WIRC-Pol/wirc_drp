@@ -586,13 +586,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #For now, do shift and subtract always
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
-            if slit_num != 'slitless':
-                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] ),thumbnail))
-                bkg = np.nanmedian(bkg_stack, axis=2)
+            #if slit_num != 'slitless':
+            bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] ),thumbnail))
+            bkg = np.nanmedian(bkg_stack, axis=2)
 
-            else: #for slitless data, shift in diagonal
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] ),thumbnail))
-                bkg = np.nanmedian(bkg_stack, axis=2)
+            #else: #for slitless data, shift in diagonal
+            #    bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] ),thumbnail))
+            #    bkg = np.nanmedian(bkg_stack, axis=2)
 
 
             bkg_sub = thumbnail - bkg
@@ -617,6 +617,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                                                                     diag_mask=diag_mask, mode=mode) #linear fit to the trace
 
         #if background subtraction type is fit_background, then call the function
+
+        #after finding trace, compute background subtraction again, this time shifting diagonally
+        if sub_background:
+           bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] ),thumbnail))
+           bkg = np.nanmedian(bkg_stack, axis=2)
+           bkg_sub = thumbnail - bkg
+
 
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
