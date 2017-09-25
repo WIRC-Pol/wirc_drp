@@ -537,9 +537,9 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
 
     if mode == 'pol':
         if filter_name == 'J':
-            cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands
+            cutout_size = 150 #Make cutout of each trace. This has to chage for J/H bands: was 80
         elif filter_name == 'H':
-            cutout_size =150
+            cutout_size = 200 #was 150
         else:
             print('Filter name %s not recognized, assuming J' %filter_name)
             cutout_size = 80
