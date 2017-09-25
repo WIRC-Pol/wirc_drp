@@ -586,13 +586,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #For now, do shift and subtract always
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
-            #if slit_num != 'slitless':
-            bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] ),thumbnail))
-            bkg = np.nanmedian(bkg_stack, axis=2)
+            if slit_num != 'slitless':
+                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] ),thumbnail))
+                bkg = np.nanmedian(bkg_stack, axis=2)
 
-            #else: #for slitless data, shift in diagonal
-            #    bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] ),thumbnail))
-            #    bkg = np.nanmedian(bkg_stack, axis=2)
+            else: #for slitless data, shift in diagonal
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] ),thumbnail))
+                bkg = np.nanmedian(bkg_stack, axis=2)
 
 
             bkg_sub = thumbnail - bkg
@@ -602,7 +602,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # bkg_sub = bkg_sub * thumb_mask
             # bkg = bkg * thumb_mask
 
-        else: #if not background subtraction, set bkg to 0. 
+        else: #if not background subtraction, set bkg to 0.
             bkg_sub = np.copy(thumbnail)
             bkg = thumbnail*0.
 
@@ -618,12 +618,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         #if background subtraction type is fit_background, then call the function
 
-        #after finding trace, compute background subtraction again, this time shifting diagonally
-        if sub_background:
-           bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] ),thumbnail))
-           bkg = np.nanmedian(bkg_stack, axis=2)
-           bkg_sub = thumbnail - bkg
-
+        
 
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)

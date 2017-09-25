@@ -917,8 +917,9 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
 
         #Further scale the weights by their distance from the center of the image: this is hard coded!
         # weights *= 1/(np.abs(xinds-xcen))
+        width = thumbnail.shape[1] #x size of thumbnail
         if mode=='pol':
-            weights[(xinds < 70) | (xinds > 100)] = 0.
+            weights[(xinds < width/2 - 15) | (xinds > width/2+15)] = 0.
         if mode=='spec':
             #If the peaks are less than 10% of the brightest peak, set their weight to zero. 
             weights[weights < 0.1* np.max(weights)] = 0.
