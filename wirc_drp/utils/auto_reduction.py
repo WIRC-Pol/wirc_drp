@@ -75,13 +75,13 @@ if __name__ == "__main__":
 		all_files = sorted(glob.glob('image????.fits')) #get all files in the directory
 		all_files = all_files[int(first_file) - 5:] #cut down on prior files, assuming we start from 0001, with some margin
 
-		for i in all_files:
+		for file_name in all_files:
 			if int(i[-9:-5]) < int(first_file): #before first file
-				print(i)
+				print(file_name)
 			else: #after first file, do something
-				print('Processing %s'%i)
+				print('Processing %s'%file_name)
 				#get exposure time and filter
-				header = fits.getheader(i)
+				header = fits.getheader(file_name)
 				exp_time = header['EXPTIME']
 				#check if a reduced directory exists
 				if ~os.path.isdir(base_dir+date+'/'+object_name+'_%.1fs_auto'%exp_time):
@@ -95,7 +95,7 @@ if __name__ == "__main__":
 				bp_fn = base_dir+"calibrations/bad_pix_map.fits"
 				dark_fn = base_dir+"calibrations/archive_dark_%.1fs.fits"%exp_time
 				#load in data as wirc object, and calibrate
-				data = wo.wirc_data(raw_filename = i, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)
+				data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)
 				data.calibrate(mask_bad_pixels = False)
 
 				#after calibration, get thumbnails and extract spectra!
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 				#plot them on the axis, first the calibrated images
 				trace_labels = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
 
-				fig.suptitle('%s %s %s'%(date, object_name, i))
+				fig.suptitle('%s %s %s'%(date, object_name, file_name))
 				for i,j in enumerate(data.source_list[0].trace_images):
 					ax[0,i].clear()
 					ax[0,i].imshow(j, origin = 'lower')
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
 				#save extraction results
 
-				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+i.split('.')[0]+'_auto_extracted.fits', full_image = True)
+				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits', full_image = True)
 
 				gc.collect()
 			plt.tight_layout()
