@@ -83,6 +83,10 @@ if __name__ == "__main__":
 				#get exposure time and filter
 				header = fits.getheader(i)
 				exp_time = header['EXPTIME']
+				#check if a reduced directory exists
+				if ~os.path.isdir(base_dir+date+'/'+object_name+'_%.1fs_auto'%exp_time):
+					os.system("mkdir "+base_dir+date+'/'+object_name+'_%.1fs_auto'%exp_time)
+
 				filter_name = header['AFT'][0] #just the name, J or H
 				if filter_name not in ['J', 'H']:
 					filter_name = input('Invalid filter name (%s) from header, type J or H'%s)
@@ -140,6 +144,10 @@ if __name__ == "__main__":
 				ax2[0].plot(data.source_list[0].trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
 				ax2[1].plot(data.source_list[0].trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
 				ax2[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
+
+				#save extraction results
+
+				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+i.split('.')[0]+'_auto_extracted.fits', full_image = True)
 
 				gc.collect()
 			plt.tight_layout()
