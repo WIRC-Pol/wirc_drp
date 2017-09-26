@@ -51,10 +51,10 @@ if __name__ == "__main__":
 
 	#this is for the on-the-fly automatic reduction
 	#get into the date directory 
-	os.chdir(date)
+	os.chdir(base_dir+date)
 	
 	#ask for the first file number to process
-	first_file = input('First file number to process: ')
+	first_file = str(input('First file number to process: '))
 
 	if len(first_file) <= 5:
 		first_file = first_file.zfill(4)
