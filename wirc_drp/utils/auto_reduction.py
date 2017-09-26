@@ -64,7 +64,7 @@ if __name__ == "__main__":
 	#loop to get new files
 	all_files = sorted(glob.glob('*.fits')) #get all files in the directory
 	plt.ion()
-	plt.tight_layout()
+	#plt.tight_layout()
 	fig, ax = plt.subplots(3 ,4, figsize = (10,10)) #this is to be updated for every image
 	fig2, ax2 = plt.subplots(1, 4, figsize = (12,3)) #this is accumulated
 	"""This is the live output plot, it will show for 4 traces, the raw cutouts, the rotated and background subtracted
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 				ax2[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
 				gc.collect()
-
+			plt.tight_layout()
 			plt.pause(0.00001)
 		#at the end of the for loop, set first_file to the last file, and start again
 
