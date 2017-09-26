@@ -25,7 +25,7 @@ import sys, os, glob, gc
 if __name__ == "__main__":
 	#First, define a base directory. This is specific to hcig1 for the moment. 
 	base_dir = "/hcig1-nas/wircpol/data/"
-	base_dir = '.'
+	#base_dir = '.'
 	os.chdir(base_dir)
 
 
