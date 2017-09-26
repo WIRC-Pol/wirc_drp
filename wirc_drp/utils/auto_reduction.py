@@ -76,7 +76,7 @@ if __name__ == "__main__":
 		all_files = all_files[int(first_file) - 5:] #cut down on prior files, assuming we start from 0001, with some margin
 
 		for file_name in all_files:
-			if int(i[-9:-5]) < int(first_file): #before first file
+			if int(file_name[-9:-5]) < int(first_file): #before first file
 				print(file_name)
 			else: #after first file, do something
 				print('Processing %s'%file_name)
