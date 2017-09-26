@@ -471,7 +471,7 @@ class wirc_data(object):
     
           
                 
-    def load_wirc_object(self, wirc_object_filename, load_full_image = True):
+    def load_wirc_object(self, wirc_object_filename, load_full_image = True, verbose=True):
         '''
         Read in the wircpol_object file from a fits file
 
@@ -513,7 +513,8 @@ class wirc_data(object):
         try:
             self.bjd = self.header["BJD"]
         except KeyError as err:
-            print(err)
+            if verbose:
+                print(err)
 
 
         #Create one source object for each source and append it to source_list
@@ -749,7 +750,8 @@ class wircpol_source(object):
                                             fit the background. trace_angle is the angle to rotate the cutout so it's aligned with the pixel grid.
                                             If None, it uses value from fitTraces.
         """
-        print("Performing Spectral Extraction for source {}".format(self.index))
+        if verbose:
+            print("Performing Spectral Extraction for source {}".format(self.index))
 
         #call spec_extraction to actually extract spectra
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
