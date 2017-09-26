@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
 				#also plot in the collective plot. 
 				ax2[0].plot(trace_spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
-				ax2[0].plot(trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[12]
+				ax2[0].plot(trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
 				ax2[1].plot(trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
 				ax2[1].plot(trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
