@@ -71,12 +71,13 @@ if __name__ == "__main__":
 	"""
 	#now the actual loop
 	while True:
-		all_files = sorted(glob.glob('*.fits')) #get all files in the directory
+		all_files = sorted(glob.glob('image????.fits')) #get all files in the directory
 
 		for i in all_files:
 			if int(i[-9:-5]) < int(first_file): #before first file
 				None
 			else: #after first file, do something
+				print('Processing %s'%i)
 				#get exposure time and filter
 				header = fits.getheader(i)
 				exp_time = header['EXPTIME']
