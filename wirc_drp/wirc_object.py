@@ -709,19 +709,19 @@ class wircpol_source(object):
 
         ax = fig.add_subplot(141)
         plt.imshow(self.trace_images[0,:,:], **kwargs)
-        plt.text(5,145,"Top - Left", color='w')
+        plt.text(5,275,"Top - Left", color='w')
 
         ax = fig.add_subplot(142)
         plt.imshow(self.trace_images[1,:,:], **kwargs)
-        plt.text(5,145,"Bottom - Right", color='w')
+        plt.text(5,275,"Bottom - Right", color='w')
 
         ax = fig.add_subplot(143)
         plt.imshow(self.trace_images[2,:,:], **kwargs)
-        plt.text(5,145,"Top - Right", color='w')
+        plt.text(5,275,"Top - Right", color='w')
 
         ax = fig.add_subplot(144)
         plt.imshow(self.trace_images[3,:,:], **kwargs)
-        plt.text(5,145,"Bottom - Left", color='w')
+        plt.text(5,275,"Bottom - Left", color='w')
         
         fig.subplots_adjust(right=0.85)
         cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
@@ -818,7 +818,7 @@ class wircpol_source(object):
 
         self.lambda_calibrated = True #source attribute, later applied to header["WL_CBRTD"]
 
-    def compute_polarization(self, cutmin=0, cutmax=160):
+    def compute_polarization(self, cutmin=0, cutmax=-1):
 
 
         wlQp, q, dq, wlUp,u, du = spec_utils.compute_polarization(self.trace_spectra, cutmin=cutmin, cutmax = cutmax)
