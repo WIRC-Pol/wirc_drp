@@ -73,10 +73,11 @@ if __name__ == "__main__":
 	#now the actual loop
 	while True:
 		all_files = sorted(glob.glob('image????.fits')) #get all files in the directory
+		all_files = all_files[first_file - 5:] #cut down on prior files, assuming we start from 0001, with some margin
 
 		for i in all_files:
 			if int(i[-9:-5]) < int(first_file): #before first file
-				None
+				print(i)
 			else: #after first file, do something
 				print('Processing %s'%i)
 				#get exposure time and filter
