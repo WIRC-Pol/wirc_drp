@@ -20,7 +20,7 @@ import wirc_drp.wirc_object as wo
 import matplotlib.pyplot as plt 
 import numpy as np 
 
-import sys, os, glob, gc
+import sys, os, glob, gc, time
 
 if __name__ == "__main__":
 	#First, define a base directory. This is specific to hcig1 for the moment. 
@@ -95,11 +95,11 @@ if __name__ == "__main__":
 				#after calibration, get thumbnails and extract spectra!
 
 				#add source at the given location x,y 
-				data.source_list.append(wo.wircpol_source([y_coord,x_coord], 'slitless', raw_data.n_sources + 1))
+				data.source_list.append(wo.wircpol_source([y_coord,x_coord], 'slitless', data.n_sources + 1))
 				data.n_sources += 1
 
 				#get cutouts
-				data.source_list[0].get_cutouts(calibrated_data.full_image, calibrated_data.filter_name, True) 
+				data.source_list[0].get_cutouts(data.full_image, data.filter_name, True) 
 				#extract spectra
 				data.source_list[0].extract_spectra(plot=False, sub_background = True, bkg_sub_shift_size = 45, method = 'optimal_extraction')
 				data.source_list[0].rough_lambda_calibration(method=2)
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 		#at the end of the for loop, set first_file to the last file, and start again
 
 		first_file = int(i[-9:-5])
-
+	time.sleep(1)
 #There's no end in sight!
 
 
