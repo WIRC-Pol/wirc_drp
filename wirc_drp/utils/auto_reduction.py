@@ -119,20 +119,20 @@ if __name__ == "__main__":
 
 				#then extracted Qp, Qm, Up, Um
 				ax[2,0].clear()
-				ax[2,0].plot(trace_spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
-				ax[2,0].plot(trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
+				ax[2,0].plot(data.trace_spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
+				ax[2,0].plot(data.trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
 				ax[2,0].legend()
 
 				ax[2,1].clear()
-				ax[2,1].plot(trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
-				ax[2,1].plot(trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
+				ax[2,1].plot(data.trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
+				ax[2,1].plot(data.trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 				ax[2,1].legend()
 
 				#also plot in the collective plot. 
-				ax2[0].plot(trace_spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
-				ax2[0].plot(trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
-				ax2[1].plot(trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
-				ax2[1].plot(trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
+				ax2[0].plot(data.trace_spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
+				ax2[0].plot(data.trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
+				ax2[1].plot(data.trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
+				ax2[1].plot(data.trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
 				gc.collect()
 
