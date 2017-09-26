@@ -64,7 +64,8 @@ if __name__ == "__main__":
 	#loop to get new files
 	all_files = sorted(glob.glob('*.fits')) #get all files in the directory
 	plt.ion()
-	fig, ax = plt.subplots(3 ,4, figsize = (15,20)) #this is to be updated for every image
+	plt.tight_layout()
+	fig, ax = plt.subplots(3 ,4, figsize = (10,10)) #this is to be updated for every image
 	fig2, ax2 = plt.subplots(1, 4, figsize = (12,3)) #this is accumulated
 	"""This is the live output plot, it will show for 4 traces, the raw cutouts, the rotated and background subtracted
 	cutouts, the extracted spectrum, and the calculated q, u.
@@ -106,6 +107,8 @@ if __name__ == "__main__":
 
 				#plot them on the axis, first the calibrated images
 				trace_labels = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
+
+				fig.suptitle('%s %s %s'%(date, object_name, i))
 				for i,j in enumerate(data.source_list[0].trace_images):
 					ax[0,i].clear()
 					ax[0,i].imshow(j, origin = 'lower')
@@ -118,14 +121,17 @@ if __name__ == "__main__":
 					#ax[1,i].text(0.1*j.shape[1],0.8*j.shape[0], trace_labels[i], color = 'w')
 
 				#then extracted Qp, Qm, Up, Um
+				size = len(data.source_list[0].trace_spectra[0,1,:])
 				ax[2,0].clear()
 				ax[2,0].plot(data.source_list[0].trace_spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
 				ax[2,0].plot(data.source_list[0].trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
+				ax[2,0].set_xlim([size/2-50, size/2+50])
 				ax[2,0].legend()
 
 				ax[2,1].clear()
 				ax[2,1].plot(data.source_list[0].trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
 				ax[2,1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
+				ax[2,1].set_xlim([size/2-50, size/2+50])
 				ax[2,1].legend()
 
 				#also plot in the collective plot. 
