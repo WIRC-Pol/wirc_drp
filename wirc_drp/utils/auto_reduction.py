@@ -95,7 +95,7 @@ if __name__ == "__main__":
 				#after calibration, get thumbnails and extract spectra!
 
 				#add source at the given location x,y 
-				data.source_list.append(wo.wircpol_source([y,x], 'slitless', raw_data.n_sources + 1))
+				data.source_list.append(wo.wircpol_source([y_coord,x_coord], 'slitless', raw_data.n_sources + 1))
 				data.n_sources += 1
 
 				#get cutouts
