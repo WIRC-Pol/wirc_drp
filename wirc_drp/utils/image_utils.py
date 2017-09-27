@@ -33,6 +33,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
         sigmalim: sigma limit for detection threshold above background noise
         plot: if True, UL quadrant of sky subtracted science_image is shown along with locations of the
                     traces found. Thumbnail cutouts of all traces are also plotted in a separate figure.
+        brightness_sort: if True, then sort the sources according to their brightness. 
                     
     Output: Dictionary of objects found. Each item contains of five keys with pairs of x and y coordinates (index starts at 0) of upper left, upper right, lower right, and lower left trace, and 0th order locations, as well as a flag set to True if trace is very noisy or crossing quadrant limit. The last item in the dictionary always contains the central hole/slit and trace locations 
     """    
@@ -64,6 +65,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
 
     # Load cropped and centered trace template image
     template_fn = wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
+    
     if verbose:
         print("Loading Template from {}".format(template_fn))
 
@@ -83,13 +85,11 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
     if isinstance(sky, str):
         sky_image_hdulist = f.open(sky) 
         sky_image = sky_image_hdulist[0].data
+        print('Processing science file '+ science + ' ...')
     else:
         sky_image = sky.copy()
     # Filter sky image to remove bad pixels
-    sky_image_filt = ndimage.median_filter(sky_image,3)
-
-
-    print('Processing science file '+ science + ' ...')
+    sky_image_filt = ndimage.median_filter(sky_image,3)    
 
     # Load science image, either from file or as np array
     if isinstance(science, str):
@@ -145,10 +145,19 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
     # Add slit trace position to trace locations
     locs_UL = np.append(locs_UL, np.swapaxes(np.array([UL_slit_trace]),0,1), 1)
 
-    # Print list of trace location coordinates in UL quadrant
-    print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
-    for tr in range(0,locs_UL.shape[1]):
-        print('Trace', str(tr+1), ': (', locs_UL[:,tr][0], locs_UL[:,tr][1], ')')
+    #Do we want to sort the sources by their brightness? 
+    if brightness_sort: 
+        # Now we'll calculate the pixel value at each x,y value
+        pix_vals_UL = np.array([science_image_filt[y,x] for x,y in locs_UL.T])
+        pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
+        # Now reorder locs_UL so that it's according to pix_vals_UL
+        locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
+
+    if verbose: 
+        # Print list of trace location coordinates in UL quadrant
+        print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
+        for tr in range(0,locs_UL.shape[1]):
+            print('Trace', str(tr+1), ': (', locs_UL[:,tr][0], locs_UL[:,tr][1], ')')
 
     # Calculate location of corresponding traces (and 0th order) in other three quadrants
     locs_UR = locs_UL + np.swapaxes(np.array([UR_diff]),0,1)
@@ -179,7 +188,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
             trace_diag_flag.append(False)
         else:
             trace_diag_flag.append(True)
-            print('Trace', str(n+1), 'too noisy or crossing quadrant limit. Flagging!')
+            if verbose:
+                print('Trace', str(n+1), 'too noisy or crossing quadrant limit. Flagging!')
     #print(trace_diag_val, '\n', trace_diag_flag)
 
     # Gather all trace and 0th order locations (and flags) in dictionary
@@ -254,10 +264,11 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
             plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='white')
         print('\n')
 
-    print('UL quadrant trace locations:\n',locs['UL'].T,'\n')
-    print('UR quadrant trace locations:\n',locs['UR'].T,'\n')
-    print('LR quadrant trace locations:\n',locs['LR'].T,'\n')
-    print('LL quadrant trace locations:\n',locs['LL'].T,'\n')
+    if verbose:
+        print('UL quadrant trace locations:\n',locs['UL'].T,'\n')
+        print('UR quadrant trace locations:\n',locs['UR'].T,'\n')
+        print('LR quadrant trace locations:\n',locs['LR'].T,'\n')
+        print('LL quadrant trace locations:\n',locs['LL'].T,'\n')
 
     return locs
 
