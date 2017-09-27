@@ -537,9 +537,9 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
 
     if mode == 'pol':
         if filter_name == 'J':
-            cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands
+            cutout_size = 150 #Make cutout of each trace. This has to chage for J/H bands: was 80
         elif filter_name == 'H':
-            cutout_size =150
+            cutout_size = 200 #was 150
         else:
             print('Filter name %s not recognized, assuming J' %filter_name)
             cutout_size = 80
@@ -917,8 +917,9 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
 
         #Further scale the weights by their distance from the center of the image: this is hard coded!
         # weights *= 1/(np.abs(xinds-xcen))
+        width = thumbnail.shape[1] #x size of thumbnail
         if mode=='pol':
-            weights[(xinds < 70) | (xinds > 100)] = 0.
+            weights[(xinds < width/2 - 15) | (xinds > width/2+15)] = 0.
         if mode=='spec':
             #If the peaks are less than 10% of the brightest peak, set their weight to zero. 
             weights[weights < 0.1* np.max(weights)] = 0.

@@ -471,7 +471,7 @@ class wirc_data(object):
     
           
                 
-    def load_wirc_object(self, wirc_object_filename, load_full_image = True):
+    def load_wirc_object(self, wirc_object_filename, load_full_image = True, verbose=True):
         '''
         Read in the wircpol_object file from a fits file
 
@@ -513,7 +513,8 @@ class wirc_data(object):
         try:
             self.bjd = self.header["BJD"]
         except KeyError as err:
-            print(err)
+            if verbose:
+                print(err)
 
 
         #Create one source object for each source and append it to source_list
@@ -709,19 +710,19 @@ class wircpol_source(object):
 
         ax = fig.add_subplot(141)
         plt.imshow(self.trace_images[0,:,:], **kwargs)
-        plt.text(5,145,"Top - Left", color='w')
+        plt.text(5,275,"Top - Left", color='w')
 
         ax = fig.add_subplot(142)
         plt.imshow(self.trace_images[1,:,:], **kwargs)
-        plt.text(5,145,"Bottom - Right", color='w')
+        plt.text(5,275,"Bottom - Right", color='w')
 
         ax = fig.add_subplot(143)
         plt.imshow(self.trace_images[2,:,:], **kwargs)
-        plt.text(5,145,"Top - Right", color='w')
+        plt.text(5,275,"Top - Right", color='w')
 
         ax = fig.add_subplot(144)
         plt.imshow(self.trace_images[3,:,:], **kwargs)
-        plt.text(5,145,"Bottom - Left", color='w')
+        plt.text(5,275,"Bottom - Left", color='w')
         
         fig.subplots_adjust(right=0.85)
         cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
@@ -749,7 +750,8 @@ class wircpol_source(object):
                                             fit the background. trace_angle is the angle to rotate the cutout so it's aligned with the pixel grid.
                                             If None, it uses value from fitTraces.
         """
-        print("Performing Spectral Extraction for source {}".format(self.index))
+        if verbose:
+            print("Performing Spectral Extraction for source {}".format(self.index))
 
         #call spec_extraction to actually extract spectra
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background, 
@@ -818,7 +820,7 @@ class wircpol_source(object):
 
         self.lambda_calibrated = True #source attribute, later applied to header["WL_CBRTD"]
 
-    def compute_polarization(self, cutmin=0, cutmax=160):
+    def compute_polarization(self, cutmin=0, cutmax=-1):
 
 
         wlQp, q, dq, wlUp,u, du = spec_utils.compute_polarization(self.trace_spectra, cutmin=cutmin, cutmax = cutmax)
