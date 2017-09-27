@@ -63,7 +63,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
     # MAIN CODE ###########
 
     # Load cropped and centered trace template image
-    template_fn = wircpol_dir+'masks/single_trace_template2.fits'
+    template_fn = wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
     if verbose:
         print("Loading Template from {}".format(template_fn))
 
