@@ -531,9 +531,9 @@ def locationInIm(wl, location_in_fov):
     dwl = wl-1.25 #This compute the deviation from J band where the offsets were mesured
     dpx = round(dwl/(wlPerPix))
 
-    traceLocation = [ [ 453+location_in_fov[0]+dpx , -435 + location_in_fov[1]-dpx],\
-                    [  -465+location_in_fov[0]-dpx, 445+ location_in_fov[1]+dpx], \
-                   [    440+location_in_fov[0]+dpx, 449+location_in_fov[1]+dpx], \
+    traceLocation = [ [ 453+location_in_fov[0]+dpx, -435 + location_in_fov[1]-dpx],\
+                    [  -465+location_in_fov[0]-dpx,  445+ location_in_fov[1]+dpx], \
+                    [   440+location_in_fov[0]+dpx,  449+location_in_fov[1]+dpx], \
                     [  -445+location_in_fov[0]-dpx, -455+location_in_fov[1]-dpx]]
     return np.array(traceLocation)
 
@@ -583,13 +583,36 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
 
         for j in range(ntraces):
 
-            #The indices for the cutout
-            cutout = np.s_[traceLocation[j][0]-cutout_size:traceLocation[j][0]+cutout_size+1,\
-                            traceLocation[j][1]-cutout_size:traceLocation[j][1]+cutout_size+1 ]
+            ylow = traceLocation[j][0]-cutout_size
+            yhigh = traceLocation[j][0]+cutout_size+1
+            xlow = traceLocation[j][1]-cutout_size
+            xhigh = traceLocation[j][1]+cutout_size+1 
 
-            
+            image_new = copy.deepcopy(image)
+
+            #Checking and compensating for out of bounds
+            if (ylow < 0) or (xlow < 0) or (yhigh > 2048) or (xhigh > 2048):
+                
+                pad_width = np.max([(0.-ylow),(0.-xlow), (yhigh-2048), (xhigh-2048)]).astype(int)
+                image_new = np.pad(image_new, pad_width, 'constant')
+
+                if True:
+                    print("Cutout will slice outside of array, padding {} pixels with zeros".format(pad_width))
+
+                # if (ylow < 0.):
+                ylow += pad_width
+                # if (xlow < 0):
+                xlow += pad_width
+                # if yhigh > 2048:
+                yhigh += pad_width
+                # if xhigh > 2048:
+                xhigh += pad_width
+
+            #The indices for the cutout
+            cutout = np.s_[ylow:yhigh,xlow:xhigh]
+        
             #cut the spectral image into a thumbnail containing the trace
-            thumbnail = copy.deepcopy(image)[cutout]
+            thumbnail = copy.deepcopy(image_new)[cutout]
                        
             #flip the thumbnail so that it's in the Q+ orientation (from top left to bottom right)
             if flip and mode=='pol': 
