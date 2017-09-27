@@ -63,7 +63,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False):
     # MAIN CODE ###########
 
     # Load cropped and centered trace template image
-    trace_template_hdulist = f.open('./single_trace_template2.fits')
+    trace_template_hdulist = f.open('../masks/single_trace_template2.fits')
     trace_template = trace_template_hdulist[0].data
     # # Plot trace template image
     # fig = plt.figure()
