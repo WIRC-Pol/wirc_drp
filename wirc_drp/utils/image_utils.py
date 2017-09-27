@@ -24,7 +24,7 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
 
-def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
+def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -85,7 +85,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False):
     if isinstance(sky, str):
         sky_image_hdulist = f.open(sky) 
         sky_image = sky_image_hdulist[0].data
-        print('Processing science file '+ science + ' ...')
+        if verbose:
+            print('Processing science file '+ science + ' ...')
     else:
         sky_image = sky.copy()
     # Filter sky image to remove bad pixels
