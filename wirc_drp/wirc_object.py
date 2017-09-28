@@ -484,106 +484,106 @@ class wirc_data(object):
         #----#(2*i)+2 is a conversion from the index, i, of the source in source_list to the index of the source's corresponding table in hdulist
 
         #Open the fits file
-        hdulist = fits.open(wirc_object_filename)
+        with fits.open(wirc_object_filename) as hdulist:
 
-        #Read in the full image and the primary header
-        if load_full_image:
-            self.full_image = hdulist[0].data
-        else:
-            self.full_image = None
+            #Read in the full image and the primary header
+            if load_full_image:
+                self.full_image = hdulist[0].data
+            else:
+                self.full_image = None
 
-        self.header = hdulist[0].header
+            self.header = hdulist[0].header
 
-        #What are the calibration filenames?
-        self.dark_fn = self.header["DARK_FN"]
-        self.flat_fn = self.header["FLAT_FN"]
-        self.bp_fn = self.header["BP_FN"]
-        self.bkg_fn = self.header["BKG_FN"]
+            #What are the calibration filenames?
+            self.dark_fn = self.header["DARK_FN"]
+            self.flat_fn = self.header["FLAT_FN"]
+            self.bp_fn = self.header["BP_FN"]
+            self.bkg_fn = self.header["BKG_FN"]
 
-        self.filter_name = self.header['AFT'][0]
+            self.filter_name = self.header['AFT'][0]
 
-        #What's the calibration status?
-        self.calibrated = self.header["CALBRTED"]
-        self.bkg_subbed = self.header["BKG_SUBD"]
+            #What's the calibration status?
+            self.calibrated = self.header["CALBRTED"]
+            self.bkg_subbed = self.header["BKG_SUBD"]
 
-        #How many sources are there
-        self.n_sources = self.header["NSOURCES"]
+            #How many sources are there
+            self.n_sources = self.header["NSOURCES"]
 
-        #BJD_TDB
-        try:
-            self.bjd = self.header["BJD"]
-        except KeyError as err:
-            if verbose:
-                print(err)
-
-
-        #Create one source object for each source and append it to source_list
-        self.source_list = []
-
-        for i in range(self.n_sources):
-            #print ("starting iteration #",i)
-            #Extract the source info from the header
-            xpos = hdulist[(2*i)+1].header["XPOS"]
-            ypos = hdulist[(2*i)+1].header["YPOS"]
-            slit_loc = hdulist[(2*i)+1].header["SLIT_LOC"]
-            
-            #if they are there)
-            
+            #BJD_TDB
             try:
-                xpos_err = hdulist[(2*i)+1].header["XPOS_ERR"]
-                ypos_err = hdulist[(2*i)+1].header["YPOS_ERR"]
-                new_source = wircpol_source([xpos,ypos,xpos_err,ypos_err],slit_loc, i)
+                self.bjd = self.header["BJD"]
+            except KeyError as err:
+                if verbose:
+                    print(err)
+
+
+            #Create one source object for each source and append it to source_list
+            self.source_list = []
+
+            for i in range(self.n_sources):
+                #print ("starting iteration #",i)
+                #Extract the source info from the header
+                xpos = hdulist[(2*i)+1].header["XPOS"]
+                ypos = hdulist[(2*i)+1].header["YPOS"]
+                slit_loc = hdulist[(2*i)+1].header["SLIT_LOC"]
                 
-            except KeyError:
-                new_source = wircpol_source([xpos,ypos],slit_loc, i)
+                #if they are there)
                 
-            
-        
-
-            
-            new_source.trace_images = hdulist[(2*i)+1].data[0:4] #finds the i'th source image data in the hdulist, first 4 are raw images
-            new_source.trace_images_extracted = hdulist[(2*i)+1].data[4:] #last 4 images are from which extraction is done. 
-            
-            #finds the table data of the TableHDU corresponding to the i'th source
-            big_table=hdulist[(2*i)+2].data 
-            
-            #finds the header of the TableHDU corresponding to the i'th source
-            prihdr=hdulist[(2*i)+2].header 
-            
-            
-            
-            #finds 3D array for trace_spectra
-            new_source.trace_spectra = self.table_columns_to_array(big_table,prihdr,[0,1,2,3,4,5,6,7,8,9,10,11])
-            
-            #finds 2D array for Q
-            new_source.Q = self.table_columns_to_array(big_table,prihdr,[12,13,14])
-            
-            #finds 2D array for U
-            new_source.U = self.table_columns_to_array(big_table,prihdr,[15,16,17])
-            
-            #finds 2D array for P
-            new_source.P = self.table_columns_to_array(big_table,prihdr,[18,19,20])
-            
-            #finds 2D array for theta
-            new_source.theta = self.table_columns_to_array(big_table,prihdr,[21,22,23])
-            
-            #adjusting source header statuses
-            new_source.lambda_calibrated = hdulist[(2*i)+1].header["WL_CBRTD"]#source attribute, later applied to header["WL_CBRTD"]
-            new_source.polarization_computed = hdulist[(2*i)+1].header["POL_CMPD"] #source attribute, later applied to header["POL_CMPD"]
-            new_source.spectra_extracted = hdulist[(2*i)+1].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
-            new_source.thumbnails_cut_out = hdulist[(2*i)+1].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
-
-            try:
-                new_source.spectra_widths = np.fromstring(hdulist[(2*i)+1].header["TRACES_WIDTH"][1:-1], sep = ' ')
-                new_source.spectra_angles = np.fromstring(hdulist[(2*i)+1].header["TRACES_ANGLE"][1:-1], sep = ' ')
-            except KeyError:
-                None
-
+                try:
+                    xpos_err = hdulist[(2*i)+1].header["XPOS_ERR"]
+                    ypos_err = hdulist[(2*i)+1].header["YPOS_ERR"]
+                    new_source = wircpol_source([xpos,ypos,xpos_err,ypos_err],slit_loc, i)
                     
-
-            #Append it to the source_list
-            self.source_list.append(new_source)
+                except KeyError:
+                    new_source = wircpol_source([xpos,ypos],slit_loc, i)
+                    
+                
             
+
+                
+                new_source.trace_images = hdulist[(2*i)+1].data[0:4] #finds the i'th source image data in the hdulist, first 4 are raw images
+                new_source.trace_images_extracted = hdulist[(2*i)+1].data[4:] #last 4 images are from which extraction is done. 
+                
+                #finds the table data of the TableHDU corresponding to the i'th source
+                big_table=hdulist[(2*i)+2].data 
+                
+                #finds the header of the TableHDU corresponding to the i'th source
+                prihdr=hdulist[(2*i)+2].header 
+                
+                
+                
+                #finds 3D array for trace_spectra
+                new_source.trace_spectra = self.table_columns_to_array(big_table,prihdr,[0,1,2,3,4,5,6,7,8,9,10,11])
+                
+                #finds 2D array for Q
+                new_source.Q = self.table_columns_to_array(big_table,prihdr,[12,13,14])
+                
+                #finds 2D array for U
+                new_source.U = self.table_columns_to_array(big_table,prihdr,[15,16,17])
+                
+                #finds 2D array for P
+                new_source.P = self.table_columns_to_array(big_table,prihdr,[18,19,20])
+                
+                #finds 2D array for theta
+                new_source.theta = self.table_columns_to_array(big_table,prihdr,[21,22,23])
+                
+                #adjusting source header statuses
+                new_source.lambda_calibrated = hdulist[(2*i)+1].header["WL_CBRTD"]#source attribute, later applied to header["WL_CBRTD"]
+                new_source.polarization_computed = hdulist[(2*i)+1].header["POL_CMPD"] #source attribute, later applied to header["POL_CMPD"]
+                new_source.spectra_extracted = hdulist[(2*i)+1].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
+                new_source.thumbnails_cut_out = hdulist[(2*i)+1].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
+
+                try:
+                    new_source.spectra_widths = np.fromstring(hdulist[(2*i)+1].header["TRACES_WIDTH"][1:-1], sep = ' ')
+                    new_source.spectra_angles = np.fromstring(hdulist[(2*i)+1].header["TRACES_ANGLE"][1:-1], sep = ' ')
+                except KeyError:
+                    None
+
+                        
+
+                #Append it to the source_list
+                self.source_list.append(new_source)
+        
             #print ("ending iteration #",i)
 
 
