@@ -106,8 +106,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # plt.imshow(science_image_filt, origin='lower')
     # plt.title('Science image')
 
-    # Subtract sky image from science image
-    stars_image = science_image_filt - sky_image_filt
+    med_sci = np.median(science_image_filt)
+    med_sky = np.median(sky_image_filt)
+    # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
+    stars_image = science_image_filt - sky_image_filt*med_sci/med_sky
 
     # Cut out upper left quadrant of stars_image
     stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
