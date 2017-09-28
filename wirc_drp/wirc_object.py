@@ -60,9 +60,9 @@ class wirc_data(object):
             print("Creating a new wirc_data object from file {}".format(raw_filename))
             self.raw_filename = raw_filename
             
-            hdu = fits.open(raw_filename)
-            self.full_image = hdu[0].data
-            self.header = hdu[0].header
+            with fits.open(raw_filename) as hdu: 
+                self.full_image = hdu[0].data
+                self.header = hdu[0].header
             
             
 
@@ -734,7 +734,7 @@ class wircpol_source(object):
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, plot=False, method = 'optimal_extraction', spatial_sigma = 3,
           width_scale=1., diag_mask=False, \
          trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True):
-
+        
         """
         *method:        method for spectral extraction. Choices are
                             (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
@@ -749,7 +749,9 @@ class wircpol_source(object):
                                             box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
                                             fit the background. trace_angle is the angle to rotate the cutout so it's aligned with the pixel grid.
                                             If None, it uses value from fitTraces.
+        
         """
+
         if verbose:
             print("Performing Spectral Extraction for source {}".format(self.index))
 
