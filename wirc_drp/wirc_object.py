@@ -13,6 +13,7 @@ from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design dire
 from astropy import time as ap_time, coordinates as coord, units as u
 
 import pdb
+import copy
 
 class wirc_data(object):
 
@@ -488,11 +489,11 @@ class wirc_data(object):
 
             #Read in the full image and the primary header
             if load_full_image:
-                self.full_image = hdulist[0].data
+                self.full_image = copy.deepcopy(hdulist[0].data)
             else:
                 self.full_image = None
 
-            self.header = hdulist[0].header
+            self.header = copy.deepcopy(hdulist[0].header)
 
             #What are the calibration filenames?
             self.dark_fn = self.header["DARK_FN"]
