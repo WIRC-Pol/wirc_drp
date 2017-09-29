@@ -88,7 +88,6 @@ class wirc_data(object):
 
             self.n_sources = 0
             self.source_list = []
-
             self.dark_fn = dark_fn        
             self.flat_fn = flat_fn
             self.bkg_fn = bkg_fn
@@ -489,11 +488,13 @@ class wirc_data(object):
 
             #Read in the full image and the primary header
             if load_full_image:
-                self.full_image = copy.deepcopy(hdulist[0].data)
+                temp = hdulist[0].data
+                self.full_image = copy.deepcopy(temp)
             else:
                 self.full_image = None
 
-            self.header = copy.deepcopy(hdulist[0].header)
+            temp = hdulist[0].header
+            self.header = copy.deepcopy(temp)
 
             #What are the calibration filenames?
             self.dark_fn = self.header["DARK_FN"]
@@ -782,6 +783,22 @@ class wircpol_source(object):
         self.spectra_widths = spectra_widths
         self.spectra_angles = spectra_angles
 
+    def align_spectra(self, lowcut = 0, highcut=-1,big_filt_sz = 30, little_filt_sz = 3):
+        '''
+        This function attemps to align the four spectra by minimizing the residuals of subtracting the two orthogonal 
+        traces after applying a 2nd-order polynomial wavelength shift and scaling the fluxes to match each other. 
+        Only the 2nd-order polynomical shift is then used
+        '''
+        if self.lambda_calibrated:
+            lowcut = np.where(self.trace_spectra[0,0,:] > 1.20)[0][0]
+            highcut = np.where(self.trace_spectra[0,0,:] > 1.30)[0][0]
+            print highcut
+
+        self.trace_spectra = spec_utils.align_spectra(self.trace_spectra, lowcut=lowcut, 
+            highcut=highcut, big_filt_sz=big_filt_sz, little_filt_sz=little_filt_sz)
+    
+
+
     def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
         #Rough wavelength calibration. Will have to get better later!
 
@@ -1012,6 +1029,7 @@ class wircspec_source(object):
 
         self.spectra_widths = spectra_widths
         self.spectra_angles = spectra_angles
+
     
     def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
         #Rough wavelength calibration. Will have to get better later!

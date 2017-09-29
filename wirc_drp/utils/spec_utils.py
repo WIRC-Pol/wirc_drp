@@ -14,6 +14,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from wirc_drp.constants import *
 
+from scipy.optimize import least_squares
 from scipy.optimize import basinhopping
 from scipy.ndimage import shift, median_filter
 from scipy import ndimage as ndi
@@ -957,6 +958,90 @@ def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3):
         out_spectra = spectra
 
     return out_spectra #same dimension as spectra
+
+def align_spectra(spectra, lowcut=0, highcut=-1, big_filt_sz = 30, little_filt_sz = 3):
+    '''
+    Aligns the spectra by minimizing a function that applies a 2nd order wavelenth shift and scales the flux. 
+
+    WARNING: This assumes there is no polarization signal. IF there is a polarization it may mess with it, but I'm not sure
+    Inputs: 
+        spectra - An array with shape [4,3,n], where n is the number of elements in the spectra
+    '''
+
+    #First do the Qm trace:
+    
+    #Let's remove the low frequency parts of the spectrum:
+    specq = copy.deepcopy(spectra[0:2,:,lowcut:highcut])
+    # spec2 = copy.deepcopy(spectra[1,:,lowcut:highcut])
+
+    specq[0,1,:] -= median_filter(specq[0,1,:],big_filt_sz)
+    specq[1,1,:] -= median_filter(specq[1,1,:],big_filt_sz)
+    
+    #Then we'll do a 1" median filter to smooth out some of the noise:
+    
+    specq[0,1,:] = median_filter(specq[0,1,:],little_filt_sz)
+    specq[1,1,:] = median_filter(specq[1,1,:],little_filt_sz)
+    
+    #Now run the alignment
+    x_start = [1.,0.,1.,0.,0.]
+    new_qm_params = least_squares(fit_to_align_spectra,x_start,args=[specq])
+    new_qm_flux = function_to_align_spectra(new_qm_params.x,spectra[0:2,:,:])
+
+    spectra[1,0,:] = spectra[0,0,:]
+    spectra[1,1,:] = new_qm_flux
+
+    
+    #Now do the Um trace:
+
+        #Let's remove the low frequency parts of the spectrum:
+    specu = copy.deepcopy(spectra[2:,:,lowcut:highcut])
+    # spec2 = copy.deepcopy(spectra[1,:,lowcut:highcut])
+
+    specu[0,1,:] -= median_filter(specu[0,1,:],big_filt_sz)
+    specu[1,1,:] -= median_filter(specu[1,1,:],big_filt_sz)
+    
+    #Then we'll do a 1" median filter to smooth out some of the noise:
+    
+    specu[0,1,:] = median_filter(specu[0,1,:],little_filt_sz)
+    specu[1,1,:] = median_filter(specu[1,1,:],little_filt_sz)
+    
+
+    #We'll start with the output params from the qm
+    x_start = [1.,0.,1.,0.,0.]
+    new_um_params = least_squares(fit_to_align_spectra,x_start,args=[specu])
+    new_um_flux = function_to_align_spectra(new_um_params.x,spectra[2:,:,:])
+    spectra[3,0,:] = spectra[2,0,:]
+    spectra[3,1,:] = new_um_flux
+
+    return spectra
+
+
+def fit_to_align_spectra(x,two_spectra):
+    '''
+    The function that returns the difference between two spectra after applying a 2nd order wavelenth shift and scales the flux. 
+    '''
+
+    #Calculate the new spectrum
+    new_spectra = function_to_align_spectra(x,two_spectra)
+
+    #The scaling factor is used for the fitting, but not when we apply the new wavelength solution
+    return np.abs(x[0]*new_spectra - two_spectra[0,1,:])
+
+def function_to_align_spectra(x,two_spectra):
+    '''
+    A function that applies a wavelength solution (in x) to the second spectrum in two_spectra
+    '''
+    
+    old_lambda = two_spectra[1,0,:] 
+
+    #Apply the wavelength solution
+    new_lambda = x[1]+x[2]*old_lambda+x[3]*old_lambda**2+x[4]*old_lambda**3
+
+    #Interpolate the flux values to the wavelenths of the first spectrum, 
+    # using the newly calibrated wavelenths from the second spectrum
+    out = np.interp(two_spectra[0,0,:],new_lambda,two_spectra[1,1,:])
+
+    return out
 
 
 def compute_stokes_from_traces(trace_plus, trace_plus_err,trace_minus, trace_minus_err, plotted = False):
