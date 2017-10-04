@@ -12,6 +12,8 @@ from wirc_drp import version # For versioning (requires gitpython 'pip install g
 from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 from astropy import time as ap_time, coordinates as coord, units as u
 
+
+
 import pdb
 import copy
 
@@ -783,7 +785,7 @@ class wircpol_source(object):
         self.spectra_widths = spectra_widths
         self.spectra_angles = spectra_angles
 
-    def align_spectra(self, lowcut = 0, highcut=-1,big_filt_sz = 30, little_filt_sz = 3):
+    def align_spectra(self, lowcut = 0, highcut=-1, big_filt_sz = 30, little_filt_sz = 3, x_start = [0.,1.,0.,0.,0.]):
         '''
         This function attemps to align the four spectra by minimizing the residuals of subtracting the two orthogonal 
         traces after applying a 2nd-order polynomial wavelength shift and scaling the fluxes to match each other. 
@@ -795,7 +797,7 @@ class wircpol_source(object):
             print highcut
 
         self.trace_spectra = spec_utils.align_spectra(self.trace_spectra, lowcut=lowcut, 
-            highcut=highcut, big_filt_sz=big_filt_sz, little_filt_sz=little_filt_sz)
+            highcut=highcut, big_filt_sz=big_filt_sz, little_filt_sz=little_filt_sz, x_start=x_start)
     
 
 
@@ -838,7 +840,19 @@ class wircpol_source(object):
                 self.trace_spectra[2,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[2,1,:], filter_name, lowcut=lowcut, highcut=highcut)
                 self.trace_spectra[3,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[3,1,:], filter_name, lowcut=lowcut, highcut=highcut)
 
+        if method == 3:
+            self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v2(self.trace_spectra[0,1,:], filter_name, lowcut=lowcut, highcut=highcut)
+
         self.lambda_calibrated = True #source attribute, later applied to header["WL_CBRTD"]
+
+    def rough_lambda_and_filter_calibration(self, filter_name = "J", verbose = False, plot_alignment = False):
+
+        if filter_name == "H":
+            print("H-band not yet supported")
+
+        self.trace_spectra = spec_utils.rough_lambda_and_filter_calibration(self.trace_spectra, verbose=verbose, plot_alignment = plot_alignment)
+        self.lambda_calibrated = True
+
 
     def compute_polarization(self, cutmin=0, cutmax=-1):
 
@@ -880,7 +894,7 @@ class wircpol_source(object):
 
         if self.lambda_calibrated: #plot is not perfectly the same
             plt.xlabel("Wavelength [um]")
-            plt.xlim([1.1,1.4]) #wavelength display range
+            plt.xlim([1.17,1.32]) #wavelength display range -- Where the J-band filter has  > 80% throughput
         else:
             plt.xlabel("Wavelength [Arbitrary Unit]")
             plt.xlim([0,225]) #arbitrary unit wavelength display range

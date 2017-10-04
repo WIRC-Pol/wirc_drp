@@ -27,11 +27,13 @@ sky_spec_data = np.load(wircpol_dir+'/wirc_drp/specification/sky_emission.npy')
 #Palomar Hale telescope
 diam=5.1#meter
 obs=0.36#unitless
-sampling=0.25#in arcsecond / pix
+sampling=0.2487#in arcsecond / pix
+plate_scale = sampling
 #seeing = 1
 #seeing_pix = seeing/sampling
 area = (diam/2)**2. * np.pi - (obs*diam/2)**2. * np.pi #meter^2
 #area = 13 #m^2, source http://www.astro.caltech.edu/palomar/observer/200inchResources/lfc/lfcpick.html
+angular_magnification = 97.7
 
 #instrument--these are to be deprecated. Filter info below is to be used.
 lb=1.25#in microns
@@ -61,6 +63,7 @@ slit_position_y = 1060-1
 wlPerPix = 2.83/1000 #wl coverage per diagonal pixel in microns
 #zero order image flux/total flux. 1% for the current spec.
 zero_fraction = 0.01
+pg_period = 17 #microns
 
 ###PHYSICAL CONSTANTS
 h = 6.626e-34 #J s

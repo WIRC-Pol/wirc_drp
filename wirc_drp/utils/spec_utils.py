@@ -17,6 +17,7 @@ from wirc_drp.constants import *
 from scipy.optimize import least_squares
 from scipy.optimize import basinhopping
 from scipy.ndimage import shift, median_filter
+from scipy.ndimage import gaussian_filter
 from scipy import ndimage as ndi
 from scipy.signal import fftconvolve
 
@@ -913,7 +914,118 @@ def rough_wavelength_calibration_v2(trace, filter_name, lowcut=0, highcut=-1):
     slope = (wl_down - wl_up )/(np.argmin(grad) - np.argmax(grad))
 
     x = np.arange(len(trace_copy))
+    
     return slope*(x - np.argmax(grad)) + wl_up
+
+def rough_lambda_and_filter_calibration(spectra, band = "J",off0 = 0.93, verbose=False, plot_alignment=False):
+    #Note this function uses a bunch of things from constants.py
+
+    if band == "J":
+        lambda0 = J_lam
+    elif band == "H":
+        lambda0 = H_lam
+    else:
+        print("You have selected an unsupported bandpass, returning.")
+        return spectra
+
+    # These values were determined by trial and error, not by because I know the orientation of 
+    # things in the instrument
+    angles = [3.5,3.5,3.5,3.5]
+    signs = [1.,-1,1,-1]
+
+    for i in range(4):
+
+        #We use the below equations to correct for the filter throughput wavelength shift
+
+        # d_beta/d_lambda = m/(D*cos beta)
+        # beta = arcsin(m*lambda/D - sin(alpha))
+        #
+        # alpha = 3.5 - angle of incidence 
+        # m = +/-1          - Grating Order
+        # D = 17um          - grating period
+        
+        # -> d_lambda/d_beta =  D/M * cos beta
+
+        #First, what is the expected angle of each trace leaving the PG (relative to the optical axis)
+        beta = np.degrees( np.arcsin( signs[i]*lambda0/pg_period) - np.sin(np.radians(angles[i])))
+
+        if verbose: 
+            print("The diffraction angle for trace {} is {}".format(i,beta))
+
+        # Now what is the angular dispersion: 
+        dbdl = pg_period * np.cos(np.radians(beta)) #Micron/Radian
+
+        #How big is one pixel at the pupil?
+        pix_angle_at_pupil = np.radians(plate_scale*angular_magnification/3600) #radians/pixel
+
+        # What is the d_lambda per pixel (i.e. the linear dispersion)
+        ld = dbdl*pix_angle_at_pupil
+
+        if verbose: 
+            print("The linear dispersion for trace {} is {} um per pixel".format(i,ld))
+
+        #Read in the filter profile
+        filt_tp = np.genfromtxt(wircpol_dir+"wirc_drp/specification/J_WIRC.csv", delimiter=',')
+        filt_tp[:,1] = filt_tp[:,1]/100 #The filter trasmission is given as percent. Let's normalize it to 1. 
+
+        #The wavelength correction factor for the filter. Ghinassi et al. 2002 paper gives the below equations, with n_eff = 2 for MKO filters. 
+        n_eff = 2. #This value is given by 
+        factor = np.sqrt ( 1 - np.sin(np.radians(beta))**2/n_eff**2)
+        filt_tp[:,0] = filt_tp[:,0]*(factor)
+
+        if verbose: 
+            print("The wavelength correction factor for the filter for trace {} is {}".format(i,factor))
+
+        
+        #TODO: Read the width parameters from the spectral extraction to get this value
+        seeing = 4 #In pixels
+        #Smooth by the seeing
+        filt_tp[:,1] = gaussian_filter(filt_tp[:,1],seeing)
+
+        #Apply the linear dispersion calculated above to the raw spectra plus a fiducial offset
+        off0 = 0.93
+        spec_wl = ld*spectra[i,0,:] + off0
+        spec_f  = spectra[i,1,:]
+
+
+        #Now we'll cross correlate the filter profile with the spectra to get a precise shift in wavelength. 
+
+        #A range of possible offset values. It could be that this is too large. 
+        offs = np.arange(-0.1,0.1,0.0001)
+
+        #A list that will hold the correlation values
+        corr = []
+        
+        for off in offs:
+            #Shift the filter profile by the offset
+            filt_i = np.interp(spec_wl+off,filt_tp[:,0],filt_tp[:,1])
+            #Correlate with the spectrum
+            corr.append(np.correlate(filt_i,spec_f))
+
+        #Find the offset with the highest correlation
+        best_off = offs[np.where(corr == np.max(corr))[0]]
+        
+        if verbose:
+            print("Best offset for spectrum {} = {}".format(i,best_off))
+
+        #Plot the filter profile with the shifted spectrum
+        if plot_alignment:
+            plt.figure(figsize=(10,5))
+            plt.plot(filt_tp[:,0],filt_tp[:,1]*10000)
+            plt.plot(spec_wl + best_off,spec_f)
+            plt.xlim(1.15,1.35)
+        
+        #Apply the full wavelength solution with the best found offset
+        spectra[i,0,:] = ld*spectra[i,0,:] + best_off + off0
+        
+        #Interpolate the filter values at the wavelengths of the spectrum
+        filt = np.interp(spectra[i,0,:],filt_tp[:,0],filt_tp[:,1])
+        #Divide through by the filter throughput
+        spectra[i,1,:] = spectra[i,1,:]/filt
+
+    return spectra
+
+
 
 def align_set_of_traces(traces_cube, ref_trace):
     """
@@ -959,7 +1071,7 @@ def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3):
 
     return out_spectra #same dimension as spectra
 
-def align_spectra(spectra, lowcut=0, highcut=-1, big_filt_sz = 30, little_filt_sz = 3):
+def align_spectra(spectra, lowcut=0, highcut=-1, big_filt_sz = 30, little_filt_sz = 3, x_start = [0.,1.,0.,0.,0.]):
     '''
     Aligns the spectra by minimizing a function that applies a 2nd order wavelenth shift and scales the flux. 
 
@@ -983,7 +1095,7 @@ def align_spectra(spectra, lowcut=0, highcut=-1, big_filt_sz = 30, little_filt_s
     specq[1,1,:] = median_filter(specq[1,1,:],little_filt_sz)
     
     #Now run the alignment
-    x_start = [1.,0.,1.,0.,0.]
+    # x_start = [1.,0.,1.,0.,0.]
     new_qm_params = least_squares(fit_to_align_spectra,x_start,args=[specq])
     new_qm_flux = function_to_align_spectra(new_qm_params.x,spectra[0:2,:,:])
 
@@ -1025,7 +1137,7 @@ def fit_to_align_spectra(x,two_spectra):
     new_spectra = function_to_align_spectra(x,two_spectra)
 
     #The scaling factor is used for the fitting, but not when we apply the new wavelength solution
-    return np.abs(x[0]*new_spectra - two_spectra[0,1,:])
+    return np.std(x[0]*new_spectra - two_spectra[0,1,:])
 
 def function_to_align_spectra(x,two_spectra):
     '''
@@ -1123,97 +1235,65 @@ def compute_polarization(trace_spectra, filter_name = 'J', plot=False, cutmin=0,
         cutmin          -   Chop off all the indices after this number from each spectra
     """
 
-    Qp_out = []
-    Qp_var_out = []
-    Qm_out = []
-    Qm_var_out = []
-    Up_out = []
-    Up_var_out = []
-    Um_out = []
-    Um_var_out = []
-    Q_out = []
-    Q_var_out = []
-    U_out = []
-    U_var_out = []
-    P_out = []
-    P_var_out = []
-    Theta_out = []
-    Theta_var_out = []
 
-    Qp = trace_spectra[0,1,:]
+    # Qp_out = []
+    # Qp_var_out = []
+    # Qm_out = []
+    # Qm_var_out = []
+    # Up_out = []
+    # Up_var_out = []
+    # Um_out = []
+    # Um_var_out = []
+    # Q_out = []
+    # Q_var_out = []
+    # U_out = []
+    # U_var_out = []
+    # P_out = []
+    # P_var_out = []
+    # Theta_out = []
+    # Theta_var_out = []
+
+    # Qp = trace_spectra[0,1,:]
     Qp_var = trace_spectra[0,2,:]
-    Qm = trace_spectra[1,1,:]
+    # Qm = trace_spectra[1,1,:]
     Qm_var = trace_spectra[1,2,:]
-    Up = trace_spectra[2,1,:]
+    # Up = trace_spectra[2,1,:]
     Up_var = trace_spectra[2,2,:]
-    Um = trace_spectra[3,1,:]
+    # Um = trace_spectra[3,1,:]
     Um_var = trace_spectra[3,2,:]
     
-    #Clip the heads and tails of spectra. Magic numbers for now! 
-    #TODO: This whole process needs to be refined. 
-    Qp = Qp[cutmin:cutmax]
-    Qp_var = Qp_var[cutmin:cutmax]
-    Qm = Qm[cutmin:cutmax]
-    Qm_var = Qm_var[cutmin:cutmax]
+    # #Clip the heads and tails of spectra. Magic numbers for now! 
+    # #TODO: This whole process needs to be refined. 
+    # Qp = Qp[cutmin:cutmax]
+    # Qp_var = Qp_var[cutmin:cutmax]
+    # Qm = Qm[cutmin:cutmax]
+    # Qm_var = Qm_var[cutmin:cutmax]
     
-    Up = Up[cutmin:cutmax]
-    Up_var = Up_var[cutmin:cutmax]
-    Um = Um[cutmin:cutmax]
-    Um_var = Um_var[cutmin:cutmax]
+    # Up = Up[cutmin:cutmax]
+    # Up_var = Up_var[cutmin:cutmax]
+    # Um = Um[cutmin:cutmax]
+    # Um_var = Um_var[cutmin:cutmax]
     
-    wlQp = trace_spectra[0,0,cutmin:cutmax]
-    wlQm = trace_spectra[1,0,cutmin:cutmax]
-    wlUp = trace_spectra[2,0,cutmin:cutmax]
-    wlUm = trace_spectra[3,0,cutmin:cutmax]
+    wlQp = trace_spectra[0,0,:]
+    wlQm = trace_spectra[1,0,:]
+    wlUp = trace_spectra[2,0,:]
+    wlUm = trace_spectra[3,0,:]
 
-    # if plot: 
-    #     fig=plt.figure()
+    Qp = trace_spectra[0,1,:]
+    Qm = np.interp(wlQp,wlQm,trace_spectra[1,1,:])
+    Up = trace_spectra[2,1,:]
+    Um = np.interp(wlUp,wlUm,trace_spectra[3,1,:])
 
-    #     #Plot Q+ and Q-
-    #     fig.add_subplot(231) 
-    #     #Wavelength calibration now working great right now
-    #     # plt.errorbar(wlQp, Qp , color = 'r', label = 'Q+')
-    #     # plt.errorbar(wlQm, Qm, color = 'b', label = 'Q-')
-    #     plt.errorbar(range(len(Qp)), Qp , yerr = np.sqrt(Qp_var), color = 'r', label = 'Q+')
-    #     plt.errorbar(range(len(Qm)), Qm , yerr = np.sqrt(Qm_var), color = 'b', label = 'Q-')
-    #     plt.legend()
+    q = (Qp-Qm)/(Qp+Qm)
+    u = (Up-Um)/(Up+Um)
 
-    #     #Plot Q+ - Q-
-    #     fig.add_subplot(232)
-    #     plt.errorbar(range(len(Qp)), Qp-Qm, yerr=np.sqrt(Qp_var + Qm_var), color = 'purple', label = 'Q')
-    #     plt.legend()
+    return wlQp, q, q*0., wlUp, u, u*0.
 
-    #     #Plot (Q+ - Q-)/(Q+ + Q-)
-    #     fig.add_subplot(233)
-    #     plt.errorbar(range(len(Qp)), (Qp-Qm)/(Qp+Qm), color = 'green', label = 'Q/I')
-    #     plt.ylim(-0.1,0.1)
-    #     plt.legend()
-
-        
-    #     fig.add_subplot(234)
-    #     #Wavelength calibration now working great right now
-    #     # plt.errorbar(wlUp, Up , color = 'r', label = 'U+')
-    #     # plt.errorbar(wlUm, Um, color = 'b', label = 'U-')
-    #     plt.errorbar(range(len(Up)), Up , yerr = np.sqrt(Up_var), color = 'r', label = 'U+')
-    #     plt.errorbar(range(len(Um)), Um , yerr = np.sqrt(Um_var), color = 'b', label = 'U-')
-        
-    #     plt.legend()
-
-    #     fig.add_subplot(235)
-    #     plt.errorbar(range(len(Up)), Up-Um, yerr=np.sqrt(Up_var + Um_var), color = 'purple', label = 'U')
-
-    #     fig.add_subplot(236)
-    #     plt.errorbar(range(len(Up)), (Up-Um)/(Up+Um), color = 'green', label = 'U/I')
-    #     plt.ylim(-0.1,0.1)
-    #     plt.legend()
-
-    #     plt.savefig('Q+U'+str(i)+'.pdf')
-    # plt.show()
+    #TODO
+        #The variances might be different now that we're shifted things around. Also from rough_lambda_and_filter_calibration
     
-    #smooth_ker = Gaussian1DKernel(stddev = np.nanmedian(res_stddev[i]))
-    
-    q, dq, dsq = compute_stokes_from_traces(Qp, np.sqrt(Qp_var), Qm, np.sqrt(Qm_var), plotted = False)
-    u, du, dsu = compute_stokes_from_traces(Up, np.sqrt(Up_var), Um, np.sqrt(Um_var), plotted = False)
+    # q, dq, dsq = compute_stokes_from_traces(Qp, np.sqrt(Qp_var), Qm, np.sqrt(Qm_var), plotted = False)
+    # u, du, dsu = compute_stokes_from_traces(Up, np.sqrt(Up_var), Um, np.sqrt(Um_var), plotted = False)
     
     #shift traces so aligned traces can be returned
     # Qm = shift(Qm, dsq)
@@ -1223,125 +1303,4 @@ def compute_polarization(trace_spectra, filter_name = 'J', plot=False, cutmin=0,
     # Um_var = shift(Um_var, dsu)        
     
     return wlQp, q, dq, wlUp, u, du
-    #smooth at seeing size
-    #q = convolve(q, smooth_ker)
-    #u = convolve(u, smooth_ker)   
-    
-    # plt.figure() 
-    # plt.errorbar(range(len(q)),q,dq, color = 'r', label = 'q')
-    # plt.errorbar(range(len(u)),u,du, color = 'b', label = 'u')
-    # #compute degree/angle of polarization
-    # p, dp, theta, dtheta = compute_p_and_pa(q,dq,u,du)
-    
-    # plt.errorbar(range(len(p)),p ,dp, color = 'k', label = 'p')
-    # plt.legend()
-    # plt.ylim([-0.01,0.02])
-    # plt.savefig('qup'+str(i)+'.pdf')
-    # plt.show()
-    
-    # plt.figure()
-    # plt.errorbar(range(len(theta)), theta, dtheta)
-    # plt.ylabel('$\theta$')
-    # plt.savefig('theta'+str(i)+'.pdf')
-
-    # Qp_out += [[Qp]]
-    # Qp_var_out += [[Qp_var]]
-    # Qm_out += [[Qm]]
-    # Qm_var_out += [[Qm_var]]
-    # Up_out += [[Up]]
-    # Up_var_out += [[Up_var]]
-    # Um_out += [[Um]]
-    # Um_var_out += [[Um_var]]
-    # P_out += [[p]]
-    # P_var_out += [[dp]]
-    # Theta_out += [[theta]]
-    # Theta_var_out += [[dtheta]]
-
-
-    # ############################################
-    # ######### MAKE THE PLOT ###################
-    # ###########################################
-
-    # if plot:
-    #     fig=plt.figure()
-
-    #     #Colors from Tableau 10 Medium
-    #     x_color=(114/255.,158/255.,206/255.) #Blue
-    #     y_color=(237/255.,102/255.,92/255.) #Red
-    #     gpi_color=(173/255.,139/255.,201/255.) #Purple
-    #     chauvin_color=(103/255.,191/255.,92/255.) #Green
-    #     nielsen_color=(255/255.,158/255.,74/255) #Orange
-
-    #     ax1 = fig.add_subplot(511,  ylabel="I [ADU]")
-    #     # plt.xlim(0.430,0.920)
-    #     # plt.xlim(500,900)
-    #     # plt.ylim(0,5000)
-    #     ax2 = fig.add_subplot(512,  ylabel="Q/I")
-    #     # plt.xlim(0.430,0.920)
-    #     # plt.xlim(500,900)
-    #     # plt.ylim(-0.2,0.2)
-    #     ax3 = fig.add_subplot(513,  ylabel="U/I")
-    #     # plt.xlim(0.430,0.920)
-    #     # plt.xlim(500,900)
-    #     # plt.ylim(-0.2,0.2)
-    #     ax4 = fig.add_subplot(514, ylabel = 'P/I')
-    #     # plt.xlim(0.430,0.920)
-    #     # plt.xlim(500,900)
-    #     # plt.ylim(0.,0.1)
-    #     ax5 = fig.add_subplot(515,  ylabel=r"PA [$^\circ$]",  xlabel="Wavelength [nm]")
-    #     # plt.xlim(0.430,0.920)
-    #     # plt.xlim(500,900)
-    #     # plt.ylim(170,190)
-
-    
-    #     #Plot Stokes I
-    #     ax1.plot(range(len(Qp)), Qp+Qm, color='k')
-    #     ax1.plot(range(len(Up)), Up+Um, color='k')
-    #     # ax1.fill_between(lamb, stokesI-stokesI_err, stokesI+stokesI_err, color=x_color, alpha=0.7)
-    #     # ax1.fill_between(lamb, stokesI-stokesI_err, stokesI+stokesI_err, color=x_color, alpha=0.7)
-    #     # ax1.set_ylim(0,4000)
-    #     # ax1.set_yticks([0,1000,2000,3000,4000])
-    #     ax1.set_xticklabels([])
-    #     ax1.grid()
-    #     plt.locator_params(nbins=5)
-
-    #     #PLot Stokes Q
-    #     # ax2.plot(lamb, stokesQ/stokesI)
-    #     ax2.errorbar(range(len(q)), q, dq, color='b')
-    #     # ax2.fill_between(range(len(q)), q-dq, q+dq, color=x_color, alpha=0.7)
-    #     # ax2.set_ylim(-1.,1.)
-    #     # ax2.set_yticks([-0.03,0,0.03,0.06])
-    #     ax2.set_xticklabels([])
-    #     ax2.grid()
-    #     plt.locator_params(nbins=5)
-
-    #     #Plot Stokes U
-    #     # ax3.plot(lamb, stokesU/stokesI)
-    #     ax3.errorbar(range(len(u)), u, du, color='purple')
-    #     # ax3.fill_between(lamb, stokesU-stokesU_err, stokesU+stokesU_err, color=gpi_color, alpha=0.7)
-    #     # ax3.set_ylim(-1,1)
-    #     # ax3.set_yticks([-0.03,-0.01,0.01,0.03])
-    #     ax3.set_xticklabels([])
-    #     ax3.grid()
-    #     plt.locator_params(nbins=5)
-
-    #     # Plot Stokes P
-    #     ax4.errorbar(range(len(p)), p, dp, color='red')
-    #     # ax4.set_yticks([0,0.02,0.04,0.06])
-    #     # ax4.set_ylim(0.,1.)
-    #     ax4.set_xticklabels([])
-    #     ax4.grid()
-    #     plt.locator_params(nbins=5)
-
-    #     # Plot the Position Angle
-    #     ax5.errorbar(range(len(theta)), np.degrees(theta), dtheta, color='g')
-    #     # ax5.fill_between(lamb, pa+180-pa_err, pa+180+pa_err, color=chauvin_color, alpha=0.7)
-    #     ax5.grid()
-    #     plt.locator_params(nbins=5)
-
-    #     plt.savefig("plot_stokes_spectrum_debias"+str(i)+".pdf", bbox_inches="tight")
-    #     # plt.show()
-
-    # # return Qp, Qp_var, Qm, Qm_var, Up, Up_var, Um, Um_var, q, dq, u, du, p, dp, theta, dtheta
-    # return Qp_out, Qp_var_out, Qm_out, Qm_var_out, Up_out, Up_var_out, Um_out, Um_var_out, Q_out, Q_var_out, U_out, U_var_out, P_out, P_var_out, Theta_out, Theta_var_out
     
