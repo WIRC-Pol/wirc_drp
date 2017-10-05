@@ -850,7 +850,7 @@ class wircpol_source(object):
         if filter_name == "H":
             print("H-band not yet supported")
 
-        self.trace_spectra = spec_utils.rough_lambda_and_filter_calibration(self.trace_spectra, verbose=verbose, plot_alignment = plot_alignment)
+        self.trace_spectra = spec_utils.rough_lambda_and_filter_calibration(self.trace_spectra, self.spectra_widths, verbose=verbose, plot_alignment = plot_alignment)
         self.lambda_calibrated = True
 
 

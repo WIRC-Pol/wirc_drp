@@ -917,7 +917,8 @@ def rough_wavelength_calibration_v2(trace, filter_name, lowcut=0, highcut=-1):
     
     return slope*(x - np.argmax(grad)) + wl_up
 
-def rough_lambda_and_filter_calibration(spectra, band = "J",off0 = 0.93, verbose=False, plot_alignment=False):
+def rough_lambda_and_filter_calibration(spectra, widths, band = "J",off0 = 0.93, verbose=False, 
+    plot_alignment=False, offset_method=2):
     #Note this function uses a bunch of things from constants.py
 
     if band == "J":
@@ -978,33 +979,103 @@ def rough_lambda_and_filter_calibration(spectra, band = "J",off0 = 0.93, verbose
 
         
         #TODO: Read the width parameters from the spectral extraction to get this value
-        seeing = 4 #In pixels
+        seeing = widths[i] #In pixels
+        # seeing = 1.
         #Smooth by the seeing
         filt_tp[:,1] = gaussian_filter(filt_tp[:,1],seeing)
+        #Let's do this twice because we'll do this to smooth out the data as well. 
 
         #Apply the linear dispersion calculated above to the raw spectra plus a fiducial offset
         off0 = 0.93
         spec_wl = ld*spectra[i,0,:] + off0
         spec_f  = spectra[i,1,:]
+        # spec_f  = gaussian_filter(spectra[i,1,:],seeing)
 
+        if offset_method == 1:
+            ##OFFSET FINDING METHOD 1
+            #We'll cross correlate the filter profile with the spectra to get a precise shift in wavelength. 
 
-        #Now we'll cross correlate the filter profile with the spectra to get a precise shift in wavelength. 
+            #A range of possible offset values. It could be that this is too large. 
+            offs = np.arange(-0.1,0.1,0.0001)
 
-        #A range of possible offset values. It could be that this is too large. 
-        offs = np.arange(-0.1,0.1,0.0001)
+            #A list that will hold the correlation values
+            corr = []
+            
+            for off in offs:
+                #Shift the filter profile by the offset
+                filt_i = np.interp(spec_wl+off,filt_tp[:,0],filt_tp[:,1])
+                #Correlate with the spectrum
+                corr.append(np.correlate(filt_i,spec_f))
 
-        #A list that will hold the correlation values
-        corr = []
+            #Find the offset with the highest correlation
+            best_off = offs[np.where(corr == np.max(corr))[0]]
         
-        for off in offs:
-            #Shift the filter profile by the offset
-            filt_i = np.interp(spec_wl+off,filt_tp[:,0],filt_tp[:,1])
-            #Correlate with the spectrum
-            corr.append(np.correlate(filt_i,spec_f))
+        elif offset_method == 2:
+            ##OFFSET FINDING METHOD 2
 
-        #Find the offset with the highest correlation
-        best_off = offs[np.where(corr == np.max(corr))[0]]
-        
+            # Find the center of the filter and the data by measuring the locations of the peak gradients on the blue and red
+            # ends of the filter profile and spectra, and make sure that they're centered at the same place. 
+            
+            #First the filter
+            wl_min = np.min(filt_tp[:,0])
+            wl_max = np.max(filt_tp[:,0])
+            wls = np.arange(wl_min, wl_max,0.001)
+            filt_int = np.interp(wls,filt_tp[:,0],filt_tp[:,1])
+
+            grad = np.gradient(filt_int)
+
+            wl_min = np.min(filt_tp[:,0])
+            wl_max = np.max(filt_tp[:,0])
+            wls = np.arange(wl_min, wl_max,0.001)
+            filt_int = np.interp(wls,filt_tp[:,0],filt_tp[:,1])
+
+            grad = np.gradient(filt_int)
+            #Can we fit two gaussians to this?
+            gp = models.Gaussian1D(amplitude=np.nanmax(grad), mean=1.17, stddev=0.05)
+            gm = models.Gaussian1D(amplitude=np.nanmin(grad), mean=1.32, stddev=0.05)
+
+            low_inds = np.where( wls <= np.mean(wls))[0]
+            fit_g = fitting.LevMarLSQFitter()
+            gp_fit = fit_g(gp, wls[low_inds], grad[low_inds])
+            # print(gp_fit.mean)
+
+            high_inds = np.where(wls > np.mean(wls))[0]
+            fit_g = fitting.LevMarLSQFitter()
+            gm_fit = fit_g(gm, wls[high_inds], grad[high_inds])
+            # print(gm_fit.mean)
+
+            filt_grad_center = (gp_fit.mean + gm_fit.mean)/2.
+            # print(grad_center)
+
+            #Now the spectrum
+            spec_wls = ld*spectra[i,0,:]+off0
+            inds = np.where( ( spec_wls > 1.1) & (spec_wls < 1.35))
+            spec_wls = spec_wls[inds]
+            spec1_int = spectra[i,1,:][inds]
+            spec_grad = np.gradient(spec1_int)
+
+            #Can we fit two gaussians to this?
+            gp = models.Gaussian1D(amplitude=np.nanmax(spec_grad), mean=1.17, stddev=0.05)
+            gm = models.Gaussian1D(amplitude=np.nanmin(spec_grad), mean=1.32, stddev=0.05)
+
+            low_inds = np.where( spec_wls <= np.mean(spec_wls))[0]
+            fit_g = fitting.LevMarLSQFitter()
+            gp_fit = fit_g(gp, spec_wls[low_inds], spec_grad[low_inds])
+            # print(gp_fit.mean)
+
+            high_inds = np.where(spec_wls > np.mean(spec_wls))[0]
+            fit_g = fitting.LevMarLSQFitter()
+            gm_fit = fit_g(gm, spec_wls[high_inds], spec_grad[high_inds])
+            # print(gm_fit.mean)
+
+            spec_grad_center = (gp_fit.mean + gm_fit.mean)/2.
+            # print(grad_center)
+
+            best_off = filt_grad_center - spec_grad_center
+        else: 
+            print("offset_method keyword not recognized, your wavelength solution is probably bogus")
+
+
         if verbose:
             print("Best offset for spectrum {} = {}".format(i,best_off))
 
@@ -1022,6 +1093,9 @@ def rough_lambda_and_filter_calibration(spectra, band = "J",off0 = 0.93, verbose
         filt = np.interp(spectra[i,0,:],filt_tp[:,0],filt_tp[:,1])
         #Divide through by the filter throughput
         spectra[i,1,:] = spectra[i,1,:]/filt
+        # spectra[i,1,:] = gaussian_filter(spectra[i,1,:],seeing)/filt
+
+
 
     return spectra
 
