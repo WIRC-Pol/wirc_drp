@@ -917,7 +917,7 @@ def rough_wavelength_calibration_v2(trace, filter_name, lowcut=0, highcut=-1):
     
     return slope*(x - np.argmax(grad)) + wl_up
 
-def rough_lambda_and_filter_calibration(spectra, widths, band = "J",off0 = 0.93, verbose=False, 
+def rough_lambda_and_filter_calibration(spectra, widths, xpos, ypos, band = "J", off0 = 0.93, verbose=False, 
     plot_alignment=False, offset_method=2):
     #Note this function uses a bunch of things from constants.py
 
@@ -928,6 +928,25 @@ def rough_lambda_and_filter_calibration(spectra, widths, band = "J",off0 = 0.93,
     else:
         print("You have selected an unsupported bandpass, returning.")
         return spectra
+
+
+    pix_angle_at_pupil = np.radians(J_lam * angular_magnification/3600) #radians/pixel
+    #What is the angle of the incident source
+    source_angle_x = np.degrees( (xpos-1027)*pix_angle_at_pupil)
+    source_angle_y = np.degrees( (ypos-1060)*pix_angle_at_pupil)
+
+    total_tilt = 7
+    tilt_angle = np.radians(60)
+
+    angles = [total_tilt*np.sin(tilt_angle),total_tilt*np.sin(tilt_angle),
+              total_tilt*np.cos(tilt_angle),total_tilt*np.cos(tilt_angle)]
+
+    if verbose: 
+        print("Tilt angles = {}".format(angles))
+    # angles = [3.5,3.5,3.5,3.5]
+    angles += np.array([-source_angle_y-source_angle_x, -source_angle_y-source_angle_x,
+                       -source_angle_y-source_angle_x,-source_angle_y-source_angle_x])/np.sqrt(2)
+
 
     # These values were determined by trial and error, not by because I know the orientation of 
     # things in the instrument
