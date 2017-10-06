@@ -845,12 +845,13 @@ class wircpol_source(object):
 
         self.lambda_calibrated = True #source attribute, later applied to header["WL_CBRTD"]
 
-    def rough_lambda_and_filter_calibration(self, filter_name = "J", verbose = False, plot_alignment = False):
+    def rough_lambda_and_filter_calibration(self, filter_name = "J", verbose = False, plot_alignment = False, tilt_angle=45, source_compensation=False):
 
         if filter_name == "H":
             print("H-band not yet supported")
 
-        self.trace_spectra = spec_utils.rough_lambda_and_filter_calibration(self.trace_spectra, self.spectra_widths, self.pos[1], self.pos[0],verbose=verbose, plot_alignment = plot_alignment)
+        self.trace_spectra = spec_utils.rough_lambda_and_filter_calibration(self.trace_spectra, self.spectra_widths, self.pos[1], 
+            self.pos[0],verbose=verbose, plot_alignment = plot_alignment, tilt_angle = tilt_angle, source_compensation = source_compensation)
         self.lambda_calibrated = True
 
 
