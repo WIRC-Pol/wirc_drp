@@ -326,12 +326,18 @@ class wirc_data(object):
             #Create a TableHDU for each of the sources
             
             #The source_list attributes, trace_spectra(four separate trace spectra), Q, U, P, theta, are converted into tables of three columns each. Also returns length lists of each array
-            t_ts_0,l0=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_0 wavelength','D','nm'],
-            ['trace_spectra_0 flux','D','units?'], ['trace_spectra_0 flux error','D','units?'])#trace spectra 0
+            t_ts_0,l0=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_0 wavelength','D','nm']  ['trace_spectra_0 flux','D','units?'], ['trace_spectra_0 flux error','D','units?'])#trace spectra 0
             t_ts_1,l1=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_1 wavelength','D','nm'], ['trace_spectra_1 flux','D','units?'], ['trace_spectra_1 flux error','D','units?'])#trace spectra 1
             t_ts_2,l2=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_2 wavelength','D','nm'], ['trace_spectra_2 flux','D','units?'], ['trace_spectra_2 flux error','D','units?'])#trace spectra 2
             t_ts_3,l3=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_3 wavelength','D','nm'], ['trace_spectra_3 flux','D','units?'], ['trace_spectra_3 flux error','D','units?'])#trace spectra 3
             
+            #if calibrated, add the calibrated trace
+
+            t_ts_0_cal,l0_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['calibrated_trace_spectra_0 wavelength','D','nm'], ['calibrated_trace_spectra_0 flux','D','units?'], ['calibrated_trace_spectra_0 flux error','D','units?'])#trace spectra 0
+            t_ts_1_cal,l1_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['calibrated_trace_spectra_1 wavelength','D','nm'], ['calibrated_trace_spectra_1 flux','D','units?'], ['calibrated_trace_spectra_1 flux error','D','units?'])#trace spectra 1
+            t_ts_2_cal,l2_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['calibrated_trace_spectra_2 wavelength','D','nm'], ['calibrated_trace_spectra_2 flux','D','units?'], ['calibrated_trace_spectra_2 flux error','D','units?'])#trace spectra 2
+            t_ts_3_cal,l3_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['calibrated_trace_spectra_3 wavelength','D','nm'], ['calibrated_trace_spectra_3 flux','D','units?'], ['calibrated_trace_spectra_3 flux error','D','units?'])#trace spectra 3
+
             
             t_Q,lQ=self.make_triplet_table(self.source_list[i].Q, ['Q wavelength','D','nm'], ['Q stokes','D','units?'], ['Q stokes error','D','units?'])               #Q
             
@@ -346,8 +352,8 @@ class wirc_data(object):
             
             #big table gets made
             #the .columns of each three-column-table are added up to form column_list
-            column_list= t_ts_0.columns + t_ts_1.columns + t_ts_2.columns + t_ts_3.columns + t_Q.columns + t_U.columns  + t_P.columns + t_theta.columns
-           
+            column_list= t_ts_0.columns + t_ts_1.columns + t_ts_2.columns + t_ts_3.columns +  t_Q.columns + t_U.columns  + t_P.columns + t_theta.columns + t_ts_0_cal.columns+t_ts_1_cal.columns+t_ts_2_cal.columns+t_ts_3_cal.columns
+  
             #the column_list becomes a quite large fits table called source_tbl_hdu
             source_tbl_hdu=fits.BinTableHDU.from_columns(column_list)
 
@@ -555,9 +561,11 @@ class wirc_data(object):
                 prihdr=hdulist[(2*i)+2].header 
                 
                 
-                
+                #for the column number, refers to the variable "column_list" in save_wirc_object. each variable has 4 columns for 4 traces
                 #finds 3D array for trace_spectra
                 new_source.trace_spectra = self.table_columns_to_array(big_table,prihdr,[0,1,2,3,4,5,6,7,8,9,10,11])
+                #if extracted trace_spectra exists
+                new_source.extracted_trace_spectra = self.table_columns_to_array(big_table,prihdr,[24,25,26,27,28,29,30,31,32,33,34,35])
                 
                 #finds 2D array for Q
                 new_source.Q = self.table_columns_to_array(big_table,prihdr,[12,13,14])
@@ -685,6 +693,7 @@ class wircpol_source(object):
 
         #Extracted spectra 
         self.trace_spectra = None
+        self.calibrated_trace_spectra = None
         self.pol_spectra = None
         self.Q = None
         self.U = None
@@ -850,7 +859,7 @@ class wircpol_source(object):
         if filter_name == "H":
             print("H-band not yet supported")
 
-        self.trace_spectra = spec_utils.rough_lambda_and_filter_calibration(self.trace_spectra, self.spectra_widths, self.pos[1], 
+        self.calibrated_trace_spectra = spec_utils.rough_lambda_and_filter_calibration(self.trace_spectra, self.spectra_widths, self.pos[1], 
             self.pos[0],verbose=verbose, plot_alignment = plot_alignment, tilt_angle = tilt_angle, source_compensation = source_compensation)
         self.lambda_calibrated = True
 

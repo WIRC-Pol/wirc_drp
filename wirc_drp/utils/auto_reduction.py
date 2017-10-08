@@ -10,7 +10,7 @@ during and/or after an observing run.
 To run the auto reduction loop, call python auto_reduction.py, followed by the date
 of the observation and optional the object name. 
 
-To start: python auto_reduction.py yyyymmdd object_name x y 
+To start: python auto_reduction.py yyyymmdd object_name sky_ref first_file
 
 auto souce finding will be implemented
 
@@ -32,16 +32,20 @@ if __name__ == "__main__":
 	if len(sys.argv) == 5: #argument given
 		date = sys.argv[1]
 		object_name = sys.argv[2]
-		x_coord = sys.argv[3]
-		y_coord = sys.argv[4]
+		sky_ref = sys.argv[3] #frame number of the sky reference image for sky subtraction for automatic source finder
+		first_file= sys.argv[4]
+		#x_coord = sys.argv[3]
+		#y_coord = sys.argv[4]
 		#if len(sys.argv) > 2: 
 		#	obj_name = sys.argv[2] #set object name
 
 	else: 
 		date = input('Type in date in yyyymmdd format: ')
 		object_name = input('Object name: ')
-		x_coord = input('X coordinate: ')
-		y_coord = input('Y coordinate: ')
+		sky_ref = input('image name of sky reference (e.g. 0012): ')
+		first_file = input('image name of first science frame (e.g. 0013)" ')
+		#x_coord = input('X coordinate: ')
+		#y_coord = input('Y coordinate: ')
 
 	#check if this date exists
 	if os.path.isdir(date):
@@ -53,8 +57,8 @@ if __name__ == "__main__":
 	#get into the date directory 
 	os.chdir(base_dir+date)
 	
-	#ask for the first file number to process
-	first_file = str(input('First file number to process: '))
+	#ask for the first file number to process: use default
+	#first_file = str(input('First file number to process: '))
 
 	if len(first_file) <= 5:
 		first_file = first_file.zfill(4)
