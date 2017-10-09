@@ -1400,7 +1400,7 @@ def compute_polarization(trace_spectra, filter_name = 'J', plot=False, cutmin=0,
     return wlQp, q, dq, wlUp, u, du
 
 
-def make_scale_widget(Qp, Qm):
+def make_scale_widget(Qp, Qm, x0):
     """
     make a fun widget to adjust scaling parameters and see the resulting q/u
     you can slide to adjust shift, scale, square root and quadrature terms.
@@ -1419,7 +1419,7 @@ def make_scale_widget(Qp, Qm):
     #slider to try setting scale
     from matplotlib.widgets import Slider, Button, RadioButtons
 
-    fig, ax = plt.subplots(2,1,figsize = (5,10))
+    fig, ax = plt.subplots(2,1,figsize = (6,10))
 
     #first draw initial plots
     t = np.arange(len(Qp))
@@ -1428,11 +1428,16 @@ def make_scale_widget(Qp, Qm):
     sq0 = 0.5
     qu0  = 0
 
-    s = Qm_int(sq0*np.sqrt(x)+sc0*x+sh0+(1-sc0)*x0-sq0*np.sqrt(x0) +qu0*x**2 - qu0*x0**2)
+    #s = Qm_int(sq0*np.sqrt(x)+sc0*x+sh0+(1-sc0)*x0-sq0*np.sqrt(x0) +qu0*x**2 - qu0*x0**2)
+    s = Qm_int(sq0*np.sqrt(x)+sc0*x+sh0+(1-sc0)*x0-sq0*np.sqrt(x0) +qu0*(x- x0)**2 )
     ax[0].plot(t, Qp*0.95, color = 'blue')
     l, = ax[0].plot(t, s, color='red')
     ax[0].set_xlim([minlim,maxlim])
     ax[0].set_ylim([7000,14000])
+    title = fig.suptitle("${:.3g}+{:.3g}x+{:.3g}sq(x)+{:.3g}(x-x0)^2 + (1-{:.3g})x_0 - {:.3g}sq(x_0)$".format(sh0,sc0,sq0,qu0,sc0,sq0))
+    #title = fig.suptitle(r"$%f+%fx+%f\sqrt{x}+%f(x-x0)^2 + (1-%f)x_0 - %f\sqrt{x_0}$"%(sh0,sc0,sq0,qu0,sc0,sq0))
+    #title = fig.suptitle("$\sqrt{x}$")
+
     plt.subplots_adjust(left=0.25, bottom=0.4)
 
     #qu plot
@@ -1451,6 +1456,7 @@ def make_scale_widget(Qp, Qm):
     axsc = plt.axes([0.25, 0.2, 0.65, 0.03], facecolor=axcolor)
     axsq = plt.axes([0.25, 0.25, 0.65, 0.03], facecolor=axcolor)
     axqu = plt.axes([0.25, 0.3, 0.65, 0.03], facecolor=axcolor)
+    axx0 = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor=axcolor)
     # axsh = plt.axes([0.25, 0.4, 0.65, 0.03], facecolor=axcolor)
     # axsc = plt.axes([0.25, 0.5, 0.65, 0.03], facecolor=axcolor)
     # axsq = plt.axes([0.25, 0.6, 0.65, 0.03], facecolor=axcolor)
@@ -1459,6 +1465,7 @@ def make_scale_widget(Qp, Qm):
     ssc = Slider(axsc, 'Scale', 0.7, 1.5, valinit=sc0)
     ssq = Slider(axsq, 'Sqrt', -1.5, 1.5, valinit=sq0)
     squ = Slider(axqu, 'Square', 0.,0.001, valinit=qu0)
+    sx0 = Slider(axx0, '$x_0$', 100,200, valinit=x0)
 
 
     def update(val):
@@ -1468,17 +1475,21 @@ def make_scale_widget(Qp, Qm):
         sc = ssc.val
         sq = ssq.val
         qu = squ.val
+        new_x0 = sx0.val
 
         #s_up = Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*x0-sq*np.sqrt(x0)+qu*x**2 - qu*x0**2) 
-        l.set_ydata(Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*x0-sq*np.sqrt(x0)+qu*x**2 - qu*x0**2) )
-        m.set_ydata((Qp - Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*x0-sq*np.sqrt(x0)+qu*x**2 - qu*x0**2))/
-                        (Qp+Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*x0-sq*np.sqrt(x0)+qu*x**2 - qu*x0**2)) )
+        l.set_ydata(Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*new_x0-sq*np.sqrt(new_x0)+qu*x**2 - qu*new_x0**2) )
+        m.set_ydata((Qp - Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*new_x0-sq*np.sqrt(new_x0)+qu*x**2 - qu*new_x0**2))/
+                        (Qp+Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*new_x0-sq*np.sqrt(new_x0)+qu*x**2 - qu*new_x0**2)) )
+        
+        title.set_text("${:.3g}+{:.3g}x+{:.3g}sq(x)+{:.3g}(x-x0)^2 + (1-{:.3g})x_0 - {:.3g}sq(x_0)$".format(sh,sc,sq,qu,sc,sq))
         fig.canvas.draw_idle()
 
     ssh.on_changed(update)
     ssc.on_changed(update)
     ssq.on_changed(update)
     squ.on_changed(update)
+    sx0.on_changed(update)
 
     #The reset button
 
@@ -1491,6 +1502,7 @@ def make_scale_widget(Qp, Qm):
         ssc.reset()
         ssq.reset()
         squ.reset()
+        sx0.reset()
     button.on_clicked(reset)
 
     #rax = plt.axes([0.025, 0.5, 0.15, 0.15], facecolor=axcolor)
