@@ -926,7 +926,7 @@ def rough_lambda_and_filter_calibration(spectra, widths, xpos, ypos, band = "J",
     elif band == "H":
         lambda0 = H_lam
     else:
-        print("You have selected an unsupported bandpass, returning.")
+        print("You have selected an unsupported bandpass '{}', returning.".format(band))
         return spectra
 
 
@@ -1398,4 +1398,109 @@ def compute_polarization(trace_spectra, filter_name = 'J', plot=False, cutmin=0,
     # Um_var = shift(Um_var, dsu)        
     
     return wlQp, q, dq, wlUp, u, du
+
+
+def make_scale_widget(Qp, Qm):
+    """
+    make a fun widget to adjust scaling parameters and see the resulting q/u
+    you can slide to adjust shift, scale, square root and quadrature terms.
+    Say if the original Qm (or Um) spectrum is Qm(x), this resamples the spectrum
+    as Qm(shift+scale*x+quad*x**2+square_root*np.sqrt(x))
+    
+    This does not work in the inline mode. 
+    
+    based on https://matplotlib.org/examples/widgets/slider_demo.html
+
+    Input: plus and minus traces
+    """
+    #interpolate Qm 
+    x = np.arange(len(Qm))
+    Qm_int = interp1d(x, Qm, bounds_error = False)
+    #slider to try setting scale
+    from matplotlib.widgets import Slider, Button, RadioButtons
+
+    fig, ax = plt.subplots(2,1,figsize = (5,10))
+
+    #first draw initial plots
+    t = np.arange(len(Qp))
+    sh0 = -2
+    sc0 = 1.05
+    sq0 = 0.5
+    qu0  = 0
+
+    s = Qm_int(sq0*np.sqrt(x)+sc0*x+sh0+(1-sc0)*x0-sq0*np.sqrt(x0) +qu0*x**2 - qu0*x0**2)
+    ax[0].plot(t, Qp*0.95, color = 'blue')
+    l, = ax[0].plot(t, s, color='red')
+    ax[0].set_xlim([minlim,maxlim])
+    ax[0].set_ylim([7000,14000])
+    plt.subplots_adjust(left=0.25, bottom=0.4)
+
+    #qu plot
+
+    m, = ax[1].plot( t,(Qp - s)/(Qp + s))
+    ax[1].set_xlim([minlim,maxlim])
+    ax[1].set_ylim([0,0.1])
+
+    #s, = plt.plot(t, Qp, color='blue')
+    #plt.axis([0, 1, -10, 10])
+
+    #The sliders
+
+    axcolor = 'lightgoldenrodyellow'
+    axsh = plt.axes([0.25, 0.15, 0.65, 0.03], facecolor=axcolor)
+    axsc = plt.axes([0.25, 0.2, 0.65, 0.03], facecolor=axcolor)
+    axsq = plt.axes([0.25, 0.25, 0.65, 0.03], facecolor=axcolor)
+    axqu = plt.axes([0.25, 0.3, 0.65, 0.03], facecolor=axcolor)
+    # axsh = plt.axes([0.25, 0.4, 0.65, 0.03], facecolor=axcolor)
+    # axsc = plt.axes([0.25, 0.5, 0.65, 0.03], facecolor=axcolor)
+    # axsq = plt.axes([0.25, 0.6, 0.65, 0.03], facecolor=axcolor)
+
+    ssh = Slider(axsh, 'Shift', -10, 10, valinit=sh0)
+    ssc = Slider(axsc, 'Scale', 0.7, 1.5, valinit=sc0)
+    ssq = Slider(axsq, 'Sqrt', -1.5, 1.5, valinit=sq0)
+    squ = Slider(axqu, 'Square', 0.,0.001, valinit=qu0)
+
+
+    def update(val):
+        #amp = samp.val
+        #freq = sfreq.val
+        sh = ssh.val
+        sc = ssc.val
+        sq = ssq.val
+        qu = squ.val
+
+        #s_up = Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*x0-sq*np.sqrt(x0)+qu*x**2 - qu*x0**2) 
+        l.set_ydata(Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*x0-sq*np.sqrt(x0)+qu*x**2 - qu*x0**2) )
+        m.set_ydata((Qp - Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*x0-sq*np.sqrt(x0)+qu*x**2 - qu*x0**2))/
+                        (Qp+Qm_int(sq*np.sqrt(x)+sc*x+sh+(1-sc)*x0-sq*np.sqrt(x0)+qu*x**2 - qu*x0**2)) )
+        fig.canvas.draw_idle()
+
+    ssh.on_changed(update)
+    ssc.on_changed(update)
+    ssq.on_changed(update)
+    squ.on_changed(update)
+
+    #The reset button
+
+    resetax = plt.axes([0.8, 0.025, 0.1, 0.04])
+    button = Button(resetax, 'Reset', color=axcolor, hovercolor='0.975')
+
+
+    def reset(event):
+        ssh.reset()
+        ssc.reset()
+        ssq.reset()
+        squ.reset()
+    button.on_clicked(reset)
+
+    #rax = plt.axes([0.025, 0.5, 0.15, 0.15], facecolor=axcolor)
+    #radio = RadioButtons(rax, ('red', 'blue', 'green'), active=0)
+
+
+    #def colorfunc(label):
+    #    l.set_color(label)
+    #    fig.canvas.draw_idle()
+    #radio.on_clicked(colorfunc)
+    plt.show()
+    
     
