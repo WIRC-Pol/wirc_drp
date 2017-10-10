@@ -401,7 +401,7 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3):
     return [lower, upper]
 
 
-def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_noise = 12, plot = 0):
+def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_noise = 12, plot = 0, niter = 1, sig_clip = 5):
     """
     This is Horne 1986 optimal extraction algorithm. This function assumes that background estimation
     is done prior to calling this function. In this implementation, no bad pixel finding is in place
@@ -412,10 +412,13 @@ def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_
         extraction_range: a 2-element list of the lower and upper limit in spatial (y) direction to extract the spectrum 
         gain: detector gain in electron/ADU, 1.2 for WIRC
         read_out_noise: standard deviation of read-out noise in electron. 12e- for WIRC
+        niter: the number of iteration loop to reject bad pixel. 1 should be enough
     Outputs:
         flux
         variance of the measured flux
     """
+    if niter > 20:
+        print("Warning: large number of iteration will result in long computation time")
 
     #background = median_filter(background, 11) #assume no fine structure in background
     #First construct the variance estimate (eq 12, Horne 1986)
@@ -423,63 +426,87 @@ def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_
     #Compute a "standard" spectrum estimator by summing across trace
     flux_0, var_0 = sum_across_trace(data-background, variance, extraction_range)
     sky_flux, sky_var = sum_across_trace(background, variance, extraction_range)
+    Mask_old = np.ones(data.shape) #this is the initial bad pixel mask, assuming that all is good
+    while niter > 0:
     
-    #Profile image; first pass, eq 14, then smooth with a median filter
-    P_0 = np.copy(data)
-    P_0 = (data - background)/flux_0 #this is dividing each column (x) in data-background by the sum in that column
-    #smooth with a median filter only in the dispersion direction (x); note that the index is (y,x) here
-    P_0 = median_filter(P_0, size = (1,10))
-    #enforce non negativity and unity sum in the spatial direction
-    P_0[P_0 < 0] = 0
-    P_sum, var_Psum = sum_across_trace(P_0, variance, extraction_range)
-    P_0 = P_0/P_sum
-    
-    #for i in range(P_0.shape[1]):
-    #    plt.scatter(i, np.sum(P_0[extraction_range[0]:extraction_range[1],i]))
-    if plot:
-        plt.figure()
-        for i in range(extraction_range[0], extraction_range[1]):
-            plt.plot(P_0[i,:])
-            #plt.plot(median_filter(P_0[i,:], 10))
-            plt.ylim([-0.05,0.2])
-            plt.xlim([30,140])
-            plt.ylabel('P')
-            plt.xlabel('Spectral pixel')
-        plt.title('Spectral Profile')
-        plt.show()
+        #Profile image; first pass, eq 14, then smooth with a median filter
+        P_0 = np.copy(data)
+        P_0 = (data - background)/flux_0 #this is dividing each column (x) in data-background by the sum in that column
+        #smooth with a median filter only in the dispersion direction (x); note that the index is (y,x) here
+        P_0 = median_filter(P_0, size = (1,10))
+        #enforce non negativity and unity sum in the spatial direction
+        P_0[P_0 < 0] = 0
+        P_sum, var_Psum = sum_across_trace(P_0, variance, extraction_range)
+        P_0 = P_0/P_sum
+        
+        #for i in range(P_0.shape[1]):
+        #    plt.scatter(i, np.sum(P_0[extraction_range[0]:extraction_range[1],i]))
+        if plot:
+            plt.figure()
+            for i in range(extraction_range[0], extraction_range[1]):
+                plt.plot(P_0[i,:])
+                #plt.plot(median_filter(P_0[i,:], 10))
+                plt.ylim([-0.05,0.2])
+                plt.xlim([30,140])
+                plt.ylabel('P')
+                plt.xlabel('Spectral pixel')
+            plt.title('Spectral Profile')
+            plt.show()
 
-    #Now, optimization step. This version makes no attempts to deal with bad pixel
-    #print(flux_0.shape, P_0.shape)
-    
-    #optimal 
-    variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
-    #plt.imshow(variance_opt,origin ='lower', norm = LogNorm())
-    #sum P(D-S)/V
-    sum1, foo = sum_across_trace( P_0*(data-background)/variance_opt, variance, extraction_range) 
-    #sum P
-    sumP, foo = sum_across_trace(P_0,variance, extraction_range) 
-    #sum P**2/V
-    sum3, foo = sum_across_trace(P_0**2/variance_opt,variance, extraction_range) 
-    
-    #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0])
-    #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'b')
-    
-    
-    
-    #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0],'c')
-    #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'r')
-    #plt.plot(sum1 ,'r')
-    #plt.plot(sumP,'g')
-    #plt.plot(sum3,'b')
-    #plt.show()
-    flux_opt_final = np.nan_to_num(sum1/sum3)
-    variance_opt_final = np.nan_to_num(sumP/sum3 )
+        #Now, optimization step. This version makes no attempts to deal with bad pixel
+        #print(flux_0.shape, P_0.shape)
+        
+        #optimized variance 
+        variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
+
+        #compare data to model and reject spurious pixels, this is 1 for good pixels
+        Mask = (data - background - flux_0*P_0)**2 < sig_clip**2*variance_opt
+        Mask = Mask.astype(int) #make integer
+
+        #plt.imshow(variance_opt,origin ='lower', norm = LogNorm())
+
+        #Summation terms
+        #sum P(D-S)/V
+        sum1, foo = sum_across_trace( Mask*P_0*(data-background)/variance_opt, variance, extraction_range) 
+        #sum P
+        sumP, foo = sum_across_trace(Mask*P_0,variance, extraction_range) 
+        #sum P**2/V
+        sum3, foo = sum_across_trace(Mask*P_0**2/variance_opt,variance, extraction_range) 
+        
+        #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0])
+        #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'b')
+        
+        
+        
+        #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0],'c')
+        #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'r')
+        #plt.plot(sum1 ,'r')
+        #plt.plot(sumP,'g')
+        #plt.plot(sum3,'b')
+        #plt.show()
+
+        #compute optimized flux and variance spectra
+        flux_opt_final = np.nan_to_num(sum1/sum3)
+        variance_opt_final = np.nan_to_num(sumP/sum3 )
+
+        #update flux_0 and var_0
+        flux_0 = flux_opt_final
+        var_0 = variance_opt_final
+        #subtract the number of iteration by 1
+        niter -= 1
+
+        if np.all(Mask == Mask_old): #the set of rejected pixel converges
+            print("Bad pixel mask converge at niter = {}".format(niter))
+            break #break from while loop immediately 
+        else:
+            Mask_old = Mask #update Mask_old, and reiterate
     
     #plt.show()
     return flux_opt_final, variance_opt_final
 
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, \
-    bkg_sub_shift_size = 21, method = 'weightedSum', skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
+    bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5,\
+    skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
      fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,\
      verbose = True, quiet=False):
     """
@@ -508,7 +535,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                                         ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
                                         box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
                                         fit the background. 
-                        (iv) optimal_extraction: This is a preferred method. 
+                        (iv) optimal_extraction: This is Horne 1986 optimal extraction method. 
     diag_mask:      if True, the area away from the trace will be masked out 
 
     skimage_order, width_scale, fitfunction, sum_method, see method above.
@@ -750,7 +777,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
-            spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, 1.2, 12, plot = 0) 
+            spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, 1.2, 12, plot = 0, niter = niter, sig_clip = sig_clip) 
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
