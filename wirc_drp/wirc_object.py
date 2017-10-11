@@ -362,7 +362,7 @@ class wirc_data(object):
             #Append it to the hdu list
             hdulist.append(source_tbl_hdu)
             
-            length_list=l0+l1+l2+l3+lQ+lU+lP+ltheta  #making a list of the lengths of columns
+            length_list=l0+l1+l2+l3+lQ+lU+lP+ltheta+l0_cal+l1_cal+l2_cal+l3_cal  #making a list of the lengths of columns
             #print ('Ending Iteration #',i);
             
             #Creates a header keyword, value, and comment. 
