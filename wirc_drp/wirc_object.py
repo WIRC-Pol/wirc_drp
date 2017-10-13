@@ -274,7 +274,7 @@ class wirc_data(object):
                 elif array_in.ndim ==3:
                     #print("array_in.ndim ==3");
                     #finds the extra index from the name (0th item in list, 14th character in string, converted to int)
-                    print(c1list[0])
+                    #print(c1list[0])
                     ex_i=int(c1list[0][14])
                     
                     #defines columns, including data
@@ -332,7 +332,7 @@ class wirc_data(object):
             array_d=np.stack((list3columns[9],list3columns[10],list3columns[11]))
             
             #stacks the 2D arrays to form a 3D output array
-            array_out=np.stack((array_a,array_b,array_c,array_c),axis=0)
+            array_out=np.stack((array_a,array_b,array_c,array_d),axis=0)
             
 
         else:
