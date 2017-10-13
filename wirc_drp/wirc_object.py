@@ -250,144 +250,6 @@ class wirc_data(object):
         else: 
             print("Background filename not set, please set wircpol_data.bkg_fn property to the filename of your background file")
 
-    
-    def save_wirc_object(self, wirc_object_filename, overwrite = True):
-        #Save the object to a fits file   
-
-        # vers = version.get_version()
-        # self.header.set('PL_VERS',vers,'Version of pipeline used for processing')
-        #common indexing notes for save_wirc_object and load_wirc_object:
-        #----#(2*i)+1 is a conversion from the index, i, of the source in source_list to the index of the source in hdulist
-        #----#(2*i)+2 is a conversion from the index, i, of the source in source_list to the index of the source's corresponding table in hdulist
-        
-       
-
-        #TODO: Update the header keywords below to include a keyword description like PS_VERS above
-
-        #These may not always be set by other function
-        self.header["NSOURCES"] = self.n_sources
-        self.header["DARK_FN"] = self.dark_fn
-        self.header["FLAT_FN"] = self.flat_fn
-        self.header["BP_FN"] = self.bp_fn
-        self.header["BKG_FN"] = self.bkg_fn
-
-        #Have the data been calibrated/background subtracted? 
-        self.header["CALBRTED"] = self.calibrated
-        self.header["BKG_SUBD"] = self.bkg_subbed
-
-        #add in time stamp
-        self.header["BJD"]=self.bjd
-        
-        hdu = fits.PrimaryHDU(self.full_image)
-        hdu.header = self.header
-
-        hdulist = fits.HDUList([hdu])
-
-        #Now for each source, create a ImageHDU, this works even if the cutouts haven't been extracted
-        #Now for each source, create a TableHDU
-        for i in range(self.n_sources):
-            #print ('Starting Iteration #',i);
-            
-            #Create an ImageHDU for each of the sources
-            # source_hdu = fits.ImageHDU(self.source_list[i].trace_images)
-
-            source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, 
-                                                        self.source_list[i].trace_images_extracted]))
-
-            #Put in the source info
-            source_hdu.header["XPOS"] = self.source_list[i].pos[0]
-            source_hdu.header["YPOS"] = self.source_list[i].pos[1]
-
-            #only write position errors if they exist. 
-            if len(self.source_list[i].pos)>2:
-                source_hdu.header["XPOS_ERR"] = self.source_list[i].pos[2]
-                source_hdu.header['YPOS_ERR'] = self.source_list[i].pos[3]
-            
-           
-
-            source_hdu.header["SLIT_LOC"] = self.source_list[i].slit_pos
-
-            #Data reduction status headers for each source
-            source_hdu.header["WL_CBRTD"] = (self.source_list[i].lambda_calibrated,"Wavelength Calibrated? status")
-            source_hdu.header["POL_CMPD"] = (self.source_list[i].polarization_computed,"Polarization Computed? status")
-            source_hdu.header["SPC_XTRD"] = (self.source_list[i].spectra_extracted,"Spectra Extracted? status")
-            source_hdu.header["THMB_CUT"] = (self.source_list[i].thumbnails_cut_out,"Thumbnails cut out? status")
-
-            #widths and angles of the traces
-            source_hdu.header["TRACES_WIDTH"] = (np.array2string(self.source_list[i].spectra_widths), "Widths of spectra in unrotated image")
-            source_hdu.header["TRACES_ANGLE"]=  (np.array2string(self.source_list[i].spectra_angles), "Angles of spectra in unrotated image")
-            
-            
-            #Append it to the hdu list
-            hdulist.append(source_hdu)
-            
-
-            #TODO: Add a fits table extension (or a series of them) to contain the spectra
-            #Create a TableHDU for each of the sources
-            
-            #The source_list attributes, trace_spectra(four separate trace spectra), Q, U, P, theta, are converted into tables of three columns each. Also returns length lists of each array
-            t_ts_0,l0=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_0 wavelength','D','nm']  ['trace_spectra_0 flux','D','units?'], ['trace_spectra_0 flux error','D','units?'])#trace spectra 0
-            t_ts_1,l1=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_1 wavelength','D','nm'], ['trace_spectra_1 flux','D','units?'], ['trace_spectra_1 flux error','D','units?'])#trace spectra 1
-            t_ts_2,l2=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_2 wavelength','D','nm'], ['trace_spectra_2 flux','D','units?'], ['trace_spectra_2 flux error','D','units?'])#trace spectra 2
-            t_ts_3,l3=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_3 wavelength','D','nm'], ['trace_spectra_3 flux','D','units?'], ['trace_spectra_3 flux error','D','units?'])#trace spectra 3
-            
-            #if calibrated, add the calibrated trace
-
-            t_ts_0_cal,l0_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['calibrated_trace_spectra_0 wavelength','D','nm'], ['calibrated_trace_spectra_0 flux','D','units?'], ['calibrated_trace_spectra_0 flux error','D','units?'])#trace spectra 0
-            t_ts_1_cal,l1_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['calibrated_trace_spectra_1 wavelength','D','nm'], ['calibrated_trace_spectra_1 flux','D','units?'], ['calibrated_trace_spectra_1 flux error','D','units?'])#trace spectra 1
-            t_ts_2_cal,l2_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['calibrated_trace_spectra_2 wavelength','D','nm'], ['calibrated_trace_spectra_2 flux','D','units?'], ['calibrated_trace_spectra_2 flux error','D','units?'])#trace spectra 2
-            t_ts_3_cal,l3_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['calibrated_trace_spectra_3 wavelength','D','nm'], ['calibrated_trace_spectra_3 flux','D','units?'], ['calibrated_trace_spectra_3 flux error','D','units?'])#trace spectra 3
-
-            
-            t_Q,lQ=self.make_triplet_table(self.source_list[i].Q, ['Q wavelength','D','nm'], ['Q stokes','D','units?'], ['Q stokes error','D','units?'])               #Q
-            
-            t_U,lU=self.make_triplet_table(self.source_list[i].U, ['U wavelength','D','nm'], ['U stokes','D','units?'], ['U stokes error','D','units?'])               #U
-            
-            t_P,lP=self.make_triplet_table(self.source_list[i].P, ['P wavelength','D','nm'], ['P','D','units?'], ['P error','D','units?'])               #P
-            
-            t_theta,ltheta=self.make_triplet_table(self.source_list[i].theta, ['theta wavelength','D','nm'], ['theta','D','units?'], ['theta error','D','units?'])       #theta
-            #tables of 3 columns each have been made
-            
-
-            
-            #big table gets made
-            #the .columns of each three-column-table are added up to form column_list
-            column_list= t_ts_0.columns + t_ts_1.columns + t_ts_2.columns + t_ts_3.columns +  t_Q.columns + t_U.columns  + t_P.columns + t_theta.columns + t_ts_0_cal.columns+t_ts_1_cal.columns+t_ts_2_cal.columns+t_ts_3_cal.columns
-  
-            #the column_list becomes a quite large fits table called source_tbl_hdu
-            source_tbl_hdu=fits.BinTableHDU.from_columns(column_list)
-
-            
-            
-            #Append it to the hdu list
-            hdulist.append(source_tbl_hdu)
-            
-            length_list=l0+l1+l2+l3+lQ+lU+lP+ltheta+l0_cal+l1_cal+l2_cal+l3_cal  #making a list of the lengths of columns
-            #print ('Ending Iteration #',i);
-            
-            #Creates a header keyword, value, and comment. 
-            #The value designates the length the array that would correspond to the column.
-            for k in range(len(length_list)):
-                #defines keyword string
-                header_keyword="TLENG"+str(k+1)
-                #defines comment string
-                header_comment="Length of "+hdulist[(2*i)+2].data.names[k] 
-                
-                
-                hdulist[(2*i)+2].header[header_keyword]=(length_list[k],header_comment) #defines the keyword with value and comment
-                
-        #For loop ended    
-        #print ('No more iterations');
-        
-        
-         
-        
-        #Saving a wirc_object (hdulist)
-        print("Saving a wirc_object to {}".format(wirc_object_filename));
-        hdulist.writeto(wirc_object_filename, overwrite=overwrite)
-        
-           
-
     def make_triplet_table(self, array_in, c1list, c2list, c3list):
         #convert array to fits columns and then fits tables. returns a fits table with 3 columns.
         
@@ -412,6 +274,7 @@ class wirc_data(object):
                 elif array_in.ndim ==3:
                     #print("array_in.ndim ==3");
                     #finds the extra index from the name (0th item in list, 14th character in string, converted to int)
+                    print(c1list[0])
                     ex_i=int(c1list[0][14])
                     
                     #defines columns, including data
@@ -476,6 +339,149 @@ class wirc_data(object):
             print ("Warning: column list improper number of columns")
             array_out = np.array([])#None
         return array_out     
+
+
+    
+    def save_wirc_object(self, wirc_object_filename, overwrite = True):
+        #Save the object to a fits file   
+
+        # vers = version.get_version()
+        # self.header.set('PL_VERS',vers,'Version of pipeline used for processing')
+        #common indexing notes for save_wirc_object and load_wirc_object:
+        #----#(2*i)+1 is a conversion from the index, i, of the source in source_list to the index of the source in hdulist
+        #----#(2*i)+2 is a conversion from the index, i, of the source in source_list to the index of the source's corresponding table in hdulist
+        
+       
+
+        #TODO: Update the header keywords below to include a keyword description like PS_VERS above
+
+        #These may not always be set by other function
+        self.header["NSOURCES"] = self.n_sources
+        self.header["DARK_FN"] = self.dark_fn
+        self.header["FLAT_FN"] = self.flat_fn
+        self.header["BP_FN"] = self.bp_fn
+        self.header["BKG_FN"] = self.bkg_fn
+
+        #Have the data been calibrated/background subtracted? 
+        self.header["CALBRTED"] = self.calibrated
+        self.header["BKG_SUBD"] = self.bkg_subbed
+
+        #add in time stamp
+        self.header["BJD"]=self.bjd
+        
+        hdu = fits.PrimaryHDU(self.full_image)
+        hdu.header = self.header
+
+        hdulist = fits.HDUList([hdu])
+
+        #Now for each source, create a ImageHDU, this works even if the cutouts haven't been extracted
+        #Now for each source, create a TableHDU
+        for i in range(self.n_sources):
+            #print ('Starting Iteration #',i);
+            
+            #Create an ImageHDU for each of the sources
+            # source_hdu = fits.ImageHDU(self.source_list[i].trace_images)
+            if self.source_list[i].trace_images_extracted != None:
+                source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, 
+                                                        self.source_list[i].trace_images_extracted]))
+            else:
+                source_hdy = fits.PrimaryHDU(self.source_list[i].trace_images)
+
+            #Put in the source info
+            source_hdu.header["XPOS"] = self.source_list[i].pos[0]
+            source_hdu.header["YPOS"] = self.source_list[i].pos[1]
+
+            #only write position errors if they exist. 
+            if len(self.source_list[i].pos)>2:
+                source_hdu.header["XPOS_ERR"] = self.source_list[i].pos[2]
+                source_hdu.header['YPOS_ERR'] = self.source_list[i].pos[3]
+            
+           
+
+            source_hdu.header["SLIT_LOC"] = self.source_list[i].slit_pos
+
+            #Data reduction status headers for each source
+            source_hdu.header["WL_CBRTD"] = (self.source_list[i].lambda_calibrated,"Wavelength Calibrated? status")
+            source_hdu.header["POL_CMPD"] = (self.source_list[i].polarization_computed,"Polarization Computed? status")
+            source_hdu.header["SPC_XTRD"] = (self.source_list[i].spectra_extracted,"Spectra Extracted? status")
+            source_hdu.header["THMB_CUT"] = (self.source_list[i].thumbnails_cut_out,"Thumbnails cut out? status")
+
+            #widths and angles of the traces
+            if self.source_list[i].spectra_widths != None:
+                source_hdu.header["WIDTHS"] = (np.array2string(self.source_list[i].spectra_widths), "Widths of spectra in unrotated image")
+                source_hdu.header["ANGLES"]=  (np.array2string(self.source_list[i].spectra_angles), "Angles of spectra in unrotated image")
+            
+            
+            #Append it to the hdu list
+            hdulist.append(source_hdu)
+            
+
+            #TODO: Add a fits table extension (or a series of them) to contain the spectra
+            #Create a TableHDU for each of the sources
+
+            #The source_list attributes, trace_spectra(four separate trace spectra), Q, U, P, theta, are converted into tables of three columns each. Also returns length lists of each array
+            t_ts_0,l0=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_0 wavelength','D','nm'], ['trace_spectra_0 flux','D','units?'], ['trace_spectra_0 flux error','D','units?'])#trace spectra 0
+            t_ts_1,l1=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_1 wavelength','D','nm'], ['trace_spectra_1 flux','D','units?'], ['trace_spectra_1 flux error','D','units?'])#trace spectra 1
+            t_ts_2,l2=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_2 wavelength','D','nm'], ['trace_spectra_2 flux','D','units?'], ['trace_spectra_2 flux error','D','units?'])#trace spectra 2
+            t_ts_3,l3=self.make_triplet_table(self.source_list[i].trace_spectra, ['trace_spectra_3 wavelength','D','nm'], ['trace_spectra_3 flux','D','units?'], ['trace_spectra_3 flux error','D','units?'])#trace spectra 3
+            
+            #if calibrated, add the calibrated trace
+
+            t_ts_0_cal,l0_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['trace_spectra_0_calibrated wavelength','D','nm'], ['trace_spectra_0_calibrated flux','D','units?'], ['trace_spectra_0_calibrated flux error','D','units?'])#trace spectra 0
+            t_ts_1_cal,l1_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['trace_spectra_1_calibrated wavelength','D','nm'], ['trace_spectra_1_calibrated flux','D','units?'], ['trace_spectra_1_calibrated flux error','D','units?'])#trace spectra 1
+            t_ts_2_cal,l2_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['trace_spectra_2_calibrated wavelength','D','nm'], ['trace_spectra_2_calibrated flux','D','units?'], ['trace_spectra_2_calibrated flux error','D','units?'])#trace spectra 2
+            t_ts_3_cal,l3_cal=self.make_triplet_table(self.source_list[i].calibrated_trace_spectra, ['trace_spectra_3_calibrated wavelength','D','nm'], ['trace_spectra_3_calibrated flux','D','units?'], ['trace_spectra_3_calibrated flux error','D','units?'])#trace spectra 3
+
+            
+            t_Q,lQ=self.make_triplet_table(self.source_list[i].Q, ['Q wavelength','D','nm'], ['Q stokes','D','units?'], ['Q stokes error','D','units?'])               #Q
+            
+            t_U,lU=self.make_triplet_table(self.source_list[i].U, ['U wavelength','D','nm'], ['U stokes','D','units?'], ['U stokes error','D','units?'])               #U
+            
+            t_P,lP=self.make_triplet_table(self.source_list[i].P, ['P wavelength','D','nm'], ['P','D','units?'], ['P error','D','units?'])               #P
+            
+            t_theta,ltheta=self.make_triplet_table(self.source_list[i].theta, ['theta wavelength','D','nm'], ['theta','D','units?'], ['theta error','D','units?'])       #theta
+            #tables of 3 columns each have been made
+            
+
+            
+            #big table gets made
+            #the .columns of each three-column-table are added up to form column_list
+            column_list= t_ts_0.columns + t_ts_1.columns + t_ts_2.columns + t_ts_3.columns +  t_Q.columns + t_U.columns  + t_P.columns + t_theta.columns + t_ts_0_cal.columns+t_ts_1_cal.columns+t_ts_2_cal.columns+t_ts_3_cal.columns
+  
+            #the column_list becomes a quite large fits table called source_tbl_hdu
+            source_tbl_hdu=fits.BinTableHDU.from_columns(column_list)
+
+            
+            
+            #Append it to the hdu list
+            hdulist.append(source_tbl_hdu)
+            
+            length_list=l0+l1+l2+l3+lQ+lU+lP+ltheta+l0_cal+l1_cal+l2_cal+l3_cal  #making a list of the lengths of columns
+            #print ('Ending Iteration #',i);
+            
+            #Creates a header keyword, value, and comment. 
+            #The value designates the length the array that would correspond to the column.
+            for k in range(len(length_list)):
+                #defines keyword string
+                header_keyword="TLENG"+str(k+1)
+                #defines comment string
+                header_comment="Length of "+hdulist[(2*i)+2].data.names[k] 
+                
+                
+                hdulist[(2*i)+2].header[header_keyword]=(length_list[k],header_comment) #defines the keyword with value and comment
+                
+        #For loop ended    
+        #print ('No more iterations');
+        
+        
+         
+        
+        #Saving a wirc_object (hdulist)
+        print("Saving a wirc_object to {}".format(wirc_object_filename));
+        hdulist.writeto(wirc_object_filename, overwrite=overwrite)
+        
+           
+
     
           
                 
@@ -565,7 +571,7 @@ class wirc_data(object):
                 #finds 3D array for trace_spectra
                 new_source.trace_spectra = self.table_columns_to_array(big_table,prihdr,[0,1,2,3,4,5,6,7,8,9,10,11])
                 #if extracted trace_spectra exists
-                new_source.extracted_trace_spectra = self.table_columns_to_array(big_table,prihdr,[24,25,26,27,28,29,30,31,32,33,34,35])
+                new_source.calibrated_trace_spectra = self.table_columns_to_array(big_table,prihdr,[24,25,26,27,28,29,30,31,32,33,34,35])
                 
                 #finds 2D array for Q
                 new_source.Q = self.table_columns_to_array(big_table,prihdr,[12,13,14])
@@ -586,8 +592,8 @@ class wirc_data(object):
                 new_source.thumbnails_cut_out = hdulist[(2*i)+1].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
 
                 try:
-                    new_source.spectra_widths = np.fromstring(hdulist[(2*i)+1].header["TRACES_WIDTH"][1:-1], sep = ' ')
-                    new_source.spectra_angles = np.fromstring(hdulist[(2*i)+1].header["TRACES_ANGLE"][1:-1], sep = ' ')
+                    new_source.spectra_widths = np.fromstring(hdulist[(2*i)+1].header["WIDTHS"][1:-1], sep = ' ')
+                    new_source.spectra_angles = np.fromstring(hdulist[(2*i)+1].header["ANGLES"][1:-1], sep = ' ')
                 except KeyError:
                     None
 
@@ -687,6 +693,11 @@ class wircpol_source(object):
 
         #The traces of each spectra
         self.trace_images = None
+        self.trace_images_extracted = None
+
+        #width and angle info
+        self.spectra_widths = None
+        self.spectra_angles = None
 
         #The source index (from the parent object)
         self.index = index 
@@ -706,6 +717,7 @@ class wircpol_source(object):
         self.spectra_extracted = False #source attribute, later applied to header["SPC_XTRD"]
         self.spectra_aligned = False
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
+
 
     def get_cutouts(self, image, filter_name, sub_bar=True):
         """
