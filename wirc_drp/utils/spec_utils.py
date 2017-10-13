@@ -504,7 +504,7 @@ def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_
     #plt.show()
     return flux_opt_final, variance_opt_final
 
-def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, \
+def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',\
     bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5,\
     skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
      fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,\
@@ -615,13 +615,18 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #For now, do shift and subtract always
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
-            if slit_num != 'slitless':
+            if slit_num != 'slitless' or shift_dir == 'horizontal':
                 bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] ),thumbnail))
                 bkg = np.nanmedian(bkg_stack, axis=2)
 
-            else: #for slitless data, shift in diagonal
+            elif shift_dir == 'vertical':
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ]),shift( thumbnail, [bkg_sub_shift_size ,0] ),thumbnail))
+                bkg = np.nanmedian(bkg_stack, axis=2)
+            elif shift_dir =='diagonal': #for slitless data, shift in diagonal
                 bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] ),thumbnail))
                 bkg = np.nanmedian(bkg_stack, axis=2)
+            #else:
+            #    print('')
 
 
             bkg_sub = thumbnail - bkg
