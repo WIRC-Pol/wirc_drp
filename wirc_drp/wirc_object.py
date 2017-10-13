@@ -571,7 +571,11 @@ class wirc_data(object):
                 #finds 3D array for trace_spectra
                 new_source.trace_spectra = self.table_columns_to_array(big_table,prihdr,[0,1,2,3,4,5,6,7,8,9,10,11])
                 #if extracted trace_spectra exists
-                new_source.calibrated_trace_spectra = self.table_columns_to_array(big_table,prihdr,[24,25,26,27,28,29,30,31,32,33,34,35])
+                #print('big table len is ',len(big_table))
+                #print('prihdr len is ',len(prihdr))
+               # print(prihdr['TFIELDS'])
+                if prihdr['TFIELDS'] ==36:
+                    new_source.calibrated_trace_spectra = self.table_columns_to_array(big_table,prihdr,[24,25,26,27,28,29,30,31,32,33,34,35])
                 
                 #finds 2D array for Q
                 new_source.Q = self.table_columns_to_array(big_table,prihdr,[12,13,14])
