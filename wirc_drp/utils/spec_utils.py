@@ -1173,6 +1173,63 @@ def align_set_of_traces(traces_cube, ref_trace):
             
     return new_cube
 
+def get_spec_cube_from_wirc_obj( wirc_objs, source_num = 0):
+    """
+    extract a cube of spectra from a list of wirc objects with the given source number.
+    the output format is a 4 dimensions numpy array with (number_of_images, 4_traces[Qp,Qm,Up,Um], 
+        3[wavelength, flux, flux error], number_of_spectral_pixel)
+    """
+    #get spectra out of the wirc_object into a cube
+    spec_cube = []
+    for j,i in enumerate(wirc_objs):
+        try:
+            spec_cube += i.source_list[source_num].trace_spectra
+        except:
+            print("wirc object number {} doesn't have source number {}".format(j, source_num))
+    spec_cube = np.array(spec_cube)
+    return spec_cube
+
+def combine_spectra(spec_cube, return_scaled_cube = False):
+    """
+    combine_spectra takes a spectra cube from get_spec_cube_from_wirc_obj. For each trace 
+    (Qp, Qm, Up, Um) in the series, scale each observation by the total observed flux, then
+    median combine them. 
+    If return_scaled_cube == True, then return the scaled cube instead of the 4 median combined spectra
+    """
+
+    #spec_cube is 4 dimensions: spec_cube.shape = (num_images, 4_traces, 3[wavelength, flux, flux_error], number_of_spectral_pixel)
+
+    #for each quadrant (Qp, Qm, Up, Um), scale the spectrum so that the total flux match that of the median spectrum
+    med_specs = np.median(spec_cube, axis = 0)[:,1,:] #this is the 4 median spectra
+    #print(med_specs.shape)
+    total_flux = np.sum(med_specs, axis = 1) #4 total median fluxes
+    #print(total_flux.shape)
+
+    scaled_specs = np.copy(spec_cube)
+
+    #for each observation, normalize
+    for i in range(spec_cube.shape[0]):
+        four_specs = spec_cube[i,:,1,:]
+        #print(four_specs.shape)
+        four_errors = spec_cube[i,:,2,:]
+        #scaling factor
+    
+        scale_factor = total_flux/np.sum(median_filter(four_specs,size = (1,5) ), axis = 1)
+        #median filter to remove contributions from noisy wings
+
+        scaled_specs[i,:,1,:] = np.einsum('i,ij->ij',scale_factor,four_specs ) 
+        scaled_specs[i,:,2,:] = np.einsum('i,ij->ij',scale_factor,four_errors)  
+
+    #now align the spectra in the wavelength direction by shifting
+    scaled_specs[:,0,1,]
+
+    if return_scaled_cube:
+        return scaled_specs
+    else:
+        return np.median(scaled_specs, axis = 0)
+
+
+
 def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3):
     """
     Convolve the spectra with either Gaussian or Box kernel of the specified size, using astropy.
