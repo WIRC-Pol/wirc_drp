@@ -1213,9 +1213,12 @@ def combine_spectra(spec_cube, return_scaled_cube = False):
         #print(four_specs.shape)
         four_errors = spec_cube[i,:,2,:]
         #scaling factor
-    
-        scale_factor = total_flux/np.sum(median_filter(four_specs,size = (1,5) ), axis = 1)
-        #median filter to remove contributions from noisy wings
+        scale_factor = total_flux/np.sum(median_filter(four_specs,size = (1,5) ), axis = 1) #median filter to remove contributions from noisy wings
+        #all four traces should be scaled equally
+        #take mean from the factors measured from the four traces, and apply that mean value to the 4 traces.
+        scale_factor = np.array([np.mean(scale_factor)]*4)
+        #print(scale_factor)
+        
 
         scaled_specs[i,:,1,:] = np.einsum('i,ij->ij',scale_factor,four_specs ) 
         scaled_specs[i,:,2,:] = np.einsum('i,ij->ij',scale_factor,four_errors)  
