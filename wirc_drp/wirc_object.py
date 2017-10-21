@@ -710,6 +710,8 @@ class wircpol_source(object):
         self.trace_spectra = None
         self.calibrated_trace_spectra = None
         self.pol_spectra = None
+        self.bbQ = None #Broadband Q
+        self.bbU = None #Braodband U 
         self.Q = None
         self.U = None
         self.P = None
@@ -761,25 +763,23 @@ class wircpol_source(object):
 
 
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, shift_dir = 'diagonal', plot=False, method = 'optimal_extraction', spatial_sigma = 3,
-          width_scale=1., diag_mask=False, \
-          niter = 2, sig_clip = 5, \
-         trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True):
-        
+        width_scale=1., diag_mask=False, niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, 
+        poly_order = 4, align = True, verbose=True):     
         """
         *method:        method for spectral extraction. Choices are
-                            (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
-                                            is in skimage_order parameter (fast).
-                            (ii) weightedSum: this is 2D weighted sum assuming Gaussian profile. Multiply the PSF with data
-                                            and sum for each location along the dispersion direction (fast). The width of the Gaussian
-                                            is based on the measured value by 'findTrace'. One can adjust this using the parameter 'width_scale'.
-                            (iii) fit_across_trace: this method rotates the trace, loops along the dispersion direction, and fit a profile in the 
-                                            spatial direction. The fit function is either 'Moffat' or 'Gaussian'. One can also
-                                            select how to extract flux: by summing the fitted model, or the data weighted by the model.
-                                            ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
-                                            box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
-                                            fit the background. trace_angle is the angle to rotate the cutout so it's aligned with the pixel grid.
-                                            If None, it uses value from fitTraces.
-        
+        (i) skimage: this is just the profile_line method from skimage. Order for interpolation                                     
+        is in skimage_order parameter (fast).
+        (ii) weightedSum: this is 2D weighted sum assuming Gaussian profile. Multiply the PSF with data
+        and sum for each location along the dispersion direction (fast). The width of the Gaussian
+        is based on the measured value by 'findTrace'. One can adjust this using the parameter 'width_scale'.
+        (iii) fit_across_trace: this method rotates the trace, loops along the dispersion direction, and fit a profile in the 
+        spatial direction. The fit function is either 'Moffat' or 'Gaussian'. One can also
+        select how to extract flux: by summing the fitted model, or the data weighted by the model.
+        ('model_sum' vs 'weighted_sum'). These are in 'fitfunction' and 'sum_method' parameters.
+        box_size determine how many columns of pixel we will use. poly_order is the order of polynomial used to
+        fit the background. trace_angle is the angle to rotate the cutout so it's aligned with the pixel grid.
+        If None, it uses value from fitTraces.
+    
         """
 
         if verbose:
@@ -826,8 +826,6 @@ class wircpol_source(object):
         self.trace_spectra = spec_utils.align_spectra(self.trace_spectra, lowcut=lowcut, 
             highcut=highcut, big_filt_sz=big_filt_sz, little_filt_sz=little_filt_sz, x_start=x_start)
     
-
-
     def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
         #Rough wavelength calibration. Will have to get better later!
 
@@ -880,7 +878,6 @@ class wircpol_source(object):
         self.calibrated_trace_spectra = spec_utils.rough_lambda_and_filter_calibration(self.trace_spectra, self.spectra_widths, self.pos[1], 
             self.pos[0],verbose=verbose, plot_alignment = plot_alignment, tilt_angle = tilt_angle, source_compensation = source_compensation)
         self.lambda_calibrated = True
-
 
     def compute_polarization(self, cutmin=0, cutmax=-1):
 
@@ -958,11 +955,19 @@ class wircpol_source(object):
             ax1.set_xlabel("Wavelength [Arbitrary Units]")
             ax2.set_xlabel("Wavelength [Arbitrary Units]")
 
-    # def subtract_pol_bias():
+    def get_broadband_polarization(self, xlow=0, xhigh=-1):
+        '''
+        Sum the polarization in each trace and measure the broad band polarization. 
+        '''
+        
+        bb_traces = np.zeros([4])
+        for i in range(4):
+            bb_traces[i] = np.sum(self.trace_spectra[i,1,xlow:xhigh])
 
-    # def wavelength_calibration():
+        self.bbQ = (bb_traces[0]-bb_traces[1])/(bb_traces[0]+bb_traces[1])
+        self.bbU = (bb_traces[2]-bb_traces[3])/(bb_traces[2]+bb_traces[3])
 
-    # def show_traces():
+
 
 
 class wircspec_source(object):
