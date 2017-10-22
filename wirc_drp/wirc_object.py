@@ -115,7 +115,7 @@ class wirc_data(object):
             self.source_list = []
             
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe=True, verbose=False):
         '''
         Apply dark and flat-field correction
         '''
@@ -148,6 +148,11 @@ class wirc_data(object):
 
             else:
                 print("No dark filename found, continuing without subtracting a dark")
+
+            if destripe:
+                if verbose:
+                    print("Destriping the detector image")
+                self.full_image = calibration.destripe_raw_image(self.full_image)
 
             if self.flat_fn != None:
                 #Open the master flat
@@ -955,14 +960,17 @@ class wircpol_source(object):
             ax1.set_xlabel("Wavelength [Arbitrary Units]")
             ax2.set_xlabel("Wavelength [Arbitrary Units]")
 
-    def get_broadband_polarization(self, xlow=0, xhigh=-1):
+    def get_broadband_polarization(self, xlow=0, xhigh=-1, weighted=False):
         '''
         Sum the polarization in each trace and measure the broad band polarization. 
         '''
         
         bb_traces = np.zeros([4])
         for i in range(4):
-            bb_traces[i] = np.sum(self.trace_spectra[i,1,xlow:xhigh])
+            if weighted:
+                bb_traces[i] = np.mean(self.trace_spectra[i,1,xlow:xhigh], weights = np.sqrt(self.trace_spectra[i,1,xlow:xhigh]))
+            else:
+                bb_traces[i] = np.mean(self.trace_spectra[i,1,xlow:xhigh])
 
         self.bbQ = (bb_traces[0]-bb_traces[1])/(bb_traces[0]+bb_traces[1])
         self.bbU = (bb_traces[2]-bb_traces[3])/(bb_traces[2]+bb_traces[3])
