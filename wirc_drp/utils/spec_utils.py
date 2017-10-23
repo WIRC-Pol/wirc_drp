@@ -788,7 +788,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
-                gain = 1.2, ron = 12, plot = 0, niter = niter, sig_clip = sig_clip) 
+                gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip) 
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
