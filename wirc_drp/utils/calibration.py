@@ -21,6 +21,7 @@ from wirc_drp.constants import *
 #from pyklip import klip
 from wirc_drp.masks.wircpol_masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
+import copy
 
 def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix = 3,  hotp_map_fname = None):
     
@@ -632,6 +633,28 @@ def shiftSub(image, slit_gap1, slit_gap2):
     bkg = (shift(image,(0,slit_gap1), order = 3) + shift(image,(0,-slit_gap2), order = 3))/2.
     return image - bkg
 
+def destripe_raw_image(image):
+    '''
+    Destripe the detector by subtracting bias levels from each quadrant
+    '''
+
+    for i in range(1024):
+
+        image[1024+i,:1024] = image[1024+i,0:1024] - np.median(image[1024+i,0:100])
+        image[:1024,i] =     image[0:1024,i]- np.median(image[40:100,i])
+        # image[1024:,1024+i] =     image[1024:,1024+i] - np.median(image[-5:,1024+i])
+        image[i,1024:] = image[i,1024:] - np.median(image[i,-80:])
+
+    #The top right qudrant is a real pain because there aren't many pixel from which to measure the bias, so here we use a workaround 
+    #that first subtracts from each row to take away the median values, and then subtracts column by column. 
+    tmp = copy.deepcopy(image)
+    for i in range(1024):
+        tmp[1024+i,1024:] = image[1024+i,1024:] - np.median(image[1024+i,:])
+
+    for i in range(1024):
+        image[1024:,1024+i] = image[1024:,1024+i] - np.median(tmp[1024:,1024+i])
+
+    return image
 
     
     
