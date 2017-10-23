@@ -401,7 +401,7 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3):
     return [lower, upper]
 
 
-def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_noise = 12, plot = 0, niter = 1, sig_clip = 5):
+def optimal_extraction(data, background, extraction_range, bad_pix_masking = 1, gain = 1.2, read_out_noise = 12, plot = 0, niter = 1, sig_clip = 5):
     """
     This is Horne 1986 optimal extraction algorithm. This function assumes that background estimation
     is done prior to calling this function. In this implementation, no bad pixel finding is in place
@@ -410,6 +410,7 @@ def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_
         data: 2D numpy array of the data, *before background subtraction.
         background: 2D numpy array of the background used for background subtraction
         extraction_range: a 2-element list of the lower and upper limit in spatial (y) direction to extract the spectrum 
+        bad_pix_masking: if False, do not compute bad pixel rejection.
         gain: detector gain in electron/ADU, 1.2 for WIRC
         read_out_noise: standard deviation of read-out noise in electron. 12e- for WIRC
         niter: the number of iteration loop to reject bad pixel. 1 should be enough
@@ -460,8 +461,12 @@ def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_
         variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
 
         #compare data to model and reject spurious pixels, this is 1 for good pixels
-        Mask = (data - background - flux_0*P_0)**2 < sig_clip**2*variance_opt
-        Mask = Mask.astype(int) #make integer
+        if bad_pix_masking:
+            Mask = (data - background - flux_0*P_0)**2 < sig_clip**2*variance_opt
+            Mask = Mask.astype(int) #make integer
+        else:
+            Mask = np.ones(data.shape) #use all pixels, this will quit the while loop automatically
+
 
         #plt.imshow(variance_opt,origin ='lower', norm = LogNorm())
 
@@ -505,7 +510,7 @@ def optimal_extraction(data, background, extraction_range, gain = 1.2, read_out_
     return flux_opt_final, variance_opt_final
 
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',\
-    bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5,\
+    bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,\
     skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
      fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,\
      verbose = True, quiet=False):
@@ -782,7 +787,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
-            spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, 1.2, 12, plot = 0, niter = niter, sig_clip = sig_clip) 
+            spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
+                gain = 1.2, ron = 12, plot = 0, niter = niter, sig_clip = sig_clip) 
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
