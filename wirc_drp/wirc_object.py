@@ -1041,7 +1041,7 @@ class wircspec_source(object):
         plt.colorbar(cax = cbar_ax)
         plt.show()
     
-    def extract_spectra(self, sub_background = False, plot=False, method = 'weightedSum', width_scale=1., diag_mask=False, \
+    def extract_spectra(self, sub_background = False, plot=False, method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, \
                         fitfunction = 'Moffat', sum_method = 'weighted_sum', trace_angle = None, box_size = 1, poly_order = 4, align = True, verbose = True):
         """
         *method:        method for spectral extraction. Choices are
@@ -1063,7 +1063,10 @@ class wircspec_source(object):
             print("Performing Spectral Extraction for source {}".format(self.index))
         
         #call spec_extraction to actually extract spectra
-        spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract= spec_utils.spec_extraction(self.trace_images, self.slit_pos, sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, trace_angle = None, fitfunction = fitfunction, sum_method = sum_method,box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
+        spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract= spec_utils.spec_extraction(self.trace_images, self.slit_pos, 
+            sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, 
+            trace_angle = None, fitfunction = fitfunction, sum_method = sum_method, bad_pix_masking = bad_pix_maskin, 
+            box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
