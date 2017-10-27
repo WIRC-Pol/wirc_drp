@@ -46,18 +46,18 @@ def plot_source_traces(source_list, cmap = None, figsize=(8,8), plot_lims = None
             ax4.set_xlim(plot_lims[2:3])
 
 
-def align_spectra(source_list, ref_source = None):
+def align_spectra(source_list, ref_source = None, xlow=0, xhigh=-1):
     '''
     Align each trace to a reference trace with cross correlation. 
     '''
     for i in np.arange(1,len(source_list)):
         for j in range(4):
-            new_trace = copy.deepcopy(source_list[i].trace_spectra[j,1,:])
+            new_trace = copy.deepcopy(source_list[i].trace_spectra[j,1,xlow:xhigh])
 
             if ref_source == None:
-                ref = source_list[0].trace_spectra[j,1,:]
+                ref = source_list[0].trace_spectra[j,1,xlow:xhigh]
             else:
-                ref = ref_souce.trace_spectra[j,1,:]
+                ref = ref_souce.trace_spectra[j,1,xlow:xhigh]
 
             corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((new_trace/np.nanmax(new_trace))))
 
