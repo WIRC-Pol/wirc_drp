@@ -30,20 +30,20 @@ def plot_source_traces(source_list, cmap = None, figsize=(8,8), plot_lims = None
         c = cm1(1.*(i)/nsources)
 
         ax1.plot(source.trace_spectra[0,0,:],source.trace_spectra[0,1,:], color=c)
-        ax2.plot(source.trace_spectra[0,0,:],source.trace_spectra[0,1,:], color=c)
-        ax3.plot(source.trace_spectra[0,0,:],source.trace_spectra[0,1,:], color=c)
-        ax4.plot(source.trace_spectra[0,0,:],source.trace_spectra[0,1,:], color=c)
+        ax2.plot(source.trace_spectra[1,0,:],source.trace_spectra[1,1,:], color=c)
+        ax3.plot(source.trace_spectra[2,0,:],source.trace_spectra[2,1,:], color=c)
+        ax4.plot(source.trace_spectra[3,0,:],source.trace_spectra[3,1,:], color=c)
 
         if plot_lims != None:
-            ax1.set_xlim(plot_lims[0:1])
-            ax2.set_xlim(plot_lims[0:1])
-            ax3.set_xlim(plot_lims[0:1])
-            ax4.set_xlim(plot_lims[0:1])
+            ax1.set_xlim(plot_lims[0:2])
+            ax2.set_xlim(plot_lims[0:2])
+            ax3.set_xlim(plot_lims[0:2])
+            ax4.set_xlim(plot_lims[0:2])
 
-            ax1.set_xlim(plot_lims[2:3])
-            ax2.set_xlim(plot_lims[2:3])
-            ax3.set_xlim(plot_lims[2:3])
-            ax4.set_xlim(plot_lims[2:3])
+            ax1.set_xlim(plot_lims[2:])
+            ax2.set_xlim(plot_lims[2:])
+            ax3.set_xlim(plot_lims[2:])
+            ax4.set_xlim(plot_lims[2:])
 
 
 def align_spectra(source_list, ref_source = None, xlow=0, xhigh=-1):
@@ -56,11 +56,13 @@ def align_spectra(source_list, ref_source = None, xlow=0, xhigh=-1):
 
             if ref_source == None:
                 ref = source_list[0].trace_spectra[j,1,xlow:xhigh]
+                len0 = np.size(source_list[0].trace_spectra[j,1,:])
             else:
                 ref = ref_souce.trace_spectra[j,1,xlow:xhigh]
 
             corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((new_trace/np.nanmax(new_trace))))
 
-            shift_size = np.nanargmax(corr) - len(ref) +1
+            # shift_size = np.nanargmax(corr) - len(ref) +1
+            shift_size = (np.nanargmax(corr) - len(J0136_source_list[i].trace_spectra[j,1,:]))/2
 
             source_list[i].trace_spectra[j,1,:] = shift(source_list[i].trace_spectra[j,1,:], -shift_size)
