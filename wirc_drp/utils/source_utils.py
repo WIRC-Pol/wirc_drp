@@ -59,10 +59,11 @@ def align_spectra(source_list, ref_source = None, xlow=0, xhigh=-1):
                 len0 = np.size(source_list[0].trace_spectra[j,1,:])
             else:
                 ref = ref_souce.trace_spectra[j,1,xlow:xhigh]
+                len0 = np.size(source_list[0].trace_spectra[j,1,:])
 
             corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((new_trace/np.nanmax(new_trace))))
 
             # shift_size = np.nanargmax(corr) - len(ref) +1
-            shift_size = (np.nanargmax(corr) - len(J0136_source_list[i].trace_spectra[j,1,:]))/2
+            shift_size = (np.nanargmax(corr) - len0)/2
 
             source_list[i].trace_spectra[j,1,:] = shift(source_list[i].trace_spectra[j,1,:], -shift_size)
