@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 from scipy.ndimage import shift
+from scipy.signal import fftconvolve 
 
 
 def plot_source_traces(source_list, cmap = None, figsize=(8,8), plot_lims = None):
@@ -34,10 +35,18 @@ def plot_source_traces(source_list, cmap = None, figsize=(8,8), plot_lims = None
         ax4.plot(source.trace_spectra[0,0,:],source.trace_spectra[0,1,:], color=c)
 
         if plot_lims != None:
-            ax1.set_xlim(plot_lims)
+            ax1.set_xlim(plot_lims[0:1])
+            ax2.set_xlim(plot_lims[0:1])
+            ax3.set_xlim(plot_lims[0:1])
+            ax4.set_xlim(plot_lims[0:1])
+
+            ax1.set_xlim(plot_lims[2:3])
+            ax2.set_xlim(plot_lims[2:3])
+            ax3.set_xlim(plot_lims[2:3])
+            ax4.set_xlim(plot_lims[2:3])
 
 
-def align_spectra(source_list, ref_source = None, xlow=0, xhigh=-1):
+def align_spectra(source_list, ref_source = None):
     '''
     Align each trace to a reference trace with cross correlation. 
     '''
