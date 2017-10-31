@@ -8,6 +8,7 @@ Various focal plane masks to be simulated
 import numpy as np
 from scipy.ndimage import imread
 import os 
+from astropy.io import fits
 #from constants import *
 
 wircpol_dir = os.environ['WIRC_DRP']
@@ -91,7 +92,8 @@ def makeDiagMask(size, width):
         mask[int(size-i-1),int( max(i-width,0)): int(min(i+width, size)) ] = 1
     return mask.astype("bool")
         
-    
+
+trace_masks = fits.open(wircpol_dir+'wirc_drp/masks/trace_masks.fits')[0].data
 
 
 

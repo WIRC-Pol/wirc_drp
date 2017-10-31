@@ -918,7 +918,7 @@ class wircpol_source(object):
             if smooth_size > 1:
                 flux = spec_utils.smooth_spectra(flux, smooth_ker, smooth_size)
             if with_errors:
-                plt.errobar(wl, flux,yerr = err, label=labels[i], **kwargs)
+                plt.errorbar(wl, flux,yerr = err, label=labels[i], **kwargs)
 
             else:
                 plt.plot(wl, flux, label=labels[i], **kwargs)
@@ -968,17 +968,29 @@ class wircpol_source(object):
         Sum the polarization in each trace and measure the broad band polarization. 
         '''
         
-        bb_traces = np.zeros([4])
+        bb_traces = np.zeros([4,3])
         for i in range(4):
+            #Do we actualy want the option of weighted mean?
             if weighted:
-                bb_traces[i] = np.mean(self.trace_spectra[i,1,xlow:xhigh], weights = np.sqrt(self.trace_spectra[i,1,xlow:xhigh]))
+                bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) #Don't weight the wavelength
+                bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh], weights=1/self.trace_spectra[i,2,xlow:xhigh])
+                bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2) #This isn't the correct error formula for weighted means
             else:
-                bb_traces[i] = np.mean(self.trace_spectra[i,1,xlow:xhigh])
+                bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) 
+                bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh])
+                bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2)
 
-        self.bbQ = (bb_traces[0]-bb_traces[1])/(bb_traces[0]+bb_traces[1])
-        self.bbU = (bb_traces[2]-bb_traces[3])/(bb_traces[2]+bb_traces[3])
+        bbQ = (bb_traces[0,1]-bb_traces[1,1])/(bb_traces[0,1]+bb_traces[1,1])
+        #If f = A/B
+        #sigma_f = f*sqrt ( (sigma_A/A)**2 + (sigma_B/B)**2 )
+        bbQ_err = bbQ*np.sqrt( (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]-bb_traces[1,1])**2 + (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]+bb_traces[1,1])**2)
 
+        bbU = (bb_traces[2,1]-bb_traces[3,1])/(bb_traces[2,1]+bb_traces[3,1])
 
+        bbU_err = bbU*np.sqrt( (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]-bb_traces[3,1])**2 + (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]+bb_traces[3,1])**2)
+
+        self.bbQ = [bb_traces[0,0], bbQ, bbQ_err] #Return, [wavelength, flux, error]
+        self.bbU = [bb_traces[2,0], bbU, bbU_err]
 
 
 class wircspec_source(object):

@@ -19,10 +19,13 @@ from scipy.signal import fftconvolve
 from wirc_drp.constants import *
 from wirc_drp.masks.wircpol_masks import *
 from scipy.ndimage import gaussian_filter as gauss
-from scipy.ndimage.filters import median_filter
+# from scipy.ndimage.filters import median_filter, shift
+from scipy.ndimage import median_filter, shift, rotate
+
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
+from image_registration import chi2_shift
 
 def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True):
     """
@@ -498,7 +501,6 @@ def fit_gaussian_to_cutout(cutout, seeing_pix):
     return res
 
 
-
 def pointFinder(image, seeing_pix, threshold):
     """Take an image file and identify where point sources are. This is done by utilizing
     Scipy maximum and minimum filters.
@@ -763,7 +765,22 @@ def fit_background_2d_polynomial(cutout, mask, polynomial_order = 2):
 
     return cutout-sky, sky
 
-
+def sub_bkg_shift_and_mask(source, masks):
+    '''
+    Cross correlate the thumbnails to a masks, then mask the trace to estimate the backgroud and subtract. 
+    '''
+    
+    for i in range(4):
+        trace = source.trace_images[i]
+        
+        mask = masks[i]
+        shifted = chi2_shift(trace,mask, zeromean=True, verbose=False, return_error=True)
+        
+        new_image = shift(rld, (shifted[1],shifted[0]))
+        
+        bkg_med = np.median(new_image[~mask])
+        
+        souce.trace_images[i] = new_image - bkg_med
 
 def fitFlux(flux_vec, seeing_pix = 4):
     """
@@ -1019,6 +1036,74 @@ def fitFlux(flux_vec, seeing_pix = 4):
         res = fitter(poly, x, flux_vec)+ models.Gaussian1D(amplitude = 0)
     #print(res)
     return res
+
+def sub_bkg_shift_and_mask(source, plot=False):
+    '''
+    Cross correlate the thumbnails to the masks, then mask 
+    '''
+    if plot:
+        fig = plt.figure(figsize=(7,7))
+        ax1 = fig.add_subplot(221)
+        ax2 = fig.add_subplot(222)
+        ax3 = fig.add_subplot(223)
+        ax4 = fig.add_subplot(224)
+    
+    for i in range(4):
+        trace = source.trace_images[i]
+        
+        xlow  = 30
+        xhigh = 130
+        ylow  = 30
+        yhigh = 130
+        mask = np.ndarray.astype(trace_masks[i],bool)
+        
+        shifted = chi2_shift(trace,mask, zeromean=True, verbose=False, return_error=True)
+
+        # print(shifted)
+        
+        new_image = shift(trace, (shifted[1],shifted[0]))[ylow:yhigh,xlow:xhigh]
+        
+        n_mask = mask[ylow:yhigh,xlow:xhigh]
+        bkg_med = np.median((new_image)[~n_mask])
+        # bkg_med = np.median((new_image[ylow:yhigh,xlow:xhigh])[~mask])
+        
+        source.trace_images[i] = trace - bkg_med
+
+        if plot:
+            ax1 = fig.add_subplot(2,2,i+1)
+            ax1.imshow(new_image)
+            ax1.imshow(~n_mask, alpha=0.3)
+        
+    return source
+
+def mask_and_sub_bkg(thumbnail, index, plot=False, xlow=30,xhigh=130,ylow=30,yhigh=130):
+    '''
+    Cross correlate the thumbnails to a mask then measure the background. 
+    '''
+    
+    #Grab the appropriate mask
+    mask = np.ndarray.astype(trace_masks[index],bool)
+    
+    #The the shift between the trace and the mask
+    shifted = chi2_shift(thumbnail,mask, zeromean=True, verbose=False, return_error=True)
+
+    # print(shifted)
+    
+    #Shift the thumbnail
+    new_image = shift(thumbnail, (shifted[1],shifted[0]))[ylow:yhigh,xlow:xhigh]
+    
+    #Measure the background .
+    n_mask = mask[ylow:yhigh,xlow:xhigh]
+    bkg_med = np.median((new_image)[~n_mask])
+
+    if plot:
+        fig = plt.figure(figsize=(7,7))
+        ax1 = fig.add_subplot(111)
+        ax1.imshow(new_image)
+        ax1.imshow(~n_mask, alpha=0.3)
+        
+    #Return and image of the same size as thumbnail, only containing the measured background level
+    return thumbnail*0.+bkg_med
 
 def traceWidth(trace, location, fit_length):
     """
