@@ -153,8 +153,11 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         if update_w_chi2_shift:
             try:
                 shifts = chi2_shift(cutout,trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
-                x_center -= shifts[0]
-                y_center -= shifts[1]
+
+                #Sometimes if it's too big the whole thing gets shifted out and it breaks things. 
+                if (np.abs(shifts[0]) < 10 and np.abs(shifts[1]) < 10):
+                    x_center -= shifts[0]
+                    y_center -= shifts[1]
                 
                 ## Debugging plots
                 # fig = plt.figure(figsize=(7,7))
