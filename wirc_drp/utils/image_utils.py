@@ -187,7 +187,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     #Do we want to sort the sources by their brightness? 
     if brightness_sort: 
         # Now we'll calculate the pixel value at each x,y value
-        pix_vals_UL = np.array([science_image_filt[np.floor(y),np.floor(x)] for x,y in locs_UL.T])
+        pix_vals_UL = np.array([science_image_filt[np.floor(y).astype('int'),np.floor(x).astype('int')] for x,y in locs_UL.T])
         pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
         # Now reorder locs_UL so that it's according to pix_vals_UL
         locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
