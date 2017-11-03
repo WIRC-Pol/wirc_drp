@@ -27,7 +27,7 @@ import scipy.ndimage.filters as filters
 import copy
 from image_registration import chi2_shift
 
-def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True):
+def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -37,6 +37,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         plot: if True, UL quadrant of sky subtracted science_image is shown along with locations of the
                     traces found. Thumbnail cutouts of all traces are also plotted in a separate figure.
         brightness_sort: if True, then sort the sources according to their brightness. 
+        update_w_chi2_shift: if True, then update the positions using the chi2_shift algo. The main reason for this is to get sub-pixel resolution. 
                     
     Output: Dictionary of objects found. Each item contains of five keys with pairs of x and y coordinates (index starts at 0) of upper left, upper right, lower right, and lower left trace, and 0th order locations, as well as a flag set to True if trace is very noisy or crossing quadrant limit. The last item in the dictionary always contains the central hole/slit and trace locations 
     """    
@@ -74,6 +75,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
 
     trace_template_hdulist = f.open(template_fn)
     trace_template = trace_template_hdulist[0].data
+
     # # Plot trace template image
     # fig = plt.figure()
     # plt.imshow(trace_template, origin='lower')
@@ -143,9 +145,37 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # Get trace coordinates and add to x and y lists
     for dy,dx in traces:
         x_center = (dx.start + dx.stop - 1)/2
-        x_locs.append(x_center)
         y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
+
+        size = trace_template.shape[0]/2
+        cutout = stars_image_UL[y_center-size-1024:y_center+size-1024,x_center-size:x_center+size]
+        
+        if update_w_chi2_shift:
+            try:
+                shifts = chi2_shift(cutout,trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
+                x_center -= shifts[0]
+                y_center -= shifts[1]
+                
+                ## Debugging plots
+                # fig = plt.figure(figsize=(7,7))
+                # ax1 = fig.add_subplot(141)
+                # plt.imshow(cutout)
+                # ax2 = fig.add_subplot(142)
+                # plt.imshow(trace_template)
+                # ax3 = fig.add_subplot(143)
+                # cutout2 = stars_image_UL[np.floor(y_center-size-1024).astype(int):np.floor(y_center+size-1024).astype(int),np.floor(x_center-size).astype(int):np.floor(x_center+size).astype(int)]
+                # plt.imshow(cutout2,alpha=0.5,cmap='magma')
+                # ax4 = fig.add_subplot(144)
+                # plt.imshow(shift(cutout,(shifts[1],shifts[0])))
+
+            except Exception as e:
+                if verbose:
+                    print(e)
+
+        x_locs.append(x_center)
         y_locs.append(y_center)
+
+
     # Trace locations array with all coordinates
     locs_UL = np.array([x_locs, y_locs])
     # Add slit trace position to trace locations
