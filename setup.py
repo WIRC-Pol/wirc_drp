@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 #We should flesh this out
@@ -6,7 +6,7 @@ from setuptools import setup
 setup(
 	name='wirc_drp',
 	version='0.1', 
-	packages=['wirc_drp'],
+	packages=find_packages(),
 	license="TBD",
 	long_description=open('README.md').read()
 	)
