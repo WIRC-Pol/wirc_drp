@@ -55,17 +55,18 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
     #Open first flat file to check exposure time
     first_flat_hdu = f.open(flat_list[0])
     flat_exp_time = first_flat_hdu[0].header['EXPTIME']
-    #We've already read it, so we'll stick it in foo
-    foo[:,:,0] = first_flat_hdu[0].data
+
     
     if dark_exp_time != flat_exp_time:
         print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal", UserWarning)
         factor = flat_exp_time/dark_exp_time
     else: 
         factor = 1. 
+
+    #We've already read it, so we'll stick it in foo
     
     print("Combining flat files")
-    for i in range(1,len(flat_list)):
+    for i in range(0,len(flat_list)):
         #subtract dark for each file, then normalize by mode
         hdu = f.open(flat_list[i])
         d_sub = hdu[0].data  - factor*master_dark
