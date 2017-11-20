@@ -19,12 +19,15 @@ from scipy.signal import fftconvolve
 from wirc_drp.constants import *
 from wirc_drp.masks.wircpol_masks import *
 from scipy.ndimage import gaussian_filter as gauss
-from scipy.ndimage.filters import median_filter
+# from scipy.ndimage.filters import median_filter, shift
+from scipy.ndimage import median_filter, shift, rotate
+
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
+from image_registration import chi2_shift
 
-def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True):
+def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -34,6 +37,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         plot: if True, UL quadrant of sky subtracted science_image is shown along with locations of the
                     traces found. Thumbnail cutouts of all traces are also plotted in a separate figure.
         brightness_sort: if True, then sort the sources according to their brightness. 
+        update_w_chi2_shift: if True, then update the positions using the chi2_shift algo. The main reason for this is to get sub-pixel resolution. 
                     
     Output: Dictionary of objects found. Each item contains of five keys with pairs of x and y coordinates (index starts at 0) of upper left, upper right, lower right, and lower left trace, and 0th order locations, as well as a flag set to True if trace is very noisy or crossing quadrant limit. The last item in the dictionary always contains the central hole/slit and trace locations 
     """    
@@ -71,6 +75,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
 
     trace_template_hdulist = f.open(template_fn)
     trace_template = trace_template_hdulist[0].data
+
     # # Plot trace template image
     # fig = plt.figure()
     # plt.imshow(trace_template, origin='lower')
@@ -140,9 +145,40 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # Get trace coordinates and add to x and y lists
     for dy,dx in traces:
         x_center = (dx.start + dx.stop - 1)/2
-        x_locs.append(x_center)
         y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
+
+        size = trace_template.shape[0]/2
+        cutout = stars_image_UL[y_center-size-1024:y_center+size-1024,x_center-size:x_center+size]
+        
+        if update_w_chi2_shift:
+            try:
+                shifts = chi2_shift(cutout,trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
+
+                #Sometimes if it's too big the whole thing gets shifted out and it breaks things. 
+                if (np.abs(shifts[0]) < 10 and np.abs(shifts[1]) < 10):
+                    x_center -= shifts[0]
+                    y_center -= shifts[1]
+                
+                ## Debugging plots
+                # fig = plt.figure(figsize=(7,7))
+                # ax1 = fig.add_subplot(141)
+                # plt.imshow(cutout)
+                # ax2 = fig.add_subplot(142)
+                # plt.imshow(trace_template)
+                # ax3 = fig.add_subplot(143)
+                # cutout2 = stars_image_UL[np.floor(y_center-size-1024).astype(int):np.floor(y_center+size-1024).astype(int),np.floor(x_center-size).astype(int):np.floor(x_center+size).astype(int)]
+                # plt.imshow(cutout2,alpha=0.5,cmap='magma')
+                # ax4 = fig.add_subplot(144)
+                # plt.imshow(shift(cutout,(shifts[1],shifts[0])))
+
+            except Exception as e:
+                if verbose:
+                    print(e)
+
+        x_locs.append(x_center)
         y_locs.append(y_center)
+
+
     # Trace locations array with all coordinates
     locs_UL = np.array([x_locs, y_locs])
     # Add slit trace position to trace locations
@@ -151,7 +187,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     #Do we want to sort the sources by their brightness? 
     if brightness_sort: 
         # Now we'll calculate the pixel value at each x,y value
-        pix_vals_UL = np.array([science_image_filt[y,x] for x,y in locs_UL.T])
+        pix_vals_UL = np.array([science_image_filt[np.floor(y).astype('int'),np.floor(x).astype('int')] for x,y in locs_UL.T])
         pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
         # Now reorder locs_UL so that it's according to pix_vals_UL
         locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
@@ -498,7 +534,6 @@ def fit_gaussian_to_cutout(cutout, seeing_pix):
     return res
 
 
-
 def pointFinder(image, seeing_pix, threshold):
     """Take an image file and identify where point sources are. This is done by utilizing
     Scipy maximum and minimum filters.
@@ -763,7 +798,22 @@ def fit_background_2d_polynomial(cutout, mask, polynomial_order = 2):
 
     return cutout-sky, sky
 
-
+def sub_bkg_shift_and_mask(source, masks):
+    '''
+    Cross correlate the thumbnails to a masks, then mask the trace to estimate the backgroud and subtract. 
+    '''
+    
+    for i in range(4):
+        trace = source.trace_images[i]
+        
+        mask = masks[i]
+        shifted = chi2_shift(trace,mask, zeromean=True, verbose=False, return_error=True)
+        
+        new_image = shift(rld, (shifted[1],shifted[0]))
+        
+        bkg_med = np.median(new_image[~mask])
+        
+        souce.trace_images[i] = new_image - bkg_med
 
 def fitFlux(flux_vec, seeing_pix = 4):
     """
@@ -1019,6 +1069,74 @@ def fitFlux(flux_vec, seeing_pix = 4):
         res = fitter(poly, x, flux_vec)+ models.Gaussian1D(amplitude = 0)
     #print(res)
     return res
+
+def sub_bkg_shift_and_mask(source, plot=False):
+    '''
+    Cross correlate the thumbnails to the masks, then mask 
+    '''
+    if plot:
+        fig = plt.figure(figsize=(7,7))
+        ax1 = fig.add_subplot(221)
+        ax2 = fig.add_subplot(222)
+        ax3 = fig.add_subplot(223)
+        ax4 = fig.add_subplot(224)
+    
+    for i in range(4):
+        trace = source.trace_images[i]
+        
+        xlow  = 30
+        xhigh = 130
+        ylow  = 30
+        yhigh = 130
+        mask = np.ndarray.astype(trace_masks[i],bool)
+        
+        shifted = chi2_shift(trace,mask, zeromean=True, verbose=False, return_error=True)
+
+        # print(shifted)
+        
+        new_image = shift(trace, (shifted[1],shifted[0]))[ylow:yhigh,xlow:xhigh]
+        
+        n_mask = mask[ylow:yhigh,xlow:xhigh]
+        bkg_med = np.median((new_image)[~n_mask])
+        # bkg_med = np.median((new_image[ylow:yhigh,xlow:xhigh])[~mask])
+        
+        source.trace_images[i] = trace - bkg_med
+
+        if plot:
+            ax1 = fig.add_subplot(2,2,i+1)
+            ax1.imshow(new_image)
+            ax1.imshow(~n_mask, alpha=0.3)
+        
+    return source
+
+def mask_and_sub_bkg(thumbnail, index, plot=False, xlow=30,xhigh=130,ylow=30,yhigh=130):
+    '''
+    Cross correlate the thumbnails to a mask then measure the background. 
+    '''
+    
+    #Grab the appropriate mask
+    mask = np.ndarray.astype(trace_masks[index],bool)
+    
+    #The the shift between the trace and the mask
+    shifted = chi2_shift(thumbnail,mask, zeromean=True, verbose=False, return_error=True)
+
+    # print(shifted)
+    
+    #Shift the thumbnail
+    new_image = shift(thumbnail, (shifted[1],shifted[0]))[ylow:yhigh,xlow:xhigh]
+    
+    #Measure the background .
+    n_mask = mask[ylow:yhigh,xlow:xhigh]
+    bkg_med = np.median((new_image)[~n_mask])
+
+    if plot:
+        fig = plt.figure(figsize=(7,7))
+        ax1 = fig.add_subplot(111)
+        ax1.imshow(new_image)
+        ax1.imshow(~n_mask, alpha=0.3)
+        
+    #Return and image of the same size as thumbnail, only containing the measured background level
+    return thumbnail*0.+bkg_med
 
 def traceWidth(trace, location, fit_length):
     """

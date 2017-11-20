@@ -403,6 +403,7 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3):
 
 def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None, bad_pix_masking = 1, gain = 1.2, read_out_noise = 12, \
                         verbose = 0, plot = 0, niter = 1, sig_clip = 5):
+
     """
     This is Horne 1986 optimal extraction algorithm. This function assumes that background estimation
     is done prior to calling this function. In this implementation, no bad pixel finding is in place
@@ -539,7 +540,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,\
     skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
      fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,\
-     verbose = True, quiet=False):
+     verbose = True):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -647,15 +648,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
             if slit_num != 'slitless' or shift_dir == 'horizontal':
-                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] ),thumbnail))
-                bkg = np.nanmedian(bkg_stack, axis=2)
+                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] )))
+
+                bkg = np.nanmean(bkg_stack, axis=2)
 
             elif shift_dir == 'vertical':
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ]),shift( thumbnail, [bkg_sub_shift_size ,0] ),thumbnail))
-                bkg = np.nanmedian(bkg_stack, axis=2)
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ]),shift( thumbnail, [bkg_sub_shift_size ,0] )))
+                bkg = np.nanmean(bkg_stack, axis=2)
             elif shift_dir =='diagonal': #for slitless data, shift in diagonal
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] ),thumbnail))
-                bkg = np.nanmedian(bkg_stack, axis=2)
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] )))
+                bkg = np.nanmean(bkg_stack, axis=2)
             #else:
             #    print('')
 
@@ -815,6 +817,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
                 gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose) 
+
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
