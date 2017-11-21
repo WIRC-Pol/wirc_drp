@@ -43,12 +43,14 @@ class wirc_data(object):
         bjd: mid-exposure time in BJD_TDB
 
     """
+
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True,\
-                 dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):
+                 dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):    
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file, 
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once. 
-        ## 
+        ##
+
         if raw_filename != None and wirc_object_filename != None:
             print("Can't open both a raw file and wircpol_object, ignoring the raw file and loading the wirc_object_file ")
             print("Loading a wircpol_data object from file {}".format(wirc_object_filename))
@@ -68,6 +70,7 @@ class wirc_data(object):
                 self.header = hdu[0].header
             
             
+
 
             self.header['RAW_FN'] = raw_filename
 
@@ -94,6 +97,9 @@ class wirc_data(object):
             self.flat_fn = flat_fn
             self.bkg_fn = bkg_fn
             self.bp_fn = bp_fn
+
+            #The data quality image
+            self.DQ_image = None
 
             #TODO Determine whether the type is spec or pol
             # self.type =
@@ -210,6 +216,8 @@ class wirc_data(object):
                     self.header['BP_FN'] = self.bp_fn
 
                 self.full_image = redux
+
+                self.DQ_image = np.astype(bad_pixel_map_bool,'int8')
 
             else:
                 print("No Bad pixel map filename found, continuing without correcting bad pixels")
@@ -347,7 +355,7 @@ class wirc_data(object):
 
 
     
-    def save_wirc_object(self, wirc_object_filename, overwrite = True):
+    def save_wirc_object(self, wirc_object_filename, overwrite = True, save_full_image = True):
         #Save the object to a fits file   
 
         # vers = version.get_version()
@@ -374,10 +382,20 @@ class wirc_data(object):
         #add in time stamp
         self.header["BJD"]=self.bjd
         
-        hdu = fits.PrimaryHDU(self.full_image)
+        if save_full_image:
+            hdu = fits.PrimaryHDU(self.full_image)
+        else:
+            hdu = fits.PrimaryHDU([])
+            
         hdu.header = self.header
 
         hdulist = fits.HDUList([hdu])
+
+        #Append the dataquality frame
+        if self.DQ_image != None:
+            hdulist.append(fits.ImageHDU(self.DQ_image))
+        else:
+            hdulist.append(fits.ImageHDU([]))
 
         #Now for each source, create a ImageHDU, this works even if the cutouts haven't been extracted
         #Now for each source, create a TableHDU
@@ -470,10 +488,10 @@ class wirc_data(object):
                 #defines keyword string
                 header_keyword="TLENG"+str(k+1)
                 #defines comment string
-                header_comment="Length of "+hdulist[(2*i)+2].data.names[k] 
+                header_comment="Length of "+hdulist[(2*i)+3].data.names[k] 
                 
                 
-                hdulist[(2*i)+2].header[header_keyword]=(length_list[k],header_comment) #defines the keyword with value and comment
+                hdulist[(2*i)+3].header[header_keyword]=(length_list[k],header_comment) #defines the keyword with value and comment
                 
         #For loop ended    
         #print ('No more iterations');
@@ -509,6 +527,8 @@ class wirc_data(object):
             if load_full_image:
                 temp = hdulist[0].data
                 self.full_image = copy.deepcopy(temp)
+                temp2 = hdulist[1].data
+                self.DQ_image = copy.deepcopy(temp2)
             else:
                 self.full_image = None
 
@@ -544,15 +564,15 @@ class wirc_data(object):
             for i in range(self.n_sources):
                 #print ("starting iteration #",i)
                 #Extract the source info from the header
-                xpos = hdulist[(2*i)+1].header["XPOS"]
-                ypos = hdulist[(2*i)+1].header["YPOS"]
-                slit_loc = hdulist[(2*i)+1].header["SLIT_LOC"]
+                xpos = hdulist[(2*i)+2].header["XPOS"]
+                ypos = hdulist[(2*i)+2].header["YPOS"]
+                slit_loc = hdulist[(2*i)+2].header["SLIT_LOC"]
                 
                 #if they are there)
                 
                 try:
-                    xpos_err = hdulist[(2*i)+1].header["XPOS_ERR"]
-                    ypos_err = hdulist[(2*i)+1].header["YPOS_ERR"]
+                    xpos_err = hdulist[(2*i)+2].header["XPOS_ERR"]
+                    ypos_err = hdulist[(2*i)+2].header["YPOS_ERR"]
                     new_source = wircpol_source([xpos,ypos,xpos_err,ypos_err],slit_loc, i)
                     
                 except KeyError:
@@ -562,14 +582,14 @@ class wirc_data(object):
             
 
                 
-                new_source.trace_images = hdulist[(2*i)+1].data[0:4] #finds the i'th source image data in the hdulist, first 4 are raw images
-                new_source.trace_images_extracted = hdulist[(2*i)+1].data[4:] #last 4 images are from which extraction is done. 
+                new_source.trace_images = hdulist[(2*i)+2].data[0:4] #finds the i'th source image data in the hdulist, first 4 are raw images
+                new_source.trace_images_extracted = hdulist[(2*i)+2].data[4:] #last 4 images are from which extraction is done. 
                 
                 #finds the table data of the TableHDU corresponding to the i'th source
-                big_table=hdulist[(2*i)+2].data 
+                big_table=hdulist[(2*i)+3].data 
                 
                 #finds the header of the TableHDU corresponding to the i'th source
-                prihdr=hdulist[(2*i)+2].header 
+                prihdr=hdulist[(2*i)+3].header 
                 
                 
                 #for the column number, refers to the variable "column_list" in save_wirc_object. each variable has 4 columns for 4 traces
@@ -595,14 +615,14 @@ class wirc_data(object):
                 new_source.theta = self.table_columns_to_array(big_table,prihdr,[21,22,23])
                 
                 #adjusting source header statuses
-                new_source.lambda_calibrated = hdulist[(2*i)+1].header["WL_CBRTD"]#source attribute, later applied to header["WL_CBRTD"]
-                new_source.polarization_computed = hdulist[(2*i)+1].header["POL_CMPD"] #source attribute, later applied to header["POL_CMPD"]
-                new_source.spectra_extracted = hdulist[(2*i)+1].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
-                new_source.thumbnails_cut_out = hdulist[(2*i)+1].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
+                new_source.lambda_calibrated = hdulist[(2*i)+2].header["WL_CBRTD"]#source attribute, later applied to header["WL_CBRTD"]
+                new_source.polarization_computed = hdulist[(2*i)+2].header["POL_CMPD"] #source attribute, later applied to header["POL_CMPD"]
+                new_source.spectra_extracted = hdulist[(2*i)+2].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
+                new_source.thumbnails_cut_out = hdulist[(2*i)+2].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
 
                 try:
-                    new_source.spectra_widths = np.fromstring(hdulist[(2*i)+1].header["WIDTHS"][1:-1], sep = ' ')
-                    new_source.spectra_angles = np.fromstring(hdulist[(2*i)+1].header["ANGLES"][1:-1], sep = ' ')
+                    new_source.spectra_widths = np.fromstring(hdulist[(2*i)+2].header["WIDTHS"][1:-1], sep = ' ')
+                    new_source.spectra_angles = np.fromstring(hdulist[(2*i)+2].header["ANGLES"][1:-1], sep = ' ')
                 except KeyError:
                     None
 
@@ -703,6 +723,7 @@ class wircpol_source(object):
         #The traces of each spectra
         self.trace_images = None
         self.trace_images_extracted = None
+        self.trace_images_DQ = None
 
         #width and angle info
         self.spectra_widths = None
@@ -730,13 +751,18 @@ class wircpol_source(object):
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, filter_name, sub_bar=True):
+    def get_cutouts(self, image, image_DQ, filter_name, sub_bar=True):
         """
         Cutout thumbnails and put them into self.trace_images
 
         """
         
         self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar)[0])
+        try:
+            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar)[0])
+        except:
+            print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
+            self.trace_images_DQ = np.astype(copy.deepcopy(self.trace_images*0,'int8'))
         
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
