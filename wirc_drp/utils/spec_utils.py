@@ -432,6 +432,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
     flux_0, var_0 = sum_across_trace(data-background, variance, extraction_range)
     sky_flux, sky_var = sum_across_trace(background, variance, extraction_range)
     Mask_old = np.ones(data.shape) #this is the initial bad pixel mask, assuming that all is good
+    
     while niter > 0:
     
         #Profile image; first pass, eq 14, then smooth with a median filter
@@ -476,7 +477,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
         #Summation terms
         #sum P(D-S)/V
-        sum1, foo = sum_across_trace( Mask*P_0*(data-background)/variance_opt, variance, extraction_range) 
+        sum1, foo = sum_across_trace(Mask*P_0*(data-background)/variance_opt, variance, extraction_range) 
         #sum P
         sumP, foo = sum_across_trace(Mask*P_0,variance, extraction_range) 
         #sum P**2/V
@@ -484,8 +485,6 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         
         #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0])
         #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'b')
-        
-        
         
         #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0],'c')
         #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'r')
@@ -538,11 +537,10 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
     return flux_opt_final, variance_opt_final
 
-def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',\
-    bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,\
-    skimage_order=4, width_scale=1., diag_mask = False, trace_angle = -45,\
-     fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,\
-     verbose = True):
+def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
+    bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
+    diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
+    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -600,12 +598,19 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             fig = plt.figure(figsize=(11,4))
 
     thumbnails_copy = copy.deepcopy(thumbnails)
-
+    if DQ_thumbnails is not None:
+        DQ_copy = copy.deepcopy(DQ_thumbnails)
+    
     #Flip some of the traces around.
     if mode=='pol': 
         thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
         thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
         thumbnails_copy[3,:,:] = thumbnails_copy[3,-1::-1, :] #flip y #Bottom-left
+
+        if DQ_thumbnails is not None:
+            DQ_copy[1,:,:] = DQ_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+            DQ_copy[2,:,:] = DQ_copy[2,:,-1::-1] #flip x #Top-right
+            DQ_copy[3,:,:] = DQ_copy[3,-1::-1, :] #flip y #Bottom-left
 
         trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
 
@@ -806,6 +811,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
+            if DQ_thumbnails is not None and use_DQ:
+                DQ_rotated = frame_rotate(DQ_copy[j], rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+                DQ_rotated[DQ_rotated > 1e-3] = 1 
+                DQ_rotated[DQ_rotated <= 1e-3] = 0
+            else:
+                DQ_rotated = rotated*0
+
             #determine the extraction range based on the width parameter
             #first, find the peak
             # spatial_profile = np.sum(sub_rotated, axis = 1) #sum in the spectral direction to get a net spatial profile
@@ -818,7 +830,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
-                gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose) 
+                gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_rotated) 
 
 
             spectra.append(spec_res)
