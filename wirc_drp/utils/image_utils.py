@@ -144,8 +144,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
 
     # Get trace coordinates and add to x and y lists
     for dy,dx in traces:
-        x_center = (dx.start + dx.stop - 1)/2
-        y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
+        x_center = np.astype((dx.start + dx.stop - 1)/2,int)
+        y_center = np.astype((dy.start + dy.stop - 1)/2 + 1024,int) # or 1023?
 
         size = trace_template.shape[0]/2
         cutout = stars_image_UL[y_center-size-1024:y_center+size-1024,x_center-size:x_center+size]
