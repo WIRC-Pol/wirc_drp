@@ -598,6 +598,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             fig = plt.figure(figsize=(11,4))
 
     thumbnails_copy = copy.deepcopy(thumbnails)
+    
     if DQ_thumbnails is not None:
         DQ_copy = copy.deepcopy(DQ_thumbnails)
     
@@ -812,9 +813,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
             if DQ_thumbnails is not None and use_DQ:
-                DQ_rotated = frame_rotate(DQ_copy[j], rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
-                DQ_rotated[DQ_rotated > 1e-3] = 1 
-                DQ_rotated[DQ_rotated <= 1e-3] = 0
+                DQ_rotated = frame_rotate(DQ_copy[j,:,:], rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+                DQ_rotated[DQ_rotated > 1e-3] = 0 #Note, in the definition below, bad pixels have a value of 0 and good pixels 1
+                DQ_rotated[DQ_rotated <= 1e-3] = 1
             else:
                 DQ_rotated = rotated*0
 

@@ -826,7 +826,8 @@ class wircpol_source(object):
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, self.slit_pos, 
             sub_background = sub_background, bkg_sub_shift_size = bkg_sub_shift_size , shift_dir = shift_dir, plot=plot, method=method, 
             width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction, 
-            sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, use_DQ = use_DQ) 
+            sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
+            use_DQ = use_DQ) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         
         if align:
