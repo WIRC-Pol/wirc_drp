@@ -657,5 +657,20 @@ def destripe_raw_image(image):
 
     return image
 
+def destripe_after_bkg_sub(image):
+    '''
+    Destripe the detector by subtracting the median of each row/column from each sector. 
+    This will work best after you subtract a background sky image. 
+    '''
+
+    for i in range(1024):
+
+        image[1024+i,:1024] = image[1024+i,0:1024] - np.median(image[1024+i,0:1024])
+        image[:1024,i] =     image[0:1024,i]- np.median(image[0:1024,i])
+        image[1024:,1024+i] =     image[1024:,1024+i] - np.median(image[1024:,1024+i])
+        image[i,1024:] = image[i,1024:] - np.median(image[i,1024:])
+
+    return image
+
     
     
