@@ -526,10 +526,14 @@ class wirc_data(object):
             #Read in the full image and the primary header
             if load_full_image:
                 temp = hdulist[0].data
-                self.full_image = copy.deepcopy(temp)
-                try: 
+                self.full_image = copy.deepcopy(temp) 
+                try:
                     temp2 = hdulist[1].data
                     self.DQ_image = copy.deepcopy(temp2)
+                except: 
+                    if verbose:
+                        print("Couldn't open DQ extension, maybe you saved the wircpol object with an older version?")
+
             else:
                 self.full_image = None
 
