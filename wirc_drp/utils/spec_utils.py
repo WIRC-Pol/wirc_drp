@@ -818,7 +818,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 DQ_final[DQ_rotated > 1e-2] = 0 #Note, in the definition below, bad pixels have a value of 0 and good pixels 1
                 DQ_final[DQ_rotated <= 1e-2] = 1
             else:
-                DQ_rotated = rotated*0 + 1
+                DQ_final = rotated*0 + 1
 
             if debug_DQ and DQ_thumbnails is not None:
                 fig = plt.figure()
