@@ -270,7 +270,7 @@ class wirc_data(object):
         
         #first verifies if array_in has information (not None)
         length=[] #initiates list
-        if array_in !=None:
+        if array_in is not None:
                 #print ("array_in is not None")
                 
                 #verifies/determines if array_in.ndim is 2 or 3. 
