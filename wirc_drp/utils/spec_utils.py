@@ -422,7 +422,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         variance of the measured flux
     """
     #If bad_pixel_mask is not given
-    if bad_pixel_mask == None:
+    if bad_pixel_mask is None:
         bad_pixel_mask = np.ones(data.shape)
 
     #background = median_filter(background, 11) #assume no fine structure in background
