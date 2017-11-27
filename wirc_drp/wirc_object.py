@@ -800,7 +800,7 @@ class wircpol_source(object):
 
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, shift_dir = 'diagonal', plot=False, method = 'optimal_extraction', spatial_sigma = 3,
         width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
-        sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True):
+        sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True,debug_DQ=False):
         
         """
         *method:        method for spectral extraction. Choices are
@@ -827,7 +827,7 @@ class wircpol_source(object):
             sub_background = sub_background, bkg_sub_shift_size = bkg_sub_shift_size , shift_dir = shift_dir, plot=plot, method=method, 
             width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction, 
             sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
-            use_DQ = use_DQ) 
+            use_DQ = use_DQ, debug_DQ=debug_DQ) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         
         if align:

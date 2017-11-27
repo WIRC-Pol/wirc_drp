@@ -540,7 +540,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
     bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
     diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
-    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True):
+    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -819,6 +819,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             else:
                 DQ_rotated = rotated*0 + 1
 
+            if debug_DQ and DQ_thumbnails is not None:
+                fig = plt.figure()
+                ax1 = fig.add_subplot(121)
+                plt.imshow(DQ_copy[j,:,:])
+                ax2 = fig.add_subplot(122)
+                plt.imshow(DQ_rotated)
+
             #determine the extraction range based on the width parameter
             #first, find the peak
             # spatial_profile = np.sum(sub_rotated, axis = 1) #sum in the spectral direction to get a net spatial profile
@@ -830,7 +837,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
-            spec_res, spec_var = optimal_extraction( rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
+            spec_res, spec_var = optimal_extraction(rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
                 gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_rotated) 
 
 
