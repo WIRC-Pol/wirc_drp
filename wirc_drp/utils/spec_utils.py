@@ -817,7 +817,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 DQ_rotated[DQ_rotated > 1e-3] = 0 #Note, in the definition below, bad pixels have a value of 0 and good pixels 1
                 DQ_rotated[DQ_rotated <= 1e-3] = 1
             else:
-                DQ_rotated = rotated*0
+                DQ_rotated = rotated*0 + 1
 
             #determine the extraction range based on the width parameter
             #first, find the peak
