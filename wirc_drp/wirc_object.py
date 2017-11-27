@@ -217,7 +217,7 @@ class wirc_data(object):
 
                 self.full_image = redux
 
-                self.DQ_image = np.ndarray.astype(bad_pixel_map_bool,'int8')
+                self.DQ_image = np.ndarray.astype(bad_pixel_map_bool,int)
 
             else:
                 print("No Bad pixel map filename found, continuing without correcting bad pixels")
@@ -767,7 +767,7 @@ class wircpol_source(object):
             self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar)[0])
         except:
             print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
-            self.trace_images_DQ = np.astype(copy.deepcopy(self.trace_images*0,'int8'))
+            self.trace_images_DQ = np.astype(copy.deepcopy(self.trace_images*0,int))
         
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
