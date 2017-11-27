@@ -510,30 +510,32 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
             break #break from while loop immediately 
         else:
             Mask_old = Mask #update Mask_old, and reiterate
-    #for debugging, show the mask at the end
-    plt.figure(figsize = (20,5))
-    plt.subplot(141)
-    plt.imshow(data-background, origin = 'lower')
-    plt.xlim([130,160])
-    plt.ylim([130,170])
-    #plt.colorbar()
-    plt.subplot(142)
-    plt.imshow(Mask.astype('int'), origin = 'lower')
-    plt.xlim([130,160])
-    plt.ylim([130,170])
-    #plt.colorbar()
-    plt.subplot(143)
-    plt.imshow(Mask.astype('int')*(data-background), origin = 'lower')
-    plt.xlim([130,160])
-    plt.ylim([130,170])
-    plt.subplot(144)
-    plt.imshow(P_0, origin = 'lower', vmin = 0, vmax = 0.5)
-    plt.xlim([130,160])
-    plt.ylim([130,170])
-    plt.colorbar()
-    plt.tight_layout()
     
-    plt.show()
+    #for debugging, show the mask at the end
+    # plt.figure(figsize = (20,5))
+    # plt.subplot(141)
+    # plt.imshow(data-background, origin = 'lower')
+    # plt.xlim([130,160])
+    # plt.ylim([130,170])
+    # #plt.colorbar()
+    # plt.subplot(142)
+    # plt.imshow(Mask.astype('int'), origin = 'lower')
+    # plt.xlim([130,160])
+    # plt.ylim([130,170])
+    # #plt.colorbar()
+    # plt.subplot(143)
+    # plt.imshow(Mask.astype('int')*(data-background), origin = 'lower')
+    # plt.xlim([130,160])
+    # plt.ylim([130,170])
+    # plt.subplot(144)
+    # plt.imshow(P_0, origin = 'lower', vmin = 0, vmax = 0.5)
+    # plt.xlim([130,160])
+    # plt.ylim([130,170])
+    # plt.colorbar()
+    # plt.tight_layout()
+    
+    # plt.show()
+
     return flux_opt_final, variance_opt_final
 
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',\

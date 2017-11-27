@@ -148,7 +148,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
 
         size = trace_template.shape[0]/2
-        cutout = stars_image_UL[y_center-size-1024:y_center+size-1024,x_center-size:x_center+size]
+        cutout = stars_image_UL[int(y_center-size-1024):int(y_center+size-1024),int(x_center-size):int(x_center+size)]
         
         if update_w_chi2_shift:
             try:
