@@ -392,7 +392,7 @@ class wirc_data(object):
         hdulist = fits.HDUList([hdu])
 
         #Append the dataquality frame
-        if self.DQ_image != None:
+        if self.DQ_image is not None:
             hdulist.append(fits.ImageHDU(self.DQ_image))
         else:
             hdulist.append(fits.ImageHDU([]))
