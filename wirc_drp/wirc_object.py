@@ -51,17 +51,17 @@ class wirc_data(object):
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once. 
         ##
 
-        if raw_filename != None and wirc_object_filename != None:
+        if raw_filename is not None and wirc_object_filename is not None:
             print("Can't open both a raw file and wircpol_object, ignoring the raw file and loading the wirc_object_file ")
             print("Loading a wircpol_data object from file {}".format(wirc_object_filename))
             self.load_wirc_object(wirc_object_filename)
 
-        elif wirc_object_filename != None:
+        elif wirc_object_filename is not None:
             if verbose:
                 print("Loading a wirc_data object from file {}".format(wirc_object_filename))
             self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image)
 
-        elif raw_filename != None:
+        elif raw_filename is not None:
             print("Creating a new wirc_data object from file {}".format(raw_filename))
             self.raw_filename = raw_filename
             
@@ -130,7 +130,7 @@ class wirc_data(object):
 
         if not self.calibrated:
 
-            if self.dark_fn != None:
+            if self.dark_fn is not None:
                 #Open the master dark
                 master_dark_hdu = fits.open(self.dark_fn)
                 master_dark = master_dark_hdu[0].data
@@ -160,7 +160,7 @@ class wirc_data(object):
                     print("Destriping the detector image")
                 self.full_image = calibration.destripe_raw_image(self.full_image)
 
-            if self.flat_fn != None:
+            if self.flat_fn is not None:
                 #Open the master flat
                 master_flat_hdu = fits.open(self.flat_fn)
                 master_flat = master_flat_hdu[0].data
@@ -177,12 +177,12 @@ class wirc_data(object):
                 print("No flat filename found, continuing without divinding by a falt")
 
             #If a background image is provided then subtract it out
-            if self.bkg_fn != None:
+            if self.bkg_fn is not None:
                 background_hdu = fits.open(self.bkg_fn)
                 background = background_hdu[0].data
                 print("Subtracting background frame {} from all science files".format(self.bkg_fn))
 
-                if self.dark_fn != None:
+                if self.dark_fn is not None:
                     background = background - factor*master_dark
 
                 scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
@@ -195,7 +195,7 @@ class wirc_data(object):
                 self.header['BKG_FN'] = self.bkg_fn   
 
             #If a badpixel map is provided then correct for bad pixels, taking into account the clean_bad_pix and mask_mad_pixels flags
-            if self.bp_fn != None:
+            if self.bp_fn is not None:
                 #Open the bad pixel map
                 bp_map_hdu = fits.open(self.bp_fn)
                 bad_pixel_map = bp_map_hdu[0].data
@@ -244,7 +244,7 @@ class wirc_data(object):
 
         """
 
-        if self.bkg_fn != None:
+        if self.bkg_fn is not None:
             # try: 
             background_hdu = f.open(background_fname)
             background = background_hdu[0].data
@@ -271,7 +271,7 @@ class wirc_data(object):
         #first verifies if array_in has information (not None)
         length=[] #initiates list
         if array_in !=None:
-                #print ("array_in != None")
+                #print ("array_in is not None")
                 
                 #verifies/determines if array_in.ndim is 2 or 3. 
                 #if 2
@@ -430,7 +430,7 @@ class wirc_data(object):
             source_hdu.header["THMB_CUT"] = (self.source_list[i].thumbnails_cut_out,"Thumbnails cut out? status")
 
             #widths and angles of the traces
-            if self.source_list[i].spectra_widths != None:
+            if self.source_list[i].spectra_widths is not None:
                 source_hdu.header["WIDTHS"] = (np.array2string(self.source_list[i].spectra_widths), "Widths of spectra in unrotated image")
                 source_hdu.header["ANGLES"]=  (np.array2string(self.source_list[i].spectra_angles), "Angles of spectra in unrotated image")
             
@@ -649,7 +649,7 @@ class wirc_data(object):
         """
         
         if mode == 'pol':
-            if direct_image_fn != None:
+            if direct_image_fn is not None:
 
                 #Open the direct image
                 direct_image = fits.open(direct_image_fn)[0].data
