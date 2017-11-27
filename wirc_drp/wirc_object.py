@@ -217,7 +217,7 @@ class wirc_data(object):
 
                 self.full_image = redux
 
-                self.DQ_image = np.astype(bad_pixel_map_bool,'int8')
+                self.DQ_image = np.ndarray.astype(bad_pixel_map_bool,'int8')
 
             else:
                 print("No Bad pixel map filename found, continuing without correcting bad pixels")
@@ -527,8 +527,9 @@ class wirc_data(object):
             if load_full_image:
                 temp = hdulist[0].data
                 self.full_image = copy.deepcopy(temp)
-                temp2 = hdulist[1].data
-                self.DQ_image = copy.deepcopy(temp2)
+                try: 
+                    temp2 = hdulist[1].data
+                    self.DQ_image = copy.deepcopy(temp2)
             else:
                 self.full_image = None
 
@@ -794,9 +795,8 @@ class wircpol_source(object):
 
 
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, shift_dir = 'diagonal', plot=False, method = 'optimal_extraction', spatial_sigma = 3,
-          width_scale=1., diag_mask=False, bad_pix_masking = 0,\
-          niter = 2, sig_clip = 5, \
-         trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True):
+        width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
+        sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True):
         
         """
         *method:        method for spectral extraction. Choices are
