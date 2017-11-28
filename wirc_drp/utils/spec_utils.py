@@ -439,7 +439,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         P_0 = np.copy(data)
         P_0 = (data - background)/flux_0 #this is dividing each column (x) in data-background by the sum in that column
         #smooth with a median filter only in the dispersion direction (x); note that the index is (y,x) here
-        P_0 = median_filter(P_0, size = (1,10))
+        P_0 = median_filter(P_0, size = (spatial_smooth,spectral_smooth))
         #enforce non negativity and unity sum in the spatial direction
         P_0[P_0 < 0] = 0
         P_sum, var_Psum = sum_across_trace(P_0, variance, extraction_range)
