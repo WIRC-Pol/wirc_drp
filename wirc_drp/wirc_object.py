@@ -404,9 +404,12 @@ class wirc_data(object):
             
             #Create an ImageHDU for each of the sources
             # source_hdu = fits.ImageHDU(self.source_list[i].trace_images)
-            if self.source_list[i].trace_images_extracted is not None:
-                source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, 
+            if self.source_list[i].trace_images_extracted is not None and self.source_list[i].trace_images_DQ is not None:
+                source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, self.source_list[i].trace_images_DQ,
                                                         self.source_list[i].trace_images_extracted]))
+            elif self.source_list[i].trace_images_DQ is not None:
+                source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, 
+                                                        self.source_list[i].trace_images_DQ]))
             else:
                 source_hdy = fits.PrimaryHDU(self.source_list[i].trace_images)
 
@@ -584,11 +587,9 @@ class wirc_data(object):
                     new_source = wircpol_source([xpos,ypos],slit_loc, i)
                     
                 
-            
-
-                
                 new_source.trace_images = hdulist[(2*i)+2].data[0:4] #finds the i'th source image data in the hdulist, first 4 are raw images
-                new_source.trace_images_extracted = hdulist[(2*i)+2].data[4:] #last 4 images are from which extraction is done. 
+                new_source.trace_images_DQ = hdulist[(2*i)+2].data[4:8]
+                new_source.trace_images_extracted = hdulist[(2*i)+2].data[8:] #last 4 images are from which extraction is done. 
                 
                 #finds the table data of the TableHDU corresponding to the i'th source
                 big_table=hdulist[(2*i)+3].data 
@@ -789,6 +790,32 @@ class wircpol_source(object):
 
         ax = fig.add_subplot(144)
         plt.imshow(self.trace_images[3,:,:], **kwargs)
+        plt.text(5,275,"Bottom - Left", color='w')
+        
+        fig.subplots_adjust(right=0.85)
+        cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
+        plt.colorbar(cax = cbar_ax)
+
+        plt.show()
+
+    def plot_extracted_cutouts(self, **kwargs):
+
+        fig = plt.figure(figsize = (12,8))
+
+        ax = fig.add_subplot(141)
+        plt.imshow(self.trace_images_extracted[0,:,:], **kwargs)
+        plt.text(5,275,"Top - Left", color='w')
+
+        ax = fig.add_subplot(142)
+        plt.imshow(self.trace_images_extracted[1,:,:], **kwargs)
+        plt.text(5,275,"Bottom - Right", color='w')
+
+        ax = fig.add_subplot(143)
+        plt.imshow(self.trace_images_extracted[2,:,:], **kwargs)
+        plt.text(5,275,"Top - Right", color='w')
+
+        ax = fig.add_subplot(144)
+        plt.imshow(self.trace_images_extracted[3,:,:], **kwargs)
         plt.text(5,275,"Bottom - Left", color='w')
         
         fig.subplots_adjust(right=0.85)
