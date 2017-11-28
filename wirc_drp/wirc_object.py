@@ -1106,7 +1106,7 @@ class wircspec_source(object):
         #call spec_extraction to actually extract spectra
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract= spec_utils.spec_extraction(self.trace_images, self.slit_pos, 
             sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, 
-            trace_angle = None, fitfunction = fitfunction, sum_method = sum_method, bad_pix_masking = bad_pix_maskin, 
+            trace_angle = None, fitfunction = fitfunction, sum_method = sum_method, bad_pix_masking = bad_pix_masking, 
             box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
