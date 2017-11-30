@@ -400,7 +400,7 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3):
 
     return [lower, upper]
 
-
+# @profile
 def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None, bad_pix_masking = 1, gain = 1.2, read_out_noise = 12, \
                         verbose = 0, plot = 0, niter = 1, sig_clip = 5,spatial_smooth=1,spectral_smooth=10):
 
@@ -537,6 +537,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
     return flux_opt_final, variance_opt_final
 
+# @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
     bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
     diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
@@ -688,8 +689,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
 
-        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, \
-                                                                    diag_mask=diag_mask, mode=mode) #linear fit to the trace
+        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask, mode=mode) #linear fit to the trace
 
         #if background subtraction type is fit_background, then call the function
 

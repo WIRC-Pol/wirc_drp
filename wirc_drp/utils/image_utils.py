@@ -15,7 +15,8 @@ from astropy.io import fits as f
 from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
 from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
-from scipy.signal import fftconvolve
+# from scipy.signal import fftconvolve
+import scipy.signal
 from wirc_drp.constants import *
 from wirc_drp.masks.wircpol_masks import *
 from scipy.ndimage import gaussian_filter as gauss
@@ -27,7 +28,14 @@ import scipy.ndimage.filters as filters
 import copy
 from image_registration import chi2_shift
 
-def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True):
+import cv2
+# import pyfftw
+
+from numba import jit
+
+# @jit
+# @profile
+def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -82,7 +90,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # plt.title('Trace template')
 
     # Cross-correlate image with itself
-    trace_selfcorr = fftconvolve(trace_template,trace_template, mode='same')
+    # scipy.fftpack = pyfftw.interfaces.scipy_fftpack #Dropping in the pyfftw
+    trace_selfcorr = scipy.signal.fftconvolve(trace_template,trace_template, mode='same')
+    # pyfftw.interfaces.cache.enable()
+
     # Find best_match value. Normalize correlation image with this later. 
     best_match_val = np.max(trace_selfcorr)
 
@@ -95,7 +106,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     else:
         sky_image = sky.copy()
     # Filter sky image to remove bad pixels
-    sky_image_filt = ndimage.median_filter(sky_image,3)    
+    # sky_image_filt = ndimage.median_filter(sky_image,3)    
+    sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'uint16'),3)    
 
     # Load science image, either from file or as np array
     if isinstance(science, str):
@@ -105,7 +117,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         science_image = science.copy()
 
     # Filter science image to remove bad pixels
-    science_image_filt = ndimage.median_filter(science_image,3)
+    # science_image_filt = ndimage.median_filter(science_image,3)
+    science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'uint16'),3)    
     # # Plot science image
     # fig = plt.figure()
     # plt.imshow(science_image_filt, origin='lower')
@@ -120,7 +133,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
 
     # Cross-correlate trace template image with stars_image_UL
-    corr_image_UL = fftconvolve(stars_image_UL, trace_template, mode='same')
+    corr_image_UL = scipy.signal.fftconvolve(stars_image_UL, trace_template, mode='same')
 
     # Calculate median and standard deviation in corr_image_UL. Exclude very low and very high pixel values (indicating sources)    
     corr_image_UL_med = np.median(corr_image_UL[(corr_image_UL < 2000) & (corr_image_UL > -2000)])
@@ -143,7 +156,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     x_locs, y_locs = [], []
 
     # Get trace coordinates and add to x and y lists
-    for dy,dx in traces:
+    for dy,dx in traces[:max_sources]:
         x_center = (dx.start + dx.stop - 1)/2
         y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
 
@@ -958,6 +971,7 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
         #return all_res_even, bkg, flux, var
     return cutout - bkg, bkg
 
+# @profile
 def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_mask=False,mode='pol'):
     """
     mode='pol' or 'spec'
@@ -978,7 +992,9 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
     bkg = []
     bkg_length = 10
     
-    thumbnail = median_filter(thumbnail, 6)
+    # thumbnail = median_filter(thumbnail, 6)
+    thumbnail = cv2.medianBlur(np.ndarray.astype(thumbnail,'float32'),5)    
+
 
     if diag_mask and mode=='pol':
         mask = makeDiagMask(np.shape(thumbnail)[0],25)
@@ -1138,6 +1154,8 @@ def mask_and_sub_bkg(thumbnail, index, plot=False, xlow=30,xhigh=130,ylow=30,yhi
     #Return and image of the same size as thumbnail, only containing the measured background level
     return thumbnail*0.+bkg_med
 
+# @profile
+# @jit
 def traceWidth(trace, location, fit_length):
     """
     traceWidth fits a Gaussian across the trace (in the spatial direction) at the given location 
