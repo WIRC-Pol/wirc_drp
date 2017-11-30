@@ -768,7 +768,7 @@ class wircpol_source(object):
             self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar)[0])
         except:
             print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
-            self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0,int))
+            self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
         
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 

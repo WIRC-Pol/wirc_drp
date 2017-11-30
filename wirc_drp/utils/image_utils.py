@@ -1138,6 +1138,54 @@ def mask_and_sub_bkg(thumbnail, index, plot=False, xlow=30,xhigh=130,ylow=30,yhi
     #Return and image of the same size as thumbnail, only containing the measured background level
     return thumbnail*0.+bkg_med
 
+def mask_and_2d_fit_bkg(thumbnail, index, polynomial_order = 2, plot=False, xlow=30,xhigh=130,ylow=30,yhigh=130):
+    '''
+    Cross correlate the thumbnails to a mask then measure the background. 
+    '''
+    
+    #Grab the appropriate mask
+    mask = np.ndarray.astype(trace_masks[index],bool)
+    
+    #The the shift between the trace and the mask
+    shifted = chi2_shift(thumbnail,mask, zeromean=True, verbose=False, return_error=True)
+
+    # print(shifted)
+    
+    #Shift the thumbnail
+    new_image = shift(thumbnail, (shifted[1],shifted[0]))[ylow:yhigh,xlow:xhigh]
+    
+    #Measure the background .
+    n_mask = mask[ylow:yhigh,xlow:xhigh]
+
+    #2d polynomial fit 
+    poly_fit = models.Polynomial2D(degree = polynomial_order)
+    fitter = fitting.LevMarLSQFitter()
+    #define x,y
+    y, x = np.mgrid[:thumbnail.shape[0], :thumbnail.shape[1]]
+
+    #masked out
+    masked_y = y[~n_mask]
+    masked_x = x[~n_mask]
+    masked_im = new_image[~n_mask]
+
+    #fit
+    res = fitter(poly_fit, masked_y,masked_x, masked_im)
+
+    #reconstructed bkg
+    bkg_est = res(y,x)
+
+
+    #bkg_med = np.median((new_image)[~n_mask])
+
+    if plot:
+        fig = plt.figure(figsize=(7,7))
+        ax1 = fig.add_subplot(111)
+        ax1.imshow(new_image)
+        ax1.imshow(~n_mask, alpha=0.3)
+        
+    #Return and image of the same size as thumbnail, only containing the measured background level
+    return thumbnail*0.+bkg_est
+
 def traceWidth(trace, location, fit_length):
     """
     traceWidth fits a Gaussian across the trace (in the spatial direction) at the given location 

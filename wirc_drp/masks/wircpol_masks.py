@@ -91,6 +91,24 @@ def makeDiagMask(size, width):
     for i in range(size):
         mask[int(size-i-1),int( max(i-width,0)): int(min(i+width, size)) ] = 1
     return mask.astype("bool")
+
+def make_mask_from_findTrace(fit, width, angle):
+    """
+    Create a diagonal mask based on the output from findTrace 
+    """
+    #actual width
+    width = width/np.cos(np.radians(angle))**2 #cos^2 because one factor from rotation, another from the smaller pixel
+
+    size = len(fit)
+    mask = np.zeros((size,size))
+
+    for i in range(size):
+        min_ind = int(np.max([fit[i]-width, 0]))
+        max_ind = int(np.min([fit[i]+width, size]))
+
+        mask[min_ind:max_ind, i] = 1
+
+    return mask.astype("bool")
         
 
 trace_masks = fits.open(wircpol_dir+'wirc_drp/masks/trace_masks.fits')[0].data
