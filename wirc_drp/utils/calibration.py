@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from astropy.stats import sigma_clip
 from scipy.stats import mode
 from scipy.ndimage import median_filter, shift, rotate
+import cv2
 import os
 import warnings
 from image_registration import chi2_shift
@@ -23,7 +24,7 @@ from wirc_drp.masks.wircpol_masks import * ### Make sure that the wircpol/DRP/ma
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 import copy
 
-def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix = 3,  hotp_map_fname = None):
+def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix = 8,  hotp_map_fname = None):
     
     """
     Create a master normalized flat file given a list of fits files of flat fields from
@@ -81,7 +82,10 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
     flat = np.median(foo, axis = 2)
         
     #Filter bad pixels
-    bad_px = sigma_clip(flat, sigma = sig_bad_pix)
+    ###Major update here: do sigma clipping on the pix-to-pix flat with the large scale vignette removed
+    #bad_px = sigma_clip(flat, sigma = sig_bad_pix) #old and bad
+    pix_to_pix = flat/median_filter(flat, 11) #arbitrary
+    bad_px = sigma_clip(pix_to_pix, sigma = sigma_bad_pix) #8 seems to work best
     
     #Normalize good pixel values
     if normalize == 'median':
@@ -123,7 +127,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
     
     #Add history keywords
     hdu[0].header['HISTORY'] = "############################"
-    hdu[0].header['HISTORY'] = "Created badpixel map by sigma klipping {}".format(flat_outname)
+    hdu[0].header['HISTORY'] = "Created bad pixel map by sigma clipping on pixel-to-pixel flat{}".format(flat_outname)
     hdu[0].header['HISTORY'] = "Bad pixel cutoff of {}sigma".format(sig_bad_pix)
     hdu[0].header['HISTORY'] = "A pixel value of 1 indicates a bad pixel"
     hdu[0].header['HISTORY'] = "############################"
