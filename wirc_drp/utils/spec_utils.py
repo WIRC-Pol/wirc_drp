@@ -400,9 +400,9 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3):
 
     return [lower, upper]
 
-
+# @profile
 def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None, bad_pix_masking = 1, gain = 1.2, read_out_noise = 12, \
-                        verbose = 0, plot = 0, niter = 1, sig_clip = 5):
+                        verbose = 0, plot = 0, niter = 1, sig_clip = 5,spatial_smooth=1,spectral_smooth=10):
 
     """
     This is Horne 1986 optimal extraction algorithm. This function assumes that background estimation
@@ -427,7 +427,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
     #background = median_filter(background, 11) #assume no fine structure in background
     #First construct the variance estimate (eq 12, Horne 1986)
-    variance = (read_out_noise/gain)**2 + data/gain
+    variance = (read_out_noise/gain)**2 + np.abs(data)/gain
     #Compute a "standard" spectrum estimator by summing across trace
     flux_0, var_0 = sum_across_trace(data-background, variance, extraction_range)
     sky_flux, sky_var = sum_across_trace(background, variance, extraction_range)
@@ -439,7 +439,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         P_0 = np.copy(data)
         P_0 = (data - background)/flux_0 #this is dividing each column (x) in data-background by the sum in that column
         #smooth with a median filter only in the dispersion direction (x); note that the index is (y,x) here
-        P_0 = median_filter(P_0, size = (1,10))
+        P_0 = median_filter(P_0, size = (spatial_smooth,spectral_smooth))
         #enforce non negativity and unity sum in the spatial direction
         P_0[P_0 < 0] = 0
         P_sum, var_Psum = sum_across_trace(P_0, variance, extraction_range)
@@ -537,10 +537,11 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
     return flux_opt_final, variance_opt_final
 
+# @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
     bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
     diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
-    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False):
+    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -688,13 +689,11 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
 
-        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, \
-                                                                    diag_mask=diag_mask, mode=mode) #linear fit to the trace
+        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask, mode=mode) #linear fit to the trace
 
         #if background subtraction type is fit_background, then call the function
 
         
-
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.
@@ -785,7 +784,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #determine the extraction range based on the width parameter
             #first, find the peak
-            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
+            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
 
 
 
@@ -836,10 +835,11 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # lower = int(np.floor(vert_max - spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))))) #is this LISP or what?
             # upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
 
-            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = 3)
+            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
-                gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final) 
+                gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
+                spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth) 
 
 
             spectra.append(spec_res)

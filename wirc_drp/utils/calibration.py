@@ -24,7 +24,8 @@ from wirc_drp.masks.wircpol_masks import * ### Make sure that the wircpol/DRP/ma
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 import copy
 
-def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix = 8,  hotp_map_fname = None):
+def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix = 8,  hotp_map_fname = None, verbose=False):
+
     
     """
     Create a master normalized flat file given a list of fits files of flat fields from
@@ -47,7 +48,9 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
     master_dark_hdu = f.open(master_dark_fname)
     master_dark = master_dark_hdu[0].data
     dark_shape = np.shape(master_dark)
-    print(("Subtracting {} from each flat file".format(master_dark_fname)))
+
+    if verbose:
+        print(("Subtracting {} from each flat file".format(master_dark_fname)))
     dark_exp_time = master_dark_hdu[0].header['EXPTIME']
 
     #Open all files into a 3D array
@@ -108,7 +111,8 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
 
     #Parse the last fileanme
     flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
-    print(("Writing master flat to {}".format(flat_outname)))
+    if verbose:
+        print(("Writing master flat to {}".format(flat_outname)))
     #Write the fits file
     hdu.writeto(flat_outname, overwrite=True)
 
@@ -132,7 +136,8 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
     hdu[0].header['HISTORY'] = "A pixel value of 1 indicates a bad pixel"
     hdu[0].header['HISTORY'] = "############################"
 
-    print(("Writing bad pixel map to {}".format(bp_outname)))
+    if verbose:
+        print(("Writing bad pixel map to {}".format(bp_outname)))
     #Write the fits file
     hdu.writeto(bp_outname, overwrite=True)
 

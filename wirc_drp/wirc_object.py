@@ -121,7 +121,7 @@ class wirc_data(object):
             self.source_list = []
             
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe=True, verbose=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe=False, verbose=False):
         '''
         Apply dark and flat-field correction
         '''
@@ -164,7 +164,8 @@ class wirc_data(object):
                 #Open the master flat
                 master_flat_hdu = fits.open(self.flat_fn)
                 master_flat = master_flat_hdu[0].data
-                print(("Dividing the image by {}".format(self.flat_fn)))
+                if verbose:
+                    print(("Dividing the image by {}".format(self.flat_fn)))
 
                 #Divide the flat
                 self.full_image = self.full_image/master_flat
@@ -180,7 +181,8 @@ class wirc_data(object):
             if self.bkg_fn is not None:
                 background_hdu = fits.open(self.bkg_fn)
                 background = background_hdu[0].data
-                print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+                if verbose:
+                    print("Subtracting background frame {} from all science files".format(self.bkg_fn))
 
                 if self.dark_fn is not None:
                     background = background - factor*master_dark
@@ -200,7 +202,8 @@ class wirc_data(object):
                 bp_map_hdu = fits.open(self.bp_fn)
                 bad_pixel_map = bp_map_hdu[0].data
                 bad_pixel_map_bool = np.array(bad_pixel_map, dtype=bool)
-                print(("Using bad pixel map {}".format(self.bp_fn)))
+                if verbose:
+                    print(("Using bad pixel map {}".format(self.bp_fn)))
 
                 if clean_bad_pix:
                     redux = calibration.cleanBadPix(self.full_image, bad_pixel_map_bool)
@@ -824,10 +827,11 @@ class wircpol_source(object):
 
         plt.show()
 
-
+    # @profile
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, shift_dir = 'diagonal', plot=False, method = 'optimal_extraction', spatial_sigma = 3,
-        width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
-        sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True,debug_DQ=False):
+        lamda_sigma=10, width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
+        sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True,debug_DQ=False,s=1,
+        spectral_smooth=10,spatial_smooth=1):
         
         """
         *method:        method for spectral extraction. Choices are
@@ -854,7 +858,7 @@ class wircpol_source(object):
             sub_background = sub_background, bkg_sub_shift_size = bkg_sub_shift_size , shift_dir = shift_dir, plot=plot, method=method, 
             width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction, 
             sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
-            use_DQ = use_DQ, debug_DQ=debug_DQ) 
+            use_DQ = use_DQ, debug_DQ=debug_DQ,spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth,spatial_sigma=spatial_sigma) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         
         if align:
