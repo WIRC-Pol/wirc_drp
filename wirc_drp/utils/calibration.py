@@ -88,7 +88,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
     ###Major update here: do sigma clipping on the pix-to-pix flat with the large scale vignette removed
     #bad_px = sigma_clip(flat, sigma = sig_bad_pix) #old and bad
     pix_to_pix = flat/median_filter(flat, 11) #arbitrary
-    bad_px = sigma_clip(pix_to_pix, sigma = sigma_bad_pix) #8 seems to work best
+    bad_px = sigma_clip(pix_to_pix, sigma = sig_bad_pix) #8 seems to work best
     
     #Normalize good pixel values
     if normalize == 'median':
