@@ -28,7 +28,7 @@ import scipy.ndimage.filters as filters
 import copy
 from image_registration import chi2_shift
 
-# import cv2
+import cv2
 # import pyfftw
 # from numba import jit
 
@@ -105,8 +105,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     else:
         sky_image = sky.copy()
     # Filter sky image to remove bad pixels
-    sky_image_filt = ndimage.median_filter(sky_image,3)    
-    # sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'uint16'),3)    
+    # sky_image_filt = ndimage.median_filter(sky_image,3)    
+    sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
 
     # Load science image, either from file or as np array
     if isinstance(science, str):
@@ -116,8 +116,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         science_image = science.copy()
 
     # Filter science image to remove bad pixels
-    science_image_filt = ndimage.median_filter(science_image,3)
-    # science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'uint16'),3)    
+    # science_image_filt = ndimage.median_filter(science_image,3)
+    science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'f'),3)    
     # # Plot science image
     # fig = plt.figure()
     # plt.imshow(science_image_filt, origin='lower')
@@ -155,7 +155,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     x_locs, y_locs = [], []
 
     # Get trace coordinates and add to x and y lists
-    for dy,dx in traces[:max_sources]:
+    for dy,dx in traces:
         x_center = (dx.start + dx.stop - 1)/2
         y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
 
@@ -204,18 +204,6 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         # Now reorder locs_UL so that it's according to pix_vals_UL
         locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
 
-    if verbose: 
-        # Print list of trace location coordinates in UL quadrant
-        print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
-        for tr in range(0,locs_UL.shape[1]):
-            print('Trace', str(tr+1), ': (', locs_UL[:,tr][0], locs_UL[:,tr][1], ')')
-
-    # Calculate location of corresponding traces (and 0th order) in other three quadrants
-    locs_UR = locs_UL + np.swapaxes(np.array([UR_diff]),0,1)
-    locs_LR = locs_UL + np.swapaxes(np.array([LR_diff]),0,1)
-    locs_LL = locs_UL + np.swapaxes(np.array([LL_diff]),0,1)
-    locs_spot0 = locs_UL + np.swapaxes(np.array([spot0_diff]),0,1)
-
     # Flag suspicious traces by checking mid-diagonals
     trace_diag_val = []
     trace_diag_flag = []
@@ -239,9 +227,30 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
             trace_diag_flag.append(False)
         else:
             trace_diag_flag.append(True)
-            if verbose:
-                print('Trace', str(n+1), 'too noisy or crossing quadrant limit. Flagging!')
+            
     #print(trace_diag_val, '\n', trace_diag_flag)
+
+    #Put all the good traces at the top
+    args = np.argsort(trace_diag_flag)
+    locs_UL = locs_UL[args][:max_sources]
+    trace_diag_flag = trace_diag_flag[args][:max_sources]
+
+    if verbose:
+        for i in range(len(trace_diag_flag)):
+            if verbose:
+                    print('Trace', str(n+1), 'too noisy or crossing quadrant limit. Flagging!') 
+        # Print list of trace location coordinates in UL quadrant
+        print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
+        for tr in range(0,locs_UL.shape[1]):
+            print('Trace', str(tr+1), ': (', locs_UL[:,tr][0], locs_UL[:,tr][1], ')')
+
+    # Calculate location of corresponding traces (and 0th order) in other three quadrants
+    locs_UR = locs_UL + np.swapaxes(np.array([UR_diff]),0,1)
+    locs_LR = locs_UL + np.swapaxes(np.array([LR_diff]),0,1)
+    locs_LL = locs_UL + np.swapaxes(np.array([LL_diff]),0,1)
+    locs_spot0 = locs_UL + np.swapaxes(np.array([spot0_diff]),0,1)
+
+
 
     # Gather all trace and 0th order locations (and flags) in dictionary
     locs = {'UL': locs_UL, 'UR': locs_UR, 'LR': locs_LR, 'LL': locs_LL, 'spot0': locs_spot0, 'flag': trace_diag_flag}
@@ -991,8 +1000,8 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
     bkg = []
     bkg_length = 10
     
-    thumbnail = median_filter(thumbnail, 6)
-    # thumbnail = cv2.medianBlur(np.ndarray.astype(thumbnail,'float32'),5)    
+    # thumbnail = median_filter(thumbnail, 6)
+    thumbnail = cv2.medianBlur(np.ndarray.astype(thumbnail,'f'),5)    
 
 
     if diag_mask and mode=='pol':
