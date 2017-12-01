@@ -215,6 +215,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
         # Now reorder locs_UL so that it's according to pix_vals_UL
         locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
+        locs_UR = np.array([[locs_UR[0,i],locs_UR[1,i]] for i in pix_vals_argsort]).T
+        locs_LL = np.array([[locs_LL[0,i],locs_LL[1,i]] for i in pix_vals_argsort]).T
+        locs_LR = np.array([[locs_LR[0,i],locs_LR[1,i]] for i in pix_vals_argsort]).T
+        locs_spot0 = np.array([[locs_spot0[0,i],locs_spot0[1,i]] for i in pix_vals_argsort]).T
 
     # Flag suspicious traces by checking mid-diagonals
     trace_diag_val = []
