@@ -233,7 +233,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     #Put all the good traces at the top
     args = np.argsort(trace_diag_flag)
     locs_UL = locs_UL[:,args][:max_sources]
-    trace_diag_flag = trace_diag_flag[args][:max_sources]
+    trace_diag_flag = np.array(trace_diag_flag)[args][:max_sources]
 
     if verbose:
         for i in range(len(trace_diag_flag)):
