@@ -196,10 +196,22 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # Add slit trace position to trace locations
     locs_UL = np.append(locs_UL, np.swapaxes(np.array([UL_slit_trace]),0,1), 1)
 
+    # Calculate location of corresponding traces (and 0th order) in other three quadrants
+    locs_UR = locs_UL + np.swapaxes(np.array([UR_diff]),0,1)
+    locs_LR = locs_UL + np.swapaxes(np.array([LR_diff]),0,1)
+    locs_LL = locs_UL + np.swapaxes(np.array([LL_diff]),0,1)
+    locs_spot0 = locs_UL + np.swapaxes(np.array([spot0_diff]),0,1)
+
+    pix_vals_UL=[]
     #Do we want to sort the sources by their brightness? 
     if brightness_sort: 
         # Now we'll calculate the pixel value at each x,y value
-        pix_vals_UL = np.array([science_image_filt[np.floor(y).astype('int'),np.floor(x).astype('int')] for x,y in locs_UL.T])
+        for i in range(np.shape(locs_UL)[1]):
+            pix_vals_UL.append(science_image_filt[np.floor(locs_UL[0,i]).astype('int'),np.floor(locs_UL[1,i]).astype('int')]+\
+                science_image_filt[np.floor(locs_UR[0,i]).astype('int'),np.floor(locs_UR[1,i]).astype('int')]+\
+                science_image_filt[np.floor(locs_LR[0,i]).astype('int'),np.floor(locs_LR[1,i]).astype('int')]+\
+                science_image_filt[np.floor(locs_LL[0,i]).astype('int'),np.floor(locs_LL[1,i]).astype('int')])
+        pix_vals_UL = np.array(pix_vals_UL)
         pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
         # Now reorder locs_UL so that it's according to pix_vals_UL
         locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
@@ -234,6 +246,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     #Put all the good traces at the to
     args = np.argsort(trace_diag_flag)
     locs_UL = locs_UL[:,args][:,:max_sources]
+    locs_UR = locs_UR[:,args][:,:max_sources]
+    locs_LL = locs_LL[:,args][:,:max_sources]
+    locs_LR = locs_LR[:,args][:,:max_sources]
+    locs_spot0 = locs_spot0[:,args][:,:max_sources]
     trace_diag_flag = np.array(trace_diag_flag)[args][:max_sources]
 
     if verbose:
@@ -244,13 +260,6 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
         for tr in range(0,locs_UL.shape[1]):
             print('Trace', str(tr+1), ': (', locs_UL[:,tr][0], locs_UL[:,tr][1], ')')
-
-    # Calculate location of corresponding traces (and 0th order) in other three quadrants
-    locs_UR = locs_UL + np.swapaxes(np.array([UR_diff]),0,1)
-    locs_LR = locs_UL + np.swapaxes(np.array([LR_diff]),0,1)
-    locs_LL = locs_UL + np.swapaxes(np.array([LL_diff]),0,1)
-    locs_spot0 = locs_UL + np.swapaxes(np.array([spot0_diff]),0,1)
-
 
 
     # Gather all trace and 0th order locations (and flags) in dictionary
