@@ -133,8 +133,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         fftmask = fftmask[::-1,:]
         science_image_filt[np.where(~fftmask)] = 0.
         sky_image_filt[np.where(~fftmask)] = 0.
-        med_sci = np.nanmedian(science_image_filt[~fftmask])
-        med_sky = np.nanmedian(sky_image_filt[~fftmask])
+        med_sci = np.nanmedian(science_image_filt[fftmask])
+        med_sky = np.nanmedian(sky_image_filt[fftmask])
 
     else:
         med_sci = np.nanmedian(science_image_filt)
