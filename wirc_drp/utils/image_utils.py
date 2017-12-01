@@ -126,20 +126,24 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # plt.show()
     # plt.title('Science image')
 
-
-
-    med_sci = np.nanmedian(science_image_filt)
-    med_sky = np.nanmedian(sky_image_filt)
-    # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
-    stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
-
-    # # If use_full_frame_mask
+     # # If use_full_frame_mask
     if use_full_frame_mask:
         ffmask = fits.open(wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
         fftmask = np.ndarray.astype(ffmask,bool)
         fftmask = fftmask[::-1,:]
-        stars_image[np.where(~fftmask)] = 0.
+        science_image_filt[np.where(~fftmask)] = 0.
+        sky_image_filt[np.where(~fftmask)] = 0.
+        med_sci = np.nanmedian(science_image_filt[~fftmask])
+        med_sky = np.nanmedian(sky_image_filt[~fftmask])
+
+    else:
+        med_sci = np.nanmedian(science_image_filt)
+        med_sky = np.nanmedian(sky_image_filt)
         
+    # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
+    stars_image = science_image_filt - sky_image_filt*med_sci/med_sky
+
+
     # Cut out upper left quadrant of stars_image
     stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
 
