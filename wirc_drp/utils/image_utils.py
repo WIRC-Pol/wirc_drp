@@ -28,10 +28,9 @@ import scipy.ndimage.filters as filters
 import copy
 from image_registration import chi2_shift
 
-import cv2
+# import cv2
 # import pyfftw
-
-from numba import jit
+# from numba import jit
 
 # @jit
 # @profile
@@ -106,8 +105,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     else:
         sky_image = sky.copy()
     # Filter sky image to remove bad pixels
-    # sky_image_filt = ndimage.median_filter(sky_image,3)    
-    sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'uint16'),3)    
+    sky_image_filt = ndimage.median_filter(sky_image,3)    
+    # sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'uint16'),3)    
 
     # Load science image, either from file or as np array
     if isinstance(science, str):
@@ -117,8 +116,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         science_image = science.copy()
 
     # Filter science image to remove bad pixels
-    # science_image_filt = ndimage.median_filter(science_image,3)
-    science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'uint16'),3)    
+    science_image_filt = ndimage.median_filter(science_image,3)
+    # science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'uint16'),3)    
     # # Plot science image
     # fig = plt.figure()
     # plt.imshow(science_image_filt, origin='lower')
@@ -992,8 +991,8 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
     bkg = []
     bkg_length = 10
     
-    # thumbnail = median_filter(thumbnail, 6)
-    thumbnail = cv2.medianBlur(np.ndarray.astype(thumbnail,'float32'),5)    
+    thumbnail = median_filter(thumbnail, 6)
+    # thumbnail = cv2.medianBlur(np.ndarray.astype(thumbnail,'float32'),5)    
 
 
     if diag_mask and mode=='pol':
