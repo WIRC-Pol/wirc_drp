@@ -34,7 +34,7 @@ import cv2
 
 # @jit
 # @profile
-def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5):
+def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5, use_full_frame_mask=True):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -107,6 +107,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # Filter sky image to remove bad pixels
     # sky_image_filt = ndimage.median_filter(sky_image,3)    
     sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
+    # plt.imshow(sky_image_filt)
+    # plt.show()
 
     # Load science image, either from file or as np array
     if isinstance(science, str):
@@ -121,13 +123,23 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # # Plot science image
     # fig = plt.figure()
     # plt.imshow(science_image_filt, origin='lower')
+    # plt.show()
     # plt.title('Science image')
 
-    med_sci = np.median(science_image_filt)
-    med_sky = np.median(sky_image_filt)
-    # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
-    stars_image = science_image_filt - sky_image_filt*med_sci/med_sky
 
+
+    med_sci = np.nanmedian(science_image_filt)
+    med_sky = np.nanmedian(sky_image_filt)
+    # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
+    stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
+
+    # # If use_full_frame_mask
+    if use_full_frame_mask:
+        ffmask = fits.open(wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
+        fftmask = np.ndarray.astype(ffmask,bool)
+        fftmask = fftmask[::-1,:]
+        stars_image[np.where(~fftmask)] = 0.
+        
     # Cut out upper left quadrant of stars_image
     stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
 
