@@ -207,6 +207,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # Flag suspicious traces by checking mid-diagonals
     trace_diag_val = []
     trace_diag_flag = []
+    
     for n in range(0,locs_UL.shape[1]):
         thumbn = stars_image[int(round(locs_UL[1,n]))-50:int(round(locs_UL[1,n]))+50, int(round(locs_UL[0,n]))-50:int(round(locs_UL[0,n]))+50]
         diag_val = []
@@ -230,15 +231,15 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
             
     #print(trace_diag_val, '\n', trace_diag_flag)
 
-    #Put all the good traces at the top
+    #Put all the good traces at the to
     args = np.argsort(trace_diag_flag)
-    locs_UL = locs_UL[:,args][:max_sources]
+    locs_UL = locs_UL[:,args][:,:max_sources]
     trace_diag_flag = np.array(trace_diag_flag)[args][:max_sources]
 
     if verbose:
         for i in range(len(trace_diag_flag)):
             if verbose:
-                    print('Trace', str(n+1), 'too noisy or crossing quadrant limit. Flagging!') 
+                    print('Trace', str(i+1), 'too noisy or crossing quadrant limit. Flagging!') 
         # Print list of trace location coordinates in UL quadrant
         print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
         for tr in range(0,locs_UL.shape[1]):
