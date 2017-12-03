@@ -33,7 +33,7 @@ import cv2
 # from numba import jit
 
 # @jit
-@profile
+# @profile
 def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5, use_full_frame_mask=True):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
@@ -141,7 +141,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         # med_sky = np.nanmedian(sky_image_filt)
         
     # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
-    stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
+    stars_image = science_image_filt - sky_image_filt #å*med_sci/med_sky
 
 
     # Cut out upper left quadrant of stars_image
@@ -671,10 +671,10 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
 
         for j in range(ntraces):
 
-            ylow = traceLocation[j][0]-cutout_size
-            yhigh = traceLocation[j][0]+cutout_size+1
-            xlow = traceLocation[j][1]-cutout_size
-            xhigh = traceLocation[j][1]+cutout_size+1 
+            ylow = int(traceLocation[j][0]-cutout_size)
+            yhigh = int(traceLocation[j][0]+cutout_size+1)
+            xlow = int(traceLocation[j][1]-cutout_size)
+            xhigh = int(traceLocation[j][1]+cutout_size+1 )
 
             image_new = copy.deepcopy(image)
 
