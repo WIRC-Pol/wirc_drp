@@ -33,7 +33,7 @@ import cv2
 # from numba import jit
 
 # @jit
-# @profile
+@profile
 def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5, use_full_frame_mask=True):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
@@ -133,15 +133,15 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         fftmask = fftmask[::-1,:]
         science_image_filt[np.where(~fftmask)] = 0.
         sky_image_filt[np.where(~fftmask)] = 0.
-        med_sci = np.nanmedian(science_image_filt[fftmask])
-        med_sky = np.nanmedian(sky_image_filt[fftmask])
+        # med_sci = np.nanmedian(science_image_filt[fftmask])
+        # med_sky = np.nanmedian(sky_image_filt[fftmask])
 
-    else:
-        med_sci = np.nanmedian(science_image_filt)
-        med_sky = np.nanmedian(sky_image_filt)
+    # else:
+        # med_sci = np.nanmedian(science_image_filt)
+        # med_sky = np.nanmedian(sky_image_filt)
         
     # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
-    stars_image = science_image_filt - sky_image_filt*med_sci/med_sky
+    stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
 
 
     # Cut out upper left quadrant of stars_image
