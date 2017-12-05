@@ -1809,16 +1809,25 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
         #if verbose:
         #    print("Trace width {}".format(trace_width))
 
+        #find x location center of the trace
+        x_loc = image_utils.trace_location_along_x(thumbnail, measured_trace_angle)
+
         ######################################
-        ######Define Aperture
+        ######Define Aperture#################
         ######################################
-        phot_aper = RectangularAperture( (int(len(trace)/2)+source_offsets[0],trace[int(len(trace)/2)]+source_offsets[1]), \
-            trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
+        phot_aper = RectangularAperture( (x_loc+source_offsets[0],trace[x_loc]+source_offsets[1]), \
+           trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
+
+        #phot_aper = RectangularAperture( (int(len(trace)/2)+source_offsets[0],trace[int(len(trace)/2)]+source_offsets[1]), \
+        #    trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
             #trace center default to the center of the cutout in x, and the measured y position there, plus any given source offsets (x,y)
             #length is 130 for J, 260 for H
             #width is width_scale*measured trace_width and the angle is the measured angle
-        sky_aper = RectangularAperture( (int(len(trace)/2)+sky_offsets[0],trace[int(len(trace)/2)]+sky_offsets[1]), \
+
+        sky_aper = RectangularAperture( (x_loc + sky_offsets[0],trace[x_loc]+sky_offsets[1]), \
             trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
+        # sky_aper = RectangularAperture( (int(len(trace)/2)+sky_offsets[0],trace[int(len(trace)/2)]+sky_offsets[1]), \
+        #     trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
 
         #show diagnosis plot if selected.
         if plot:
