@@ -1167,7 +1167,7 @@ def trace_location_along_x(thumbnail, angle, template_width = 80, plot = 0):
     length= len(sum_im)
     width = template_width #* np.abs(np.cos(np.radians(angles)))
     template = np.zeros(length) 
-    template[ int(length/2 - width/2) : int(length/2 + width/2))] = 1 #1's in the center
+    template[ int(length/2 - width/2) : int(length/2 + width/2)] = 1 #1's in the center
     print(np.sum(template))
 
     #cross correlation
@@ -1180,7 +1180,7 @@ def trace_location_along_x(thumbnail, angle, template_width = 80, plot = 0):
         ax[2].plot(np.arange(-length+1, length), corr
 
         plt.show()
-    return np.nanargmax(corr) - length +1 #the x center of the trace
+    return np.nanargmax(corr) - int(length/2) +1 #the x center of the trace
 
 
 
