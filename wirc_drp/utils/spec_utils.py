@@ -1728,7 +1728,9 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
             print("Extracting spectrum".format(j))
 
         #subtract background for source finder
+
         bkg_sub_shift_size = 30 #doesn't matter...
+
         if True:        
             #############################################
             ######If data is in the slit mode, perform shift and subtract to remove background
@@ -1789,7 +1791,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
 
         #if background subtraction type is fit_background, then call the function
 
-        
+        diag_mask = 0
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.
@@ -1820,7 +1822,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
 
         #show diagnosis plot if selected.
         if plot:
-            fig,ax  = plt.figure(figsize = (5,5))
+            fig,ax  = plt.subplots(1,1,figsize = (5,5))
             ax.imshow(thumbnail, origin = 'lower')
             phot_aper.plot(ax = ax, color = 'b')
             sky_aper.plot(ax = ax, color = 'r')
