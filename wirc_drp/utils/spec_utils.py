@@ -1668,7 +1668,7 @@ def make_scale_widget(Qp, Qm, x0):
     plt.show()
     
 def broadband_aperture_photometry(thumbnails, aperture_width, source_offsets = (0,0), sky_offsets = (50,0), mode = 'pol', 
-            filter_name = "J", plot = False, ron = 12, gain = 1.2):
+            filter_name = "J", plot = False, ron = 12, gain = 1.2, DQ_thumbnails = None):
     """
     This function uses photutils package to define rectangular apertures over spectral traces 
     and compute aperture sums. 
@@ -1693,9 +1693,9 @@ def broadband_aperture_photometry(thumbnails, aperture_width, source_offsets = (
 
     thumbnails_copy = copy.deepcopy(thumbnails)
     
-    try:
-        if DQ_thumbnails is not None:
-            DQ_copy = copy.deepcopy(DQ_thumbnails)
+
+    if DQ_thumbnails is not None:
+        DQ_copy = copy.deepcopy(DQ_thumbnails)
     except:
         None
     
