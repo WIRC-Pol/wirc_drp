@@ -11,7 +11,7 @@ This file contains functions used to extract spectra from a cutout.
 """
 
 import numpy as np
-from astropy.io import fits as f
+from astropy.io import fits
 from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
 from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
@@ -32,9 +32,23 @@ import cv2
 # import pyfftw
 # from numba import jit
 
+def shift_figure(x_figs,y_figs=0):
+    '''
+    This function sets the position of the current figure on the screen. 
+    Currently it just works by shifting the figure by integer numbers (x_figs, y_figs) of the figure width/height. 
+    '''
+
+    mgr = plt.get_current_fig_manager()
+    py = mgr.canvas.height()
+    px = mgr.canvas.width()
+    mgr.window.setGeometry(px*x_figs, py*y_figs, px, py)
+
+
+
 # @jit
 # @profile
-def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5, use_full_frame_mask=True):
+def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5, 
+    use_full_frame_mask=True, force_figures = False):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -45,6 +59,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
                     traces found. Thumbnail cutouts of all traces are also plotted in a separate figure.
         brightness_sort: if True, then sort the sources according to their brightness. 
         update_w_chi2_shift: if True, then update the positions using the chi2_shift algo. The main reason for this is to get sub-pixel resolution. 
+        use_full_frame_mas: If True then mask out the areas covered by the focal plane mask and by the bars of doom. 
+        force_figures: if True, then when plotting it forces the first plot to be in Figure 1 and the second in Figure 2. 
                     
     Output: Dictionary of objects found. Each item contains of five keys with pairs of x and y coordinates (index starts at 0) of upper left, upper right, lower right, and lower left trace, and 0th order locations, as well as a flag set to True if trace is very noisy or crossing quadrant limit. The last item in the dictionary always contains the central hole/slit and trace locations 
     """    
@@ -80,7 +96,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     if verbose:
         print("Loading Template from {}".format(template_fn))
 
-    trace_template_hdulist = f.open(template_fn)
+    trace_template_hdulist = fits.open(template_fn)
     trace_template = trace_template_hdulist[0].data
 
     # # Plot trace template image
@@ -98,7 +114,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
 
     # Load sky (offset) image, either from file or as np array
     if isinstance(sky, str):
-        sky_image_hdulist = f.open(sky) 
+        sky_image_hdulist = fits.open(sky) 
         sky_image = sky_image_hdulist[0].data
         if verbose:
             print('Processing science file '+ science + ' ...')
@@ -112,7 +128,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
 
     # Load science image, either from file or as np array
     if isinstance(science, str):
-        science_image_hdulist = f.open(science)
+        science_image_hdulist = fits.open(science)
         science_image = science_image_hdulist[0].data
     else:
         science_image = science.copy()
@@ -144,7 +160,13 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
 
     # Cut out upper left quadrant of stars_image
-    stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
+    # stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
+    ylow = 924
+    yhigh=2048
+    xlow = 0
+    xhigh = 1123
+
+    stars_image_UL = np.array(stars_image[ylow::,xlow:xhigh], copy=True)
 
     # Cross-correlate trace template image with stars_image_UL
     corr_image_UL = scipy.signal.fftconvolve(stars_image_UL, trace_template, mode='same')
@@ -172,10 +194,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # Get trace coordinates and add to x and y lists
     for dy,dx in traces:
         x_center = (dx.start + dx.stop - 1)/2
-        y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
+        y_center = (dy.start + dy.stop - 1)/2 + ylow # or 1023?
 
         size = trace_template.shape[0]/2
-        cutout = stars_image_UL[int(y_center-size-1024):int(y_center+size-1024),int(x_center-size):int(x_center+size)]
+        cutout = stars_image_UL[int(y_center-size-ylow):int(y_center+size-ylow),int(x_center-size):int(x_center+size)]
         
         if update_w_chi2_shift:
             try:
@@ -287,12 +309,20 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # Show cutout of all traces in stars_image
     if plot == True:
         plt.ion() # Turning on interactive mode for plotting (shows figure and releases terminal prompt)
-        fig, axes = plt.subplots(nrows=locs_UL.shape[1], ncols=5)
+
+        if force_figures:
+            fig = plt.figure(1)
+            plt.clf()
+            fig, axes = plt.subplots(nrows=locs_UL.shape[1], ncols=5, num=1,figsize=(6.4,4.8))
+        else: 
+            fig, axes = plt.subplots(nrows=locs_UL.shape[1], ncols=5)
+
         for n in range(0,locs_UL.shape[1]):
             #plt.subplot(peaks.shape[1]+1,5,n*5+1)
             axes[n,0].imshow(stars_image[int(round(locs_UL[1,n])-50):int(round(locs_UL[1,n])+50), int(round(locs_UL[0,n])-50):int(round(locs_UL[0,n])+50)], origin='lower')
             axes[n,0].set_yticks([])
             axes[n,0].set_xticks([])
+
             if trace_diag_flag[n] == True:
                 for pos in ['top', 'bottom', 'right', 'left']:
                     axes[n,0].spines[pos].set_color('red')
@@ -324,6 +354,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
             if trace_diag_flag[n] == True:
                 for pos in ['top', 'bottom', 'right', 'left']:
                     axes[n,4].spines[pos].set_color('red')
+
         plt.suptitle('Thumbnail cutouts of found sources', size='large')
         for row in range(0,locs_UL.shape[1]-1):
             axes[row,0].set_ylabel('Source '+str(row+1))
@@ -333,11 +364,19 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
             axes[0,col].set_title(ytitle[col], size='medium')
         #fig.savefig(target_file[0:target_file.find('.fits')]+'.pdf', format='pdf')
 
+        plt.draw()
+        
         # Plot UL quadrant of sky subtracted science image with found traces labelled
-        plt.figure()
+        if force_figures:
+            f = plt.figure(2, figsize=(6.4,4.8))
+            plt.clf()
+        else:
+            f = plt.figure()
+
         plt.imshow(stars_image, origin='lower', clim=(0,np.median(stars_image_UL)+sigmalim*np.std(stars_image_UL)))
-        plt.xlim(0,1023)
-        plt.ylim(1024,2047)
+        plt.colorbar()
+        plt.xlim(xlow,xhigh)
+        plt.ylim(ylow,yhigh)
         for n in range(0,locs_UL.shape[1]-1):
             if trace_diag_flag[n] == True:
                 #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
@@ -351,9 +390,11 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         else:
             #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
             plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='white')
-        print('\n')
+
+        plt.draw()
 
     if verbose:
+        print('\n')
         print('UL quadrant trace locations:\n',locs['UL'].T,'\n')
         print('UR quadrant trace locations:\n',locs['UR'].T,'\n')
         print('LR quadrant trace locations:\n',locs['LR'].T,'\n')
@@ -626,7 +667,7 @@ def locationInIm(wl, location_in_fov):
 
     #Functions for spectral image
 
-def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = 80):
+def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = 80, verbose=False):
     '''
     This function Extracts the thumbnails of each trace for a given image give a locations list. 
     image - the image where you want to extract the traces
@@ -644,8 +685,9 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
         elif filter_name == 'H':
             cutout_size = 200 #was 150
         else:
-            print('Filter name %s not recognized, assuming J' %filter_name)
-            cutout_size = 80
+            if verbose:
+                print('Filter name %s not recognized, assuming J' %filter_name)
+                cutout_size = 80
 
     if mode == 'spec':
         if cutout_size is None:

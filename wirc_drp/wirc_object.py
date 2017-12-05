@@ -44,8 +44,8 @@ class wirc_data(object):
 
     """
 
-    def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True,\
-                 dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):    
+    def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True,
+        dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):    
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file, 
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once. 
@@ -97,6 +97,10 @@ class wirc_data(object):
             self.flat_fn = flat_fn
             self.bkg_fn = bkg_fn
             self.bp_fn = bp_fn
+
+            #A bad flag that indicates this whole file should be disregarded. 
+            self.bad_flag = False
+            self.bad_reason = ""
 
             #The data quality image
             self.DQ_image = None
@@ -384,6 +388,13 @@ class wirc_data(object):
 
         #add in time stamp
         self.header["BJD"]=self.bjd
+
+        #Was it marked bad?
+        if self.bad_flag:
+            self.header['BAD_FLAG'] = "True"
+            self.header.comments['BAD_FLAG'] = self.bad_reason
+        else:
+            self.header['BAD_FLAG'] = "False"
         
         if save_full_image:
             hdu = fits.PrimaryHDU(self.full_image)
@@ -405,7 +416,7 @@ class wirc_data(object):
         for i in range(self.n_sources):
             #print ('Starting Iteration #',i);
             
-            #Create an ImageHDU for each of the sources
+            #Create an ImageHDU for each of the sources 
             # source_hdu = fits.ImageHDU(self.source_list[i].trace_images)
             if self.source_list[i].trace_images_extracted is not None and self.source_list[i].trace_images_DQ is not None:
                 source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, self.source_list[i].trace_images_DQ,
@@ -414,7 +425,7 @@ class wirc_data(object):
                 source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, 
                                                         self.source_list[i].trace_images_DQ]))
             else:
-                source_hdy = fits.PrimaryHDU(self.source_list[i].trace_images)
+                source_hdu = fits.PrimaryHDU(self.source_list[i].trace_images)
 
             #Put in the source info
             source_hdu.header["XPOS"] = self.source_list[i].pos[0]
@@ -569,6 +580,25 @@ class wirc_data(object):
                     print(err)
 
 
+                        #A bad flag that indicates this whole file should be disregarded. 
+            try:
+                self.bad_flag = self.header['BAD_FLAG']
+                self.bad_reason = self.header.comments['BAD_FLAG']
+
+                if self.bad_flag == "True":
+                    self.bad_flag = True
+                elif self.bad_flag == "False":
+                    self.bad_flag = False
+            
+            except Exception as e:
+                
+                # if verbose:
+                    # print("BAD_FLAG Error {}".format(e))
+                
+                self.bad_flag = False
+                self.bad_reason = ""
+
+
             #Create one source object for each source and append it to source_list
             self.source_list = []
 
@@ -695,7 +725,9 @@ class wirc_data(object):
         for source in range(self.n_sources):
             self.source_list[source].get_cutouts(self.full_image, filter_name = self.filter_name, sub_bar = True)
 
-
+    def mark_bad(self, reason = "A good reason"):
+        self.bad_flag = True
+        self.bad_reason = reason
 
 class wircpol_source(object):
     """
@@ -760,24 +792,30 @@ class wircpol_source(object):
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, image_DQ, filter_name, sub_bar=True):
+    def get_cutouts(self, image, image_DQ, filter_name, sub_bar=True, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
 
         """
         
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar)[0])
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar, verbose=verbose)[0])
         try:
-            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar)[0])
+            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([self.pos, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar, verbose = verb)[0])
         except:
-            print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
-            self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
+            if verbose: 
+                print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
+                self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
         
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
-    def plot_cutouts(self, **kwargs):
+    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), **kwargs):
 
-        fig = plt.figure(figsize = (12,8))
+        #Would you like to choose the specific figure that we're using? 
+        if fig_num is not None:
+            fig = plt.figure(fig_num,figsize=figsize)
+            plt.clf()
+        else: #If not, then we'll make a new figure. 
+            fig = plt.figure(figsize=figsize)
 
         ax = fig.add_subplot(141)
         plt.imshow(self.trace_images[0,:,:], **kwargs)
@@ -786,20 +824,25 @@ class wircpol_source(object):
         ax = fig.add_subplot(142)
         plt.imshow(self.trace_images[1,:,:], **kwargs)
         plt.text(5,275,"Bottom - Right", color='w')
+        ax.set_yticklabels([])
 
         ax = fig.add_subplot(143)
         plt.imshow(self.trace_images[2,:,:], **kwargs)
         plt.text(5,275,"Top - Right", color='w')
+        ax.set_yticklabels([])
 
         ax = fig.add_subplot(144)
         plt.imshow(self.trace_images[3,:,:], **kwargs)
         plt.text(5,275,"Bottom - Left", color='w')
+        ax.set_yticklabels([])
         
         fig.subplots_adjust(right=0.85)
         cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
         plt.colorbar(cax = cbar_ax)
 
         plt.show()
+
+
 
     def plot_extracted_cutouts(self, **kwargs):
 
@@ -809,20 +852,24 @@ class wircpol_source(object):
         plt.imshow(self.trace_images_extracted[0,:,:], **kwargs)
         plt.text(5,275,"Top - Left", color='w')
 
+
         ax = fig.add_subplot(142)
         plt.imshow(self.trace_images_extracted[1,:,:], **kwargs)
         plt.text(5,275,"Bottom - Right", color='w')
+        ax.set_yticklabels([])
 
         ax = fig.add_subplot(143)
         plt.imshow(self.trace_images_extracted[2,:,:], **kwargs)
         plt.text(5,275,"Top - Right", color='w')
+        ax.set_yticklabels([])
 
         ax = fig.add_subplot(144)
         plt.imshow(self.trace_images_extracted[3,:,:], **kwargs)
         plt.text(5,275,"Bottom - Left", color='w')
+        ax.set_yticklabels([])
         
         fig.subplots_adjust(right=0.85)
-        cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
+        cbar_ax = fig.add_axes([0.87, 0.38, 0.03, 0.24])
         plt.colorbar(cax = cbar_ax)
 
         plt.show()
@@ -967,9 +1014,15 @@ class wircpol_source(object):
         
         self.polarization_computed = True #source attribute, later applied to header["POL_CMPD"]
 
-    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', **kwargs):
+    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', fig_num = None, figsize=(6.4,4.8),**kwargs):
 
-        fig = plt.figure(figsize=(7,7))
+        #Would you like to choose the specific figure that we're using? 
+        if fig_num is not None:
+            fig = plt.figure(fig_num,figsize=figsize)
+            plt.clf()
+        else: 
+            fig = plt.figure(figsize=figsize)
+
         labels = ["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
         for i in range(4):
             wl = self.trace_spectra[i,0,:]
@@ -982,6 +1035,7 @@ class wircpol_source(object):
 
             else:
                 plt.plot(wl, flux, label=labels[i], **kwargs)
+            plt.draw()
 
         plt.ylabel("Flux [ADU]")
 
@@ -993,7 +1047,6 @@ class wircpol_source(object):
             plt.xlim([0,225]) #arbitrary unit wavelength display range
         
         plt.legend()
-        plt.show()
 
     def plot_Q_and_U(self, with_errors = False, xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, **kwargs):
 
