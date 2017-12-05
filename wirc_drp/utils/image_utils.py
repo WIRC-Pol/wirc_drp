@@ -1153,7 +1153,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
 
     return peaks, fit, width, angle
 
-def trace_location_along_x(thumbnail, angle, template_width = 80, plot = 0):
+def trace_location_along_x(thumbnail, angle, template_width = 70, plot = 0):
     """
     find the location of the trace along the x axis. This is to automate
     the broadband aperture photometry in spec_utils
@@ -1167,20 +1167,23 @@ def trace_location_along_x(thumbnail, angle, template_width = 80, plot = 0):
     length= len(sum_im)
     width = template_width #* np.abs(np.cos(np.radians(angles)))
     template = np.zeros(length) 
-    template[ int(length/2 - width/2) : int(length/2 + width/2))] = 1 #1's in the center
+    template[ int(length/2 - width/2) : int(length/2 + width/2)] = 1 #1's in the center
     print(np.sum(template))
 
     #cross correlation
     corr = scipy.signal.fftconvolve(sum_im, template)
 
+
     if plot:
         fig,ax = plt.subplots(1,2)
-        ax[0].plot(sum_im)
-        ax[1].plot(template)
-        ax[2].plot(np.arange(-length+1, length), corr
+        ax[0].plot(shift(sum_im/np.max(sum_im), -(np.nanargmax(corr) - int(length) +1)))
+        ax[0].plot(template)
+        ax[1].plot(np.arange(-length+1, length), corr)
+	#ax[1].plot(corr)
 
         plt.show()
-    return np.nanargmax(corr) - length +1 #the x center of the trace
+    print(np.nanargmax(corr) - length +1 )
+    return np.nanargmax(corr) - int(length/2) +1 #the x center of the trace
 
 
 

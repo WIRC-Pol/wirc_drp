@@ -33,7 +33,7 @@ from photutils import RectangularAperture, aperture_photometry
 #From other packages
 from wirc_drp.utils.image_utils import locationInIm, shift_and_subtract_background, fit_and_subtract_background, findTrace
 from wirc_drp.masks.wircpol_masks import *
-
+from wirc_drp.utils import image_utils
 #Import for vip functions
 import warnings
 try:
@@ -1675,8 +1675,10 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
     """
     if filter_name == "J":
         trace_length = 130
+	template_width= 75
     elif filter_name == "H":
         trace_length = 260
+	template_width = 120 #test this
     # Define lists to collect results.
     phot = [] #This vector collects extracted spectra from 4 traces
     phot_sky = []
@@ -1810,7 +1812,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
         #    print("Trace width {}".format(trace_width))
 
         #find x location center of the trace
-        x_loc = image_utils.trace_location_along_x(thumbnail, measured_trace_angle)
+        x_loc = image_utils.trace_location_along_x(thumbnail, measured_trace_angle,plot = 0, template_width = template_width)
 
         ######################################
         ######Define Aperture#################
