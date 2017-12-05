@@ -1667,7 +1667,7 @@ def make_scale_widget(Qp, Qm, x0):
     #radio.on_clicked(colorfunc)
     plt.show()
     
-def broadband_aperture_photometry(thumbnails, aperture_width, source_offsets = (0,0), sky_offsets = (50,0), mode = 'pol', 
+def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = (0,0), sky_offsets = (50,0), mode = 'pol', 
             filter_name = "J", plot = False, ron = 12, gain = 1.2, DQ_thumbnails = None, verbose = False):
     """
     This function uses photutils package to define rectangular apertures over spectral traces 
@@ -1749,19 +1749,20 @@ def broadband_aperture_photometry(thumbnails, aperture_width, source_offsets = (
              #   bkg_sub, bkg = fit_and_subtract_background(thumbnail)
 
         #For now, do shift and subtract always
-            # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
-            if slit_num != 'slitless' or shift_dir == 'horizontal':
-                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] )))
+            # shift_dir = 'diagonal'
 
-                bkg = np.nanmean(bkg_stack, axis=2)
+            # if slit_num != 'slitless' or shift_dir == 'horizontal':
+            #     bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] )))
 
-            elif shift_dir == 'vertical':
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ]),shift( thumbnail, [bkg_sub_shift_size ,0] )))
-                bkg = np.nanmean(bkg_stack, axis=2)
-            elif shift_dir =='diagonal': #for slitless data, shift in diagonal
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] )))
-                bkg = np.nanmean(bkg_stack, axis=2)
+            #     bkg = np.nanmean(bkg_stack, axis=2)
+
+            # elif shift_dir == 'vertical':
+            #     bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ]),shift( thumbnail, [bkg_sub_shift_size ,0] )))
+            #     bkg = np.nanmean(bkg_stack, axis=2)
+            # elif shift_dir =='diagonal': #for slitless data, shift in diagonal
+            bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] )))
+            bkg = np.nanmean(bkg_stack, axis=2)
             #else:
             #    print('')
 
@@ -1783,7 +1784,7 @@ def broadband_aperture_photometry(thumbnails, aperture_width, source_offsets = (
         #trace is the vector of the y location of the trace for each x location in the frame
         #width is the width of the trace at its brightest point. 
 
-        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask, mode=mode) #linear fit to the trace
+        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=0, mode=) #linear fit to the trace
 
         #if background subtraction type is fit_background, then call the function
 
