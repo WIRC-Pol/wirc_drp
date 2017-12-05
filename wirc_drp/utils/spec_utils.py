@@ -1693,8 +1693,11 @@ def broadband_aperture_photometry(thumbnails, aperture_width, source_offsets = (
 
     thumbnails_copy = copy.deepcopy(thumbnails)
     
-    if DQ_thumbnails is not None:
-        DQ_copy = copy.deepcopy(DQ_thumbnails)
+    try:
+        if DQ_thumbnails is not None:
+            DQ_copy = copy.deepcopy(DQ_thumbnails)
+    except:
+        None
     
     #Flip some of the traces around.
     if mode=='pol': 
