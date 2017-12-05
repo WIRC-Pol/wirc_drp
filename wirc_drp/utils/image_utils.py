@@ -1051,7 +1051,7 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
     return cutout - bkg, bkg
 
 # @profile
-def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_mask=False,mode='pol'):
+def findTrace(thumbnail, poly_order = 2, weighted = False, plot = True, diag_mask=False,mode='pol'):
     """
     mode='pol' or 'spec'
     
@@ -1107,8 +1107,25 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
         if mode=='pol':
             weights[(xinds < width/2 - 15) | (xinds > width/2+15)] = 0.
         if mode=='spec':
+            #we shoot outward from the column with the maximal peak
+            #the second we drop below 50% of that value, set a cutoff
+            #then, only fit the trace between the cutoffs
+            max_peak = np.max(peak_size)
+            max_ind = np.argmax(peak_size)
+            upper_x = width
+            lower_x = 0
+            for i in range(max_ind, width):
+                if peak_size[i] < 0.5 * max_peak:
+                    upper_x = i
+                    break
+            for i in range(max_ind, 0, -1):
+                if peak_size[i] < 0.5 * max_peak:
+                    lower_x = i
+                    break
+            weights[:lower_x] = 0
+            weights[upper_x:] = 0
             #If the peaks are less than 10% of the brightest peak, set their weight to zero. 
-            weights[weights < 0.1* np.max(weights)] = 0.
+            #weights[weights < 0.5* np.max(weights)] = 0.
             if plot:  #print out locations of masked pixels when making plots
                 print(np.where(weights==0))
 
@@ -1119,6 +1136,7 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
     fit = np.polyval(p,range(np.shape(thumbnail)[1]))
     
     if plot:
+        print('Plotting')
         plt.plot(peaks)
         plt.plot(fit)
 
@@ -1130,6 +1148,7 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_ma
 
     #now the angle
     #second to last element of p is the linear order.
+#    print(p[-2])
     angle = np.degrees(np.arctan(p[-2]))
 
     return peaks, fit, width, angle
