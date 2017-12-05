@@ -1727,8 +1727,8 @@ def broadband_aperture_photometry(thumbnails, aperture_width, source_offsets = (
         if mode=='spec' and verbose:
             print("Extracting spectrum".format(j))
 
-        #Should we subtrack the background? 
-        if sub_background:        
+        #subtract background for source finder
+        if True:        
             #############################################
             ######If data is in the slit mode, perform shift and subtract to remove background
             #############################################
