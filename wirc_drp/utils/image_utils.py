@@ -1051,7 +1051,7 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
     return cutout - bkg, bkg
 
 # @profile
-def findTrace(thumbnail, poly_order = 2, weighted = False, plot = True, diag_mask=False,mode='pol'):
+def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mask=False,mode='pol'):
     """
     mode='pol' or 'spec'
     
@@ -1152,6 +1152,31 @@ def findTrace(thumbnail, poly_order = 2, weighted = False, plot = True, diag_mas
     angle = np.degrees(np.arctan(p[-2]))
 
     return peaks, fit, width, angle
+
+def trace_location_along_x(thumbnail, angle, template_width = 80):
+    """
+    find the location of the trace along the x axis. This is to automate
+    the broadband aperture photometry in spec_utils
+    Inputs: thumbnail: a 2D array of the image
+    Output: x_loc: the x locaiton of the center of the trace
+    """
+
+    sum_im = np.sum(thumbnail, axis = 0) #sum the image along the y axis
+
+    #create a template
+    length= len(sum_im)
+    width = template_width * np.abs(np.cos(np.radians(angles)))
+    template = np.zeros(length) 
+    template[ int(length/2 - width/2) : int(length/2 + width/2))] = 1 #1's in the center
+    print(np.sum(template))
+
+    #cross correlation
+    corr = scipy.signal.fftconvolve(sum_im, template)
+
+    return np.nanargmax(corr) - length +1 #the x center of the trace
+
+
+
 
 def fitFlux(flux_vec, seeing_pix = 4):
     """

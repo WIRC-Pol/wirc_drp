@@ -1728,6 +1728,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
             print("Extracting spectrum".format(j))
 
         #subtract background for source finder
+        bkg_sub_shift_size = 30 #doesn't matter...
         if True:        
             #############################################
             ######If data is in the slit mode, perform shift and subtract to remove background
@@ -1784,7 +1785,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
         #trace is the vector of the y location of the trace for each x location in the frame
         #width is the width of the trace at its brightest point. 
 
-        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=0, mode=) #linear fit to the trace
+        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=0, mode=mode) #linear fit to the trace
 
         #if background subtraction type is fit_background, then call the function
 
