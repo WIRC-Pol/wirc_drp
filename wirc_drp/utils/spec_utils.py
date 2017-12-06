@@ -1675,10 +1675,10 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
     """
     if filter_name == "J":
         trace_length = 130
-	template_width= 75
+        template_width= 75
     elif filter_name == "H":
         trace_length = 260
-	template_width = 120 #test this
+        template_width = 120 #test this
     # Define lists to collect results.
     phot = [] #This vector collects extracted spectra from 4 traces
     phot_sky = []

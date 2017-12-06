@@ -48,7 +48,7 @@ def shift_figure(x_figs,y_figs=0):
 # @jit
 # @profile
 def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5, 
-    use_full_frame_mask=True, force_figures = False):
+    use_full_frame_mask=True, force_figures = False, seeing = 0.75):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -61,6 +61,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         update_w_chi2_shift: if True, then update the positions using the chi2_shift algo. The main reason for this is to get sub-pixel resolution. 
         use_full_frame_mas: If True then mask out the areas covered by the focal plane mask and by the bars of doom. 
         force_figures: if True, then when plotting it forces the first plot to be in Figure 1 and the second in Figure 2. 
+        seeing: An estimate of the seeing in arcseconds. We will blur the template trace by this value. NOTE: This will have to be an odd multiple of 0.25. TODO make a check for this. 
                     
     Output: Dictionary of objects found. Each item contains of five keys with pairs of x and y coordinates (index starts at 0) of upper left, upper right, lower right, and lower left trace, and 0th order locations, as well as a flag set to True if trace is very noisy or crossing quadrant limit. The last item in the dictionary always contains the central hole/slit and trace locations 
     """    
@@ -98,7 +99,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
 
     trace_template_hdulist = fits.open(template_fn)
     trace_template = trace_template_hdulist[0].data
-
+    trace_template = median_filter(trace_template,int(seeing/plate_scale))
     # # Plot trace template image
     # fig = plt.figure()
     # plt.imshow(trace_template, origin='lower')
