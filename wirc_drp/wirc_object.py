@@ -119,6 +119,7 @@ class wirc_data(object):
                 time=time.tdb+ltt_bary #convert from UTC to TDB standard, apply barycentric correction
                 self.bjd=time.jd+mid_exptime
             except Exception as e: 
+                self.bjd = 0.
                 print("Couldn't update the BJD. Error {}".format(e))
         
         else: #for a blank wirc object
