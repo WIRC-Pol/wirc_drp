@@ -109,14 +109,17 @@ class wirc_data(object):
             # self.type =
 
             #get mid-exposure time in BJD_TDB
-            date_in=self.header['UTSHUT']
-            target_pos=coord.SkyCoord(self.header['RA'],self.header['DEC'],unit=(u.hourangle,u.deg),frame='icrs')
-            palomar=coord.EarthLocation.of_site('palomar')
-            time=ap_time.Time(date_in,format='isot',scale='utc',location=palomar)
-            mid_exptime=0.5*self.header['EXPTIME']*self.header['COADDS']/(24*3600) #in units of days
-            ltt_bary=time.light_travel_time(target_pos)
-            time=time.tdb+ltt_bary #convert from UTC to TDB standard, apply barycentric correction
-            self.bjd=time.jd+mid_exptime
+            try: 
+                date_in=self.header['UTSHUT']
+                target_pos=coord.SkyCoord(self.header['RA'],self.header['DEC'],unit=(u.hourangle,u.deg),frame='icrs')
+                palomar=coord.EarthLocation.of_site('palomar')
+                time=ap_time.Time(date_in,format='isot',scale='utc',location=palomar)
+                mid_exptime=0.5*self.header['EXPTIME']*self.header['COADDS']/(24*3600) #in units of days
+                ltt_bary=time.light_travel_time(target_pos)
+                time=time.tdb+ltt_bary #convert from UTC to TDB standard, apply barycentric correction
+                self.bjd=time.jd+mid_exptime
+            except Exception as e: 
+                print("Couldn't update the BJD. Error {}".format(e))
         
         else: #for a blank wirc object
             self.calibrated = False
