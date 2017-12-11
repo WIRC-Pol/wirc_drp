@@ -1169,7 +1169,7 @@ def trace_location_along_x(thumbnail, angle, template_width = 70, plot = 0):
     width = template_width #* np.abs(np.cos(np.radians(angles)))
     template = np.zeros(length) 
     template[ int(length/2 - width/2) : int(length/2 + width/2)] = 1 #1's in the center
-    print(np.sum(template))
+    # print(np.sum(template))
 
     #cross correlation
     corr = scipy.signal.fftconvolve(sum_im, template)

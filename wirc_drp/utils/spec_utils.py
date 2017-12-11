@@ -28,12 +28,15 @@ from astropy.convolution import Gaussian1DKernel, Box1DKernel, convolve
 from astropy.io import fits as f
 from astropy import stats
 
-from photutils import RectangularAperture, aperture_photometry
+from photutils import RectangularAperture, aperture_photometry,make_source_mask
 
 #From other packages
 from wirc_drp.utils.image_utils import locationInIm, shift_and_subtract_background, fit_and_subtract_background, findTrace
 from wirc_drp.masks.wircpol_masks import *
 from wirc_drp.utils import image_utils
+
+from astropy.stats import sigma_clipped_stats
+
 #Import for vip functions
 import warnings
 try:
@@ -1668,7 +1671,8 @@ def make_scale_widget(Qp, Qm, x0):
     plt.show()
     
 def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = (0,0), sky_offsets = (50,0), mode = 'pol', 
-            filter_name = "J", plot = False, ron = 12, gain = 1.2, DQ_thumbnails = None, verbose = False):
+            filter_name = "J", plot = False, ron = 12, gain = 1.2, DQ_thumbnails = None, verbose = False,
+            bkg_method = "aper"):
     """
     This function uses photutils package to define rectangular apertures over spectral traces 
     and compute aperture sums. 
@@ -1733,7 +1737,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
 
         bkg_sub_shift_size = 30 #doesn't matter...
 
-        if True:        
+        if False:        
             #############################################
             ######If data is in the slit mode, perform shift and subtract to remove background
             #############################################
@@ -1838,6 +1842,11 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
             phot_aper.plot(ax = ax, color = 'b')
             sky_aper.plot(ax = ax, color = 'r')
             plt.show()
+
+        if bkg_method == 'median_mask':
+            mask = make_source_mask(thumbnail,snr=3,npixels=5,dilate_size=11)
+            mean,median,std = sigma_clipped_stats(thumbnail,sigma=3.0,mask=mask)
+            thumbnail = thumbnail - median
 
         #Sum the aperture and output
         phot += [aperture_photometry(thumbnail, phot_aper)['aperture_sum'][0]]
