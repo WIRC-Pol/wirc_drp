@@ -24,7 +24,8 @@ from wirc_drp.masks.wircpol_masks import * ### Make sure that the wircpol/DRP/ma
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 import copy
 
-def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix = 8,  hotp_map_fname = None, verbose=False):
+def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
+                global_sig_bad_pix = 9,  hotp_map_fname = None, verbose=False):
 
     
     """
@@ -85,10 +86,35 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
     flat = np.median(foo, axis = 2)
         
     #Filter bad pixels
-    ###Major update here: do sigma clipping on the pix-to-pix flat with the large scale vignette removed
     #bad_px = sigma_clip(flat, sigma = sig_bad_pix) #old and bad
-    pix_to_pix = flat/median_filter(flat, 11) #arbitrary
-    bad_px = sigma_clip(pix_to_pix, sigma = sig_bad_pix) #8 seems to work best
+    ###Major update here: do sigma clipping on the pix-to-pix flat with the large scale vignette removed
+    ###Also add local sigma clipping
+    def stddevFilter(img, box_size):
+        """ from 
+        https://stackoverflow.com/questions/28931265/calculating-variance-of-an-image-python-efficiently/36266187#36266187
+        This function compute the standard deviation of an image in a
+        moving box of a given size. The pixel i,j of the output is the 
+        standard deviation of the pixel value in the box_size x box_size box
+        around the i,j pixel in the original image. 
+        """
+        wmean, wsqrmean = (cv2.boxFilter(x, -1, (box_size, box_size), \
+            borderType=cv2.BORDER_REFLECT) for x in (img, img*img))
+        return np.sqrt(wsqrmean - wmean*wmean)
+
+    #median flat
+    median_flat = median_filter(flat, 15) #arbitrary size, shouldn't matter as long as it's big enough
+    #standard deviation image
+    stddev_im = stddevFilter(flat, 15)
+
+    #Local clipping
+    local_bad_pix = np.abs(median_flat - flat) > local_sig_bad_pix*stddev_im
+
+    #Global clipping here to reject awful pixels and dust, bad columns, etc
+    pix_to_pix = flat/median_flat 
+    global_bad_px = sigma_clip(pix_to_pix, sigma = global_sig_bad_pix) #9 seems to work best
+
+    #logic combine
+    bad_px = np.logical_or(global_bad_px, local_bad_pix)
     
     #Normalize good pixel values
     if normalize == 'median':
@@ -132,7 +158,8 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', sig_bad_pix =
     #Add history keywords
     hdu[0].header['HISTORY'] = "############################"
     hdu[0].header['HISTORY'] = "Created bad pixel map by sigma clipping on pixel-to-pixel flat{}".format(flat_outname)
-    hdu[0].header['HISTORY'] = "Bad pixel cutoff of {}sigma".format(sig_bad_pix)
+    hdu[0].header['HISTORY'] = "Bad pixel cutoffs: local sigma = {} and global sigma = {} for clipping".format(local_sig_bad_pix, global_sig_bad_pix)
+   #hdu[0].header['HISTORY'] = "Bad pixel cutoff of {}sigma".format(sig_bad_pix)
     hdu[0].header['HISTORY'] = "A pixel value of 1 indicates a bad pixel"
     hdu[0].header['HISTORY'] = "############################"
 

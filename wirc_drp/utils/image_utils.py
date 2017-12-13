@@ -1187,7 +1187,7 @@ def trace_location_along_x(thumbnail, angle, template_width = 70, plot = 0):
 	#ax[1].plot(corr)
 
         plt.show()
-    print(np.nanargmax(corr) - length +1 )
+
     return np.nanargmax(corr) - int(length/2) +1 #the x center of the trace
 
 
