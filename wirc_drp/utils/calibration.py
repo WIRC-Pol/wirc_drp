@@ -25,7 +25,7 @@ from wirc_drp import version # For versioning (requires gitpython 'pip install g
 import copy
 
 def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
-                global_sig_bad_pix = 9,  hotp_map_fname = None, verbose=False):
+                global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False):
 
     
     """
@@ -41,6 +41,9 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     flat_list: a list of file names for flat fields
     master_dark_fname: a file name of a combined dark frame of the same exposure time as these flats
     normalize: How to normalize the flat field, by 'median' or 'mode'
+    local_sig_bad_pix: sigmas used to reject bad pixel based on local standard deviation in a box of size given by median_box_size
+    global_sig_bad_pix: igmas used to reject bad pixel based on global distribution of the pixel-to-pixel variation 
+    local_box_size: the dimension of the size of the local box used to do median and standard deviation filters
     sig_bad_pix: we define bad pixels as pixels with value more than sig_bad_pix*sqrt(variance) away from the median of the frame
     hotp_map_fname: file name of the hot pixel map from the dark frame.
     """
@@ -102,9 +105,9 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
         return np.sqrt(wsqrmean - wmean*wmean)
 
     #median flat
-    median_flat = median_filter(flat, 15) #arbitrary size, shouldn't matter as long as it's big enough
+    median_flat = median_filter(flat, local_box_size) #arbitrary size, shouldn't matter as long as it's big enough
     #standard deviation image
-    stddev_im = stddevFilter(flat, 15)
+    stddev_im = stddevFilter(flat, local_box_size)
 
     #Local clipping
     local_bad_pix = np.abs(median_flat - flat) > local_sig_bad_pix*stddev_im
