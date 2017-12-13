@@ -47,7 +47,7 @@ def shift_figure(x_figs,y_figs=0):
 
 # @jit
 # @profile
-def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5, 
+def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, 
     use_full_frame_mask=True, force_figures = False, seeing = 0.75):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
@@ -122,8 +122,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     else:
         sky_image = sky.copy()
     # Filter sky image to remove bad pixels
-    # sky_image_filt = ndimage.median_filter(sky_image,3)    
-    sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
+    if im_package =='scipy':
+    	sky_image_filt = ndimage.median_filter(sky_image,3) 
+    else:#just use cv2 im_package == 'cv2':   
+    	sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
     # plt.imshow(sky_image_filt)
     # plt.show()
 
@@ -135,8 +137,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         science_image = science.copy()
 
     # Filter science image to remove bad pixels
-    # science_image_filt = ndimage.median_filter(science_image,3)
-    science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'f'),3)    
+    if im_package == 'scipy':
+    	science_image_filt = ndimage.median_filter(science_image,3)
+    else: #use cv2
+    	science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'f'),3)    
     # # Plot science image
     # fig = plt.figure()
     # plt.imshow(science_image_filt, origin='lower')
