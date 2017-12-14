@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from astropy.stats import sigma_clip
 from scipy.stats import mode
 from scipy.ndimage import median_filter, shift, rotate
+from scipy import interpolate
 import cv2
 import os
 import warnings
@@ -233,14 +234,10 @@ def masterDark(dark_list, sig_hot_pix = 5):
 
     return dark_outname, bp_outname
     
-def interpBadPix(science, bad_px):
-    """
-    Interpolate over bad pixels on the science image
-    To preserve spectral information, interpolate orthogonally to the trace in 
-    each quadrant
-    """
 
-def calibrate(science_list_fname, master_flat_fname, master_dark_fname, bp_map_fname, mask_bad_pixels = False, clean_Bad_Pix=True, replace_nans=False, background_fname = None ):
+
+def calibrate(science_list_fname, master_flat_fname, master_dark_fname, bp_map_fname, mask_bad_pixels = False, 
+                clean_Bad_Pix=True, replace_nans=False, background_fname = None ):
     """
     Subtract dark; divide flat
     Bad pixels are masked out using the bad_pixel_map with 0 = bad and 1 = good pixels
@@ -348,18 +345,70 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, bp_map_f
         hdu.writeto(outname, overwrite=True)
 
         # f.PrimaryHDU(redux).writeto('redux_'+i, overwrite = True)
-        
-def cleanBadPix(redux_science, bad_pixel_map, median_box = 5):
+
+def replace_bad_pix_with_interpolation(image, bad_pixel_map, interpolation_type = 'linear'):
     """
-    rudimentary version of interpBadPix, use median filter
+    at each location of bad pixel, pick a box of given size around it, interpolate good pixels in
+    that box, then replace the bad pixel with that.
+
+    This function is intended for a small image since trying to interpolate a 2x2k image will not end well.
+
+    Inputs:
+        image: a 2D array representing a science image
+        bad_pixel_map: a 2D array with 1 representing bad pixels 
+        interpolation_type: a choice of interpolations from scipy.ndimage.griddata. valid options are nearest, 
+                            linear, and cubic.
+    Output:
+        a 2D array with all bad pixels replaced with the given interpolation
+    """
+    if image.shape[0] > 500:
+        print('This image is big; perhaps try cleanBadPix.')
+    #make sure bad_pixel_map is booleen
+    bad_pixel_map = bad_pixel_map.astype('bool')
+
+    if bad_pixel_map.shape != image.shape:
+        raise ValueError('Image and bad pixel map must be of the same size.')
+
+    #create coordinate grids
+    y, x = np.mgrid[:image.shape[0], :image.shape[1]]
+    #valid data and coords
+    valid_data = image[~bad_pixel_map].ravel()
+    coords = np.vstack([y[~bad_pixel_map], x[~bad_pixel_map]]).T
+
+    #now, replace bad pixels
+    res = interpolate.griddata(coords, valid_data, (y,x), method = interpolation_type)
+
+    return res
+
+        
+def cleanBadPix(redux_science, bad_pixel_map, method = 'median', replacement_box = 5, replace_constant = -99):
+    """
+    replace bad pixels by either median, interpolation, or a constant.
+
+    Inputs: 
+            redux_science: the 2D array representing the reduced science image
+            bad_pixel_map: the 2D map of the bad pixel locations. value 1 is bad pixel
+            method: either 'median', 'interpolation', or 'constant'
+                - median => bad pixel replaced by the median within the replacement_box
+                - *interpolation => bad pixel replaced by the 2D linear interpolation within the replacement_box
+                - contant => just replace bad pixel with some constant 
+            replacement_box: size of the box used in median filtering and interpolation
+            replace_constant: if the method is constant, then replace all bad pixels with this constant
+
+    Output: 2D array of a cleaned image
+
     """
     #add negative pixels to the bad pixel map
     bad_pixel_map = np.logical_or(bad_pixel_map, redux_science <= 0)
     # im = np.copy(redux_science)
     # im[np.where(bad_pixel_map)[1]] = 0.
-    med_fil = median_filter(redux_science, size = median_box)
+    if method == 'median':
+        med_fil = median_filter(redux_science, size = replacement_box)
 
-    cleaned = redux_science*~bad_pixel_map + med_fil*bad_pixel_map  
+        cleaned = redux_science*~bad_pixel_map + med_fil*bad_pixel_map  
+
+    #elif method == 'interpolate':
+
     # print('so clean')
 
     return cleaned

@@ -4,7 +4,7 @@ Created on Fri June 2 2017
 
 @author: Kaew Tinyanont, Max Millar-Blanchaer, Ricky Nilsson
 
-Imaging Utilities for the WIRC-POL DRP
+Imaging Utilities for the WIRC+Pol DRP
 
 This file contains functions used to extract spectra from a cutout. 
 
@@ -1373,3 +1373,5 @@ def traceWidth(trace, location, fit_length):
         res = f(gauss+poly, x, flux)
 
         return res[0].stddev.value
+
+
