@@ -217,6 +217,11 @@ class wirc_data(object):
                     redux = calibration.cleanBadPix(self.full_image, bad_pixel_map_bool)
                     self.header['HISTORY'] = "Cleaned all bad pixels found in {} using a median filter".format(self.bp_fn)
                     self.header['CLEAN_BP'] = "True"
+
+                else:
+                    redux = self.full_image
+                    self.header['HISTORY'] = "Bad pixels mask found in {} are not cleaned. Do this in cutouts".format(self.bp_fn)
+                    self.header['CLEAN_BP'] = "False"
                 
                 #Mask the bad pixels if the flag is set
                 if mask_bad_pixels:
