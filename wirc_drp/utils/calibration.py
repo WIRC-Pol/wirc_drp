@@ -136,7 +136,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     for i in range(len(flat_list)):
         hdu[0].header['HISTORY'] = flat_list[i]
     hdu[0].header['HISTORY'] = "Normalized to the median of the master flat"
-    hdu[0].header['HISTORY'] = "Performed bad pixel sigma klipping with cutoff of {}sigma".format(sig_bad_pix)
+    hdu[0].header['HISTORY'] = "Performed bad pixel local and global sigma clipping with {}, {}sigmas".format(local_sig_bad_pix, global_sig_bad_pix)
     hdu[0].header['HISTORY'] = "############################"
 
     #Parse the last fileanme
