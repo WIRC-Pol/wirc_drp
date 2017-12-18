@@ -174,24 +174,48 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
     return flat_outname, bp_outname
     
-def masterDark(dark_list, sig_hot_pix = 5):
+def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
 
     """
     Create a master dark file from the median of a list of fits files
     It also saves a bad pixel map of hot pixels and pixels that have a value of 0. in the dark.
 
+    Bad pixels here are defined to be pixels with variance over some given cutoff.
+    Options here are to use either median absolute deviation (MAD) or standard deviation. 
+
+    Inputs:
+        dark_list: a list of names for dark frames with the same exposure time.
+        bad_pix_method: criteria for bad pixel clipping, options are:
+                - 'sigma_clipping': sigma clip on the median combined image
+                - 'MAD': use median absolute deiviation of that pixel to determine a cutoff (MAD = median( abs(i - median(i))) )
+                         then sigma clip the MAD frame
+                - 'standard_deviation':  use std deviation of that pixel to determine a cutoff, then sigma clip the standard deviation frame
+        sig_hot_pix: a cutoff for each bad_pix_method, recommend sigma_clipping < 9, MAD < 10, standard_deviation < ?.
+
     """
     #Open all files into a 3D array
     print("Creating a master dark")
-    foo = np.empty((2048,2048,len(dark_list)))
+    dark_cube = np.empty((len(dark_list),2048,2048))
     for i in range(len(dark_list)):
         hdu = f.open(dark_list[i])
-        foo[:,:,i] = hdu[0].data  
+        dark_cube[:,:,i] = hdu[0].data  
     
     #Create the master dark
-    master_dark = np.median(foo, axis = 2)
+    master_dark = np.median(dark_cube, axis = 0)
 
-    hot_px = sigma_clip(master_dark, sigma = sig_hot_pix)
+    if bad_pix_method == 'sigma_clipping':
+        hot_px = sigma_clip(master_dark, sigma = sig_hot_pix)
+    elif bad_pix_method == 'MAD':
+        MAD = np.median(np.abs(dark_cube - master_dark ), axis = 0) #compute MAD
+        hot_px = sigma_clip(MAD, sigma = sig_hot_pix)
+    elif bad_pix_method == 'standard_deviation':
+        SD = np.std(dark_cube, axis = 0)
+        hot_px = sigma_clip(SD, sigma = sig_hot_pix)
+    else:
+        print('%s is in valid, use MAD instead'%bad_pix_method)
+        MAD = np.median(np.abs(dark_cube - master_dark ), axis = 0) #compute MAD
+        hot_px = sigma_clip(MAD, sigma = sig_hot_pix)
+
 
     zero_px = master_dark == 0. 
 
