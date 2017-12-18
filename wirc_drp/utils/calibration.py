@@ -220,9 +220,9 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
         hot_px = sigma_clip(MAD, sigma = sig_hot_pix)
 
 
-    zero_px = master_dark == 0. 
+    #zero_px = master_dark == 0. 
 
-    bad_px = hot_px.mask | zero_px
+    bad_px = hot_px.mask #| zero_px
 
     #Stick it back in the last hdu 
     hdu[0].data = master_dark
