@@ -116,7 +116,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
     #Global clipping here to reject awful pixels and dust, bad columns, etc
     pix_to_pix = flat/median_flat 
-    global_bad_px = sigma_clip(pix_to_pix, sigma = global_sig_bad_pix) #9 seems to work best
+    global_bad_px = sigma_clip(pix_to_pix, sigma = global_sig_bad_pix).mask #9 seems to work best
 
     #logic combine
     bad_px = np.logical_or(global_bad_px, local_bad_pix)
