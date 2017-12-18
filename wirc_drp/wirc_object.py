@@ -45,7 +45,7 @@ class wirc_data(object):
     """
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True,
-        dark_fn = None, flat_fn = None, bp_fn = None, bkg_fn = None,verbose = True):    
+        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None,verbose = True):    
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file, 
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once. 
@@ -97,6 +97,7 @@ class wirc_data(object):
             self.flat_fn = flat_fn
             self.bkg_fn = bkg_fn
             self.bp_fn = bp_fn
+            self.hp_fn = hp_fn
 
             #A bad flag that indicates this whole file should be disregarded. 
             self.bad_flag = False
@@ -204,7 +205,9 @@ class wirc_data(object):
                 self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
                 self.header['BKG_FN'] = self.bkg_fn   
 
-            #If a badpixel map is provided then correct for bad pixels, taking into account the clean_bad_pix and mask_mad_pixels flags
+            #If a bad pixel map is provided then correct for bad pixels, taking into account the clean_bad_pix and mask_mad_pixels flags
+            bad_pixel_map = np.zeros(self.full_image.shape)
+            hot_pixel_map = np.zeros(self.full_image.shape) #start with zeros, if provided then change the values
             if self.bp_fn is not None:
                 #Open the bad pixel map
                 bp_map_hdu = fits.open(self.bp_fn)
@@ -213,14 +216,26 @@ class wirc_data(object):
                 if verbose:
                     print(("Using bad pixel map {}".format(self.bp_fn)))
 
+                #if hot pixel map is also given
+                if self.hp_fn is not None:
+                    hot_pixel_map = fits.open(self.hp_fn)[0].data
+                    bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, hot_pixel_map.astype(bool)) #combine two maps
+
                 if clean_bad_pix:
                     redux = calibration.cleanBadPix(self.full_image, bad_pixel_map_bool)
-                    self.header['HISTORY'] = "Cleaned all bad pixels found in {} using a median filter".format(self.bp_fn)
+                    if self.hp_fn is not None:
+                        self.header['HISTORY'] = "Cleaned all bad/hot pixels found in {}, {} using a median filter".format(self.bp_fn, self.hp_fn)
+                    else:
+                        self.header['HISTORY'] = "Cleaned all bad pixels found in {} using a median filter".format(self.bp_fn)
                     self.header['CLEAN_BP'] = "True"
+
 
                 else:
                     redux = self.full_image
-                    self.header['HISTORY'] = "Bad pixels mask found in {} are not cleaned. Do this in cutouts".format(self.bp_fn)
+                    if self.hp_fn is not None:
+                        self.header['HISTORY'] = "Bad/hot pixels mask found in {},{} are not cleaned. Do this in cutouts".format(self.bp_fn,self.hp_fn)
+                    else:
+                        self.header['HISTORY'] = "Bad pixels mask found in {} are not cleaned. Do this in cutouts".format(self.bp_fn)
                     self.header['CLEAN_BP'] = "False"
                 
                 #Mask the bad pixels if the flag is set
@@ -228,12 +243,18 @@ class wirc_data(object):
                     redux = self.full_image*~bad_pixel_map_bool
 
                     #Update the header
-                    self.header['HISTORY'] = "Masking all bad pixels found in {}".format(self.bp_fn)
-                    self.header['BP_FN'] = self.bp_fn
+                    if self.hp_fn is not None:
+                        self.header['HISTORY'] = "Masking all bad/hot pixels found in {},{}".format(self.bp_fn, self.hp_fn)
+                        self.header['BP_FN'] = self.bp_fn
+                        self.header['HP_FN'] = self.hp_fn
+                    else:
+                        self.header['HISTORY'] = "Masking all bad pixels found in {}".format(self.bp_fn)
+                        self.header['BP_FN'] = self.bp_fn
 
                 self.full_image = redux
+                #Data quality image: 0 = good, 1 = bad pixel from flat, 2 = hot pixel from dark, 3 in both bad/hot pixel maps
 
-                self.DQ_image = np.ndarray.astype(bad_pixel_map_bool,int)
+                self.DQ_image = np.ndarray.astype(bad_pixel_map + 2*hot_pixel_map,int) 
 
             else:
                 print("No Bad pixel map filename found, continuing without correcting bad pixels")
