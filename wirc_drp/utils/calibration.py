@@ -123,7 +123,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     
     #Normalize good pixel values
     if normalize == 'median':
-        norm_flat = flat/np.nanmedian(bad_px.data[~bad_px.mask])
+        norm_flat = flat/np.nanmedian(flat[~bad_px]) 
     elif normalize == 'mode':
         norm_flat = flat/mode(flat, axis = None, nan_policy = 'omit')
     #Stick it back in the last hdu 
