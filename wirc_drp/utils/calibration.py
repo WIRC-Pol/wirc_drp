@@ -158,7 +158,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
     #else: 
     ##### Now write the bad pixel map
-    hdu[0].data = bad_px#np.array(bad_px.mask, dtype=float)
+    hdu[0].data = bad_px.astype(int)#np.array(bad_px.mask, dtype=float)
     #Parse the last fileanme
     bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
     
