@@ -151,7 +151,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
         #read in the existing bp map
         hdu = f.open(hotp_map_fname)
         #hdu[0].data += np.array(bad_px.mask, dtype=float)
-        hdu[0].data = np.logical_or(hdu[0].data.astype('bool'), bad_px) #use logical or to combine bad pixel maps
+        hdu[0].data = np.logical_or(hdu[0].data.astype(bool), bad_px) #use logical or to combine bad pixel maps
         bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
 
     else: 
