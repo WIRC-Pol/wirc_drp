@@ -198,7 +198,7 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
     dark_cube = np.empty((len(dark_list),2048,2048))
     for i in range(len(dark_list)):
         hdu = f.open(dark_list[i])
-        dark_cube[:,:,i] = hdu[0].data  
+        dark_cube[i,:,:] = hdu[0].data  
     
     #Create the master dark
     master_dark = np.median(dark_cube, axis = 0)
