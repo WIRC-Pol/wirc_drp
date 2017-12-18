@@ -317,7 +317,7 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
         science_exp_time = hdu[0].header['EXPTIME']
 
         if dark_exp_time != science_exp_time:
-            warnings.warn("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal", UserWarning)
+            warnings.warn("The master dark file doesn't have the same exposure time as the data. We'll scale the dark for now, but this isn't ideal", UserWarning)
             factor = science_exp_time/dark_exp_time
         else: 
             factor = 1. 

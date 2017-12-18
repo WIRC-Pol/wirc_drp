@@ -905,6 +905,14 @@ class wircpol_source(object):
         plt.show()
 
     # @profile
+    def clean_cutouts_for_cosmic_rays(self):
+        '''
+        Wrapper for the image_utils function clean_thumbnails_for_cosmicrays. Replaces the trace_image_DQs. 
+        '''
+
+        self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,thumbnails_dq=self.trace_images_DQ)
+
+
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, shift_dir = 'diagonal', plot=False, method = 'optimal_extraction', spatial_sigma = 3,
         lamda_sigma=10, width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
         sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True,debug_DQ=False,s=1,

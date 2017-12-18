@@ -433,6 +433,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
     #background = median_filter(background, 11) #assume no fine structure in background
     #First construct the variance estimate (eq 12, Horne 1986)
     variance = (read_out_noise/gain)**2 + np.abs(data)/gain
+    variance = median_filter(variance,6) #Smooth this - try to lower significance of bad pixels
     #Compute a "standard" spectrum estimator by summing across trace
     flux_0, var_0 = sum_across_trace(data-background, variance, extraction_range)
     sky_flux, sky_var = sum_across_trace(background, variance, extraction_range)
