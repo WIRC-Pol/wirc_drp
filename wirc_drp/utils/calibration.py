@@ -46,7 +46,8 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     global_sig_bad_pix: igmas used to reject bad pixel based on global distribution of the pixel-to-pixel variation 
     local_box_size: the dimension of the size of the local box used to do median and standard deviation filters
     sig_bad_pix: we define bad pixels as pixels with value more than sig_bad_pix*sqrt(variance) away from the median of the frame
-    hotp_map_fname: file name of the hot pixel map from the dark frame.
+    hotp_map_fname: file name of the hot pixel map from the dark frame, will be deprecated and let calibrate function deal with combinding 
+                    two maps
     """
 
     #Open the master dark
@@ -149,16 +150,17 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     #If there's already a hot pixel map then we'll add to it. 
     if hotp_map_fname != None:
         #read in the existing bp map
-        hdu = f.open(hotp_map_fname)
+        #hdu = f.open(hotp_map_fname)
         #hdu[0].data += np.array(bad_px.mask, dtype=float)
-        hdu[0].data = np.logical_or(hdu[0].data.astype(bool), bad_px) #use logical or to combine bad pixel maps
-        bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+        #hdu[0].data = np.logical_or(hdu[0].data.astype(bool), bad_px) #use logical or to combine bad pixel maps
+        #bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+        print("Will deal with hot pixel map from dark frames in the calibrate function")
 
-    else: 
-        ##### Now write the bad pixel map
-        hdu[0].data = bad_px#np.array(bad_px.mask, dtype=float)
-        #Parse the last fileanme
-        bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+    #else: 
+    ##### Now write the bad pixel map
+    hdu[0].data = bad_px#np.array(bad_px.mask, dtype=float)
+    #Parse the last fileanme
+    bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
     
     #Add history keywords
     hdu[0].header['HISTORY'] = "############################"
@@ -241,18 +243,19 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
     hdu.writeto(dark_outname, overwrite=True)
 
     #Stick it back in the last hdu 
-    hdu[0].data = np.array(bad_px, dtype=float)*2
+    #hdu[0].data = np.array(bad_px, dtype=float)*2
+    hdu[0].data = np.array(bad_px, dtype=float) #this is for new version, separate maps from dark and flat
 
     #Add history keywords
     #Add history keywords
     hdu[0].header['HISTORY'] = "############################"
-    hdu[0].header['HISTORY'] = "Created hot pixel map by sigma clipping {}".format(dark_outname)
+    hdu[0].header['HISTORY'] = "Created hot pixel map by {}: {}".format(bad_pix_method, dark_outname)
     hdu[0].header['HISTORY'] = "Bad pixel cutoff of {}sigma".format(sig_hot_pix)
-    hdu[0].header['HISTORY'] = "A pixel value of 2 indicates a hot pixel"
+    hdu[0].header['HISTORY'] = "A pixel value of 1 indicates a hot pixel"
     hdu[0].header['HISTORY'] = "############################"
 
     #Parse the last fileanme
-    bp_outname = dark_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+    bp_outname = dark_list[-1].rsplit('.',1)[0]+"_hp_map.fits" #hp map is from dark, as oppose to bp map from flat
     print(("Writing master dark to {}".format(bp_outname)))
     #Write the fits file
     hdu.writeto(bp_outname, overwrite=True)
@@ -261,7 +264,7 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
     
 
 
-def calibrate(science_list_fname, master_flat_fname, master_dark_fname, bp_map_fname, mask_bad_pixels = False, 
+def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_fname, bp_map_fname, mask_bad_pixels = False, 
                 clean_Bad_Pix=True, replace_nans=False, background_fname = None ):
     """
     Subtract dark; divide flat
@@ -286,11 +289,18 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, bp_map_f
     print(("Dividing each file by {}".format(master_flat_fname)))
     dark_exp_time = master_dark_hdu[0].header['EXPTIME']
 
-    #Open the master flat
+    #Open the bad pixel map from flat
     bp_map_hdu = f.open(bp_map_fname)
     bad_pixel_map = bp_map_hdu[0].data
     bad_pixel_map_bool = np.array(bad_pixel_map, dtype=bool)
     print(("Using bad pixel map {}".format(bp_map_fname)))
+
+    #now if hot pixel map from dark is also given
+    if hp_nam_hdu != None: 
+        hp_map_hdu = f.open(hp_map_fname)
+        hot_pixel_map = hp_map_hdu[0].data 
+        bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, hot_pixel_map.astype(bool) )
+
 
     if background_fname != None:
         background_hdu = f.open(background_fname)
