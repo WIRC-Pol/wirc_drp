@@ -827,7 +827,7 @@ class wircpol_source(object):
         Cutout thumbnails and put them into self.trace_images
 
         """
-        locs = [int(self.pos[0],int(self.pos[1]))]
+        locs = [int(self.pos[0]),int(self.pos[1])]
         
         self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar, verbose=verbose)[0])
         try:
