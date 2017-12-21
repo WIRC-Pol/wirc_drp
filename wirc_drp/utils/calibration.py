@@ -265,7 +265,7 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
 
 
 def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_fname, bp_map_fname, mask_bad_pixels = False, 
-                clean_Bad_Pix=True, replace_nans=False, background_fname = None, outdir = None):
+                clean_Bad_Pix=True, replace_nans=True, background_fname = None, outdir = None):
     """
     Subtract dark; divide flat
     Bad pixels are masked out using the bad_pixel_map with 0 = bad and 1 = good pixels
