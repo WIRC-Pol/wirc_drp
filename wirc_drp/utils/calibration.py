@@ -296,7 +296,7 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
     print(("Using bad pixel map {}".format(bp_map_fname)))
 
     #now if hot pixel map from dark is also given
-    if hp_nam_hdu != None: 
+    if hp_map_fname != None: 
         hp_map_hdu = f.open(hp_map_fname)
         hot_pixel_map = hp_map_hdu[0].data 
         bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, hot_pixel_map.astype(bool) )
