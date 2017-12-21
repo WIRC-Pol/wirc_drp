@@ -265,7 +265,7 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
 
 
 def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_fname, bp_map_fname, mask_bad_pixels = False, 
-                clean_Bad_Pix=True, replace_nans=False, background_fname = None ):
+                clean_Bad_Pix=True, replace_nans=False, background_fname = None, outdir = None):
     """
     Subtract dark; divide flat
     Bad pixels are masked out using the bad_pixel_map with 0 = bad and 1 = good pixels
@@ -373,8 +373,13 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
         # hdu[1].header['HISTORY'] = "1 = bad pixel from flat fields"
         # hdu[1].header['HISTORY'] = "2 = hot pixel from darks"
         
-
         outname = fname.split('.')[0]+"_calib.fits"
+        
+        #if an output directory is specified we can write out to that directory instead
+        #making sure to take only the stuff after the last '/' to avoid directory issues from fname
+        if outdir:
+            outname = outdir + fname.split('/')[-1]
+
         print(("Writing calibrated file to {}".format(outname)))
         #Save the calibrated file
         hdu.writeto(outname, overwrite=True)
