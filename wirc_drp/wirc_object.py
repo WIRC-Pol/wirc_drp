@@ -169,6 +169,25 @@ class wirc_data(object):
                     print("Destriping the detector image")
                 self.full_image = calibration.destripe_raw_image(self.full_image)
 
+            if self.bkg_fn is not None:
+                background_hdu = fits.open(self.bkg_fn)
+                background = background_hdu[0].data
+                if verbose:
+                    print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+
+                if self.dark_fn is not None:
+                    background = background - factor*master_dark
+
+                scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
+
+                #Subtract the background
+                self.full_image -= scale_bkg*background
+
+                #Update the header
+                self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
+                self.header['BKG_FN'] = self.bkg_fn
+
+
             if self.flat_fn is not None:
                 #Open the master flat
                 master_flat_hdu = fits.open(self.flat_fn)
@@ -186,24 +205,25 @@ class wirc_data(object):
             else:
                 print("No flat filename found, continuing without divinding by a falt")
 
-            #If a background image is provided then subtract it out
-            if self.bkg_fn is not None:
-                background_hdu = fits.open(self.bkg_fn)
-                background = background_hdu[0].data
-                if verbose:
-                    print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+#            #If a background image is provided then subtract it out
+#            if self.bkg_fn is not None:
+#                background_hdu = fits.open(self.bkg_fn)
+#                background = background_hdu[0].data
+#                if verbose:
+#                    print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+#
+#                if self.dark_fn is not None:
+#                    background = background - factor*master_dark
+#
+#                scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
+#
+#                #Subtract the background
+#                self.full_image -= scale_bkg*background
+#
+#                #Update the header
+#                self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
+#                self.header['BKG_FN'] = self.bkg_fn   
 
-                if self.dark_fn is not None:
-                    background = background - factor*master_dark
-
-                scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
-
-                #Subtract the background
-                self.full_image -= scale_bkg*background
-
-                #Update the header
-                self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
-                self.header['BKG_FN'] = self.bkg_fn   
 
             #If a bad pixel map is provided then correct for bad pixels, taking into account the clean_bad_pix and mask_mad_pixels flags
             bad_pixel_map = np.zeros(self.full_image.shape)
