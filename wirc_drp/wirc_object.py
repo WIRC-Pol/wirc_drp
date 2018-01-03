@@ -145,12 +145,12 @@ class wirc_data(object):
                 master_dark = master_dark_hdu[0].data
                 dark_shape = np.shape(master_dark)
                 print(("Subtracting {} from the image".format(self.dark_fn)))
-                dark_exp_time = master_dark_hdu[0].header['EXPTIME']
-
+                dark_exp_time = master_dark_hdu[0].header['EXPTIME'] * master_dark_hdu[0].header['COADDS']
+                total_exp_time = self.header["EXPTIME"]*self.header["COADDS"]
                 #Checking Dark Exposure times and scaling if need be
-                if dark_exp_time != self.header["EXPTIME"]:
+                if dark_exp_time != total_exp_time:
                     print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal")
-                    factor = self.header["EXPTIME"]/dark_exp_time
+                    factor = total_exp_time/dark_exp_time
                 else: 
                     factor = 1. 
 
@@ -172,11 +172,18 @@ class wirc_data(object):
             if self.bkg_fn is not None:
                 background_hdu = fits.open(self.bkg_fn)
                 background = background_hdu[0].data
+                bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
+                #Checking Dark Exposure times and scaling if need be
+                if dark_exp_time != bkg_exp_time:
+                    print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal")
+                    bk_factor = bkg_exp_time/dark_exp_time
+                else: 
+                    bk_factor = 1. 
                 if verbose:
                     print("Subtracting background frame {} from all science files".format(self.bkg_fn))
 
                 if self.dark_fn is not None:
-                    background = background - factor*master_dark
+                    background = background - bk_factor*master_dark
 
                 scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
 
