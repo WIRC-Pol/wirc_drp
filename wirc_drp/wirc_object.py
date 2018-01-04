@@ -1219,14 +1219,44 @@ class wircspec_source(object):
         self.spectra_aligned = False
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
-    def get_cutouts(self, image, filter_name, sub_bar=True, cutout_size=80, flip=False):
-        """
-        Cutout thumbnails and put them into self.trace_images.  Thumbnails are placed directly on input positions.
-        Optional: set cutout size.
-        """
+    # def get_cutouts(self, image, filter_name, sub_bar=True, cutout_size=80, flip=False):
+    #     """
+    #     Cutout thumbnails and put them into self.trace_images.  Thumbnails are placed directly on input positions.
+    #     Optional: set cutout size.
+    #     """
             
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0),flip=flip,filter_name = filter_name, sub_bar = sub_bar,mode = 'spec', cutout_size = cutout_size)[0])
+    #     self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([self.pos, self.slit_pos],axis=0),flip=flip, \
+    #                                             filter_name = filter_name, sub_bar = sub_bar,mode = 'spec', cutout_size = cutout_size)[0])
                 
+    #     self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
+
+
+    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, sub_bar=True, cutout_size=80, flip=False, verbose=False):
+        """
+        Cutout thumbnails and put them into self.trace_images
+        if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation 
+
+        """
+        locs = [int(self.pos[0]),int(self.pos[1])]
+        
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip\
+                                        ,filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose=verbose)[0])
+        try:
+            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,\
+                                        filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose = verbose)[0])
+        except:
+            if verbose: 
+                print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
+                self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
+
+        if replace_bad_pixels:
+            #iterate through the 4 thumbnails
+            for i in range(len(self.trace_images)):    
+                bad_pix_map = self.trace_images_DQ[i] != 0
+                self.trace_images[i] = calibration.replace_bad_pix_with_interpolation(self.trace_images[i], self.trace_images_DQ[i])
+                # except:
+                #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+        
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
     def plot_cutouts(self, **kwargs):
