@@ -149,7 +149,7 @@ class wirc_data(object):
                 total_exp_time = self.header["EXPTIME"]*self.header["COADDS"]
                 #Checking Dark Exposure times and scaling if need be
                 if dark_exp_time != total_exp_time:
-                    print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal")
+                    print("The master dark file doesn't have the same exposure time as the image being calibrated. We'll scale the dark for now, but this isn't ideal")
                     factor = total_exp_time/dark_exp_time
                 else: 
                     factor = 1. 
@@ -175,7 +175,7 @@ class wirc_data(object):
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
                 #Checking Dark Exposure times and scaling if need be
                 if dark_exp_time != bkg_exp_time:
-                    print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal")
+                    print("The master dark file doesn't have the same exposure time as the background image. We'll scale the dark for now, but this isn't ideal")
                     bk_factor = bkg_exp_time/dark_exp_time
                 else: 
                     bk_factor = 1. 
