@@ -849,7 +849,7 @@ class wircpol_source(object):
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, sub_bar=True, verbose=False):
+    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, sub_bar=True, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation 
@@ -865,11 +865,27 @@ class wircpol_source(object):
                 print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
                 self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
 
+        # if replace_bad_pixels:
+        #     #iterate through the 4 thumbnails
+        #     for i in range(len(self.trace_images)):    
+        #         bad_pix_map = self.trace_images_DQ[i] != 0
+        #         self.trace_images[i] = calibration.replace_bad_pix_with_interpolation(self.trace_images[i], self.trace_images_DQ[i])
+
+
         if replace_bad_pixels:
-            #iterate through the 4 thumbnails
-            for i in range(len(self.trace_images)):    
-                bad_pix_map = self.trace_images_DQ[i] != 0
-                self.trace_images[i] = calibration.replace_bad_pix_with_interpolation(self.trace_images[i], self.trace_images_DQ[i])
+            #check method
+            if method == 'interpolate':
+                #iterate through the 4 thumbnails
+                for i in range(len(self.trace_images)):    
+                    bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                    self.trace_images[i] = calibration.replace_bad_pix_with_interpolation(self.trace_images[i], self.trace_images_DQ[i])
+                    # except:
+                    #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+            elif method == 'median':
+                #iterate through the 4 thumbnails
+                for i in range(len(self.trace_images)):    
+                    bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                    self.trace_images[i] = calibration.cleanBadPix(self.trace_images[i], bad_pix_map, replacement_box = box_size)      
                 # except:
                 #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
         
@@ -1231,10 +1247,10 @@ class wircspec_source(object):
     #     self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, sub_bar=True, cutout_size=80, flip=False, verbose=False):
+    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, sub_bar=True, cutout_size=80, flip=False, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
-        if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation 
+        if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by method = 'interpolate' or 'median'
 
         """
         locs = [int(self.pos[0]),int(self.pos[1])]
@@ -1250,12 +1266,19 @@ class wircspec_source(object):
                 self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
 
         if replace_bad_pixels:
-            #iterate through the 4 thumbnails
-            for i in range(len(self.trace_images)):    
-                bad_pix_map = self.trace_images_DQ[i] != 0
-                self.trace_images[i] = calibration.replace_bad_pix_with_interpolation(self.trace_images[i], self.trace_images_DQ[i])
-                # except:
-                #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+            #check method
+            if method == 'interpolate':
+                #iterate through the 4 thumbnails
+                for i in range(len(self.trace_images)):    
+                    bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                    self.trace_images[i] = calibration.replace_bad_pix_with_interpolation(self.trace_images[i], self.trace_images_DQ[i])
+                    # except:
+                    #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+            elif method == 'median':
+                #iterate through the 4 thumbnails
+                for i in range(len(self.trace_images)):    
+                    bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                    self.trace_images[i] = calibration.cleanBadPix(self.trace_images[i], bad_pix_map, replacement_box = box_size)                
         
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
