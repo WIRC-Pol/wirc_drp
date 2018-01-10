@@ -853,6 +853,7 @@ class wircpol_source(object):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation 
+        method can be 'median' or 'interpolate'
 
         """
         locs = [int(self.pos[0]),int(self.pos[1])]
