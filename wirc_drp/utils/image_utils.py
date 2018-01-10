@@ -1138,7 +1138,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
             peaks_spline = copy.deepcopy(peaks)
             #getting the spline interpolated positions
             #fit each column from lower_x to upper_x with a spline and use the spline maxima for fitting peak_size
-            for i in range(lower_x, upper_x + 1):
+            for i in range(lower_x, upper_x):
                 x = np.arange(0, len(thumbnail[:,i]), 1)
                 y = thumbnail[:,i]
                 #throwing out the negative values from shift and subtract to make interpolation better
@@ -1156,9 +1156,8 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
                 elif fractional_fit_type =='gaussian':
                     def gauss(x, A, mu, sigma):
                         return A*np.exp(-(x-mu)**2/(2.*sigma**2))
-                    coeff, cov = curve_fit(gauss, x, y, p0=[10000,40,5])
+                    coeff, cov = curve_fit(gauss, x, y, p0=[np.max(y),i,5], maxfev = 15000)
                     ynew = gauss(xnew, *coeff)
-
                 peaks_spline[i] = xnew[np.argmax(ynew)]
         if fractional_fit_type is not None:
             p = np.polyfit(range(np.shape(thumbnail)[1]), peaks_spline, poly_order, w = weights)
@@ -1170,8 +1169,9 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
     fit = np.polyval(p,range(np.shape(thumbnail)[1]))
     
     if plot:
+        to_plot = np.where(weights == 0, 0, 1)
         print('Plotting')
-        plt.plot(peaks)
+        plt.plot(peaks_spline*to_plot)
         plt.plot(fit)
 
 
