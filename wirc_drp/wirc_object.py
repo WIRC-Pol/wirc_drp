@@ -149,7 +149,8 @@ class wirc_data(object):
                 total_exp_time = self.header["EXPTIME"]*self.header["COADDS"]
                 #Checking Dark Exposure times and scaling if need be
                 if dark_exp_time != total_exp_time:
-                    print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal")
+                    if verbose:
+                        print("The master dark file doesn't have the same exposure time as the image being calibrated. We'll scale the dark for now, but this isn't ideal")
                     factor = total_exp_time/dark_exp_time
                 else: 
                     factor = 1. 
@@ -175,7 +176,8 @@ class wirc_data(object):
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
                 #Checking Dark Exposure times and scaling if need be
                 if dark_exp_time != bkg_exp_time:
-                    print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal")
+                    if verbose:
+                        print("The master dark file doesn't have the same exposure time as the background image. We'll scale the dark for now, but this isn't ideal")
                     bk_factor = bkg_exp_time/dark_exp_time
                 else: 
                     bk_factor = 1. 
@@ -1248,33 +1250,33 @@ class wircspec_source(object):
     #     self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, sub_bar=True, cutout_size=80, flip=False, verbose=False):
+    def get_cutouts(self, image, filter_name, image_DQ = None, method = 'median', box_size = 5, sub_bar=True, cutout_size=80, flip=False, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
-        if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by method = 'interpolate' or 'median'
+        if replace_bad_pixels = True, read the DQ image and replace pixels with value != 0 by method = 'interpolate' or 'median'
 
         """
+
         locs = [int(self.pos[0]),int(self.pos[1])]
-        
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip\
-                                        ,filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose=verbose)[0])
-        try:
-            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,\
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,
+                                        filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose=verbose)[0])
+        if image_DQ is not None:
+
+            try:
+                self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,\
                                         filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose = verbose)[0])
-        except:
-            if verbose: 
-                print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
+            except:
+                if verbose: 
+                    print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
                 self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
 
-        if replace_bad_pixels:
             #check method
             if method == 'interpolate':
                 #iterate through the 4 thumbnails
                 for i in range(len(self.trace_images)):    
                     bad_pix_map = self.trace_images_DQ[i].astype(bool)
                     self.trace_images[i] = calibration.replace_bad_pix_with_interpolation(self.trace_images[i], self.trace_images_DQ[i])
-                    # except:
-                    #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+            
             elif method == 'median':
                 #iterate through the 4 thumbnails
                 for i in range(len(self.trace_images)):    
@@ -1296,7 +1298,8 @@ class wircspec_source(object):
         plt.show()
     
     def extract_spectra(self, sub_background = False, plot=False, method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, \
-                        fitfunction = 'Moffat', sum_method = 'weighted_sum', trace_angle = None, box_size = 1, poly_order = 4, align = True, verbose = True):
+                        fitfunction = 'Moffat', sum_method = 'weighted_sum', trace_angle = None, box_size = 1, poly_order = 4, align = True, verbose = True,
+                        fractional_fit_type = None):
         """
         *method:        method for spectral extraction. Choices are
         (i) skimage: this is just the profile_line method from skimage. Order for interpolation
@@ -1320,7 +1323,7 @@ class wircspec_source(object):
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract= spec_utils.spec_extraction(self.trace_images, self.slit_pos, 
             sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, 
             trace_angle = trace_angle, fitfunction = fitfunction, sum_method = sum_method, bad_pix_masking = bad_pix_masking, 
-            box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose)
+            box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose,fractional_fit_type = fractional_fit_type)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)

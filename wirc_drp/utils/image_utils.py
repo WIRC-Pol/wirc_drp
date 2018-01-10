@@ -22,7 +22,8 @@ from wirc_drp.masks.wircpol_masks import *
 from scipy.ndimage import gaussian_filter as gauss
 # from scipy.ndimage.filters import median_filter, shift
 from scipy.ndimage import median_filter, shift, rotate
-
+from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
@@ -1059,7 +1060,7 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
     return cutout - bkg, bkg
 
 # @profile
-def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mask=False,mode='pol'):
+def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mask=False,mode='pol',fractional_fit_type = None):
     """
     mode='pol' or 'spec'
     
@@ -1092,7 +1093,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
         peaks +=[ np.argmax(thumbnail[:,i]) ] 
         peak_size += [np.max(thumbnail[:,i])]
         bkg += [np.std(np.concatenate((thumbnail[:bkg_length,i],thumbnail[-bkg_length:,i])))]
-
+      
     bkg = np.array(bkg)
     # print np.shape(bkg)
     # print np.shape(peak_size)
@@ -1134,18 +1135,43 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
             weights[upper_x:] = 0
             #If the peaks are less than 10% of the brightest peak, set their weight to zero. 
             #weights[weights < 0.5* np.max(weights)] = 0.
-            if plot:  #print out locations of masked pixels when making plots
-                print(np.where(weights==0))
-
-        p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
+            peaks_spline = copy.deepcopy(peaks)
+            #getting the spline interpolated positions
+            #fit each column from lower_x to upper_x with a spline and use the spline maxima for fitting peak_size
+            for i in range(lower_x, upper_x):
+                x = np.arange(0, len(thumbnail[:,i]), 1)
+                y = thumbnail[:,i]
+                #throwing out the negative values from shift and subtract to make interpolation better
+                inds = np.where(y > 0.1 * np.max(y))
+                x = x[inds]
+                y = y[inds]
+                xnew = np.arange(np.min(x), np.max(x), 0.1)
+                ynew = np.zeros(len(xnew))
+                if fractional_fit_type == 'spline':
+                    f = interp1d(x, y, kind = 'cubic')
+                    ynew = f(xnew)
+                elif fractional_fit_type == 'cubic':
+                    p = np.polyfit(x, y, 3)
+                    ynew = np.polyval(p, xnew)
+                elif fractional_fit_type =='gaussian':
+                    def gauss(x, A, mu, sigma):
+                        return A*np.exp(-(x-mu)**2/(2.*sigma**2))
+                    coeff, cov = curve_fit(gauss, x, y, p0=[np.max(y),i,5], maxfev = 15000)
+                    ynew = gauss(xnew, *coeff)
+                peaks_spline[i] = xnew[np.argmax(ynew)]
+        if fractional_fit_type is not None:
+            p = np.polyfit(range(np.shape(thumbnail)[1]), peaks_spline, poly_order, w = weights)
+        else:
+            p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
     else:
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order)
 
     fit = np.polyval(p,range(np.shape(thumbnail)[1]))
     
     if plot:
+        to_plot = np.where(weights == 0, 0, 1)
         print('Plotting')
-        plt.plot(peaks)
+        plt.plot(peaks_spline*to_plot)
         plt.plot(fit)
 
 
