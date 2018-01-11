@@ -694,9 +694,17 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #trace is the vector of the y location of the trace for each x location in the frame
         #width is the width of the trace at its brightest point. 
         start = time.time()            
-
-        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot, diag_mask=diag_mask, mode=mode,
+        
+        if trace_angle is None:
+            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot, diag_mask=diag_mask, mode=mode,
                                                                   fractional_fit_type=fractional_fit_type) #linear fit to the trace
+            widths += trace_width
+            angles += measured_trace_angle
+        else:
+            angles += trace_angle
+            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot, diag_mask = diag_mask, mode = mode,
+                                                          fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
+            widths += trace_width
 
         #if background subtraction type is fit_background, then call the function
 
@@ -713,10 +721,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         widths += [trace_width]
         angles += [measured_trace_angle]
         
-        #raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
-        #weight_width = trace_width*width_scale
-        #if verbose:
-        #    print("Trace width {}".format(trace_width))
 
         ######################################
         ######Call spectral extraction routine
