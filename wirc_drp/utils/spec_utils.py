@@ -720,7 +720,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 mask = make_mask_from_findTrace(trace, trace_width, trace_angle)
 
             #then run the 2d polynomial function, update bkg_sub and bkg
-            bkg_sub, bkg = fit_background_2d_polynomial(thumbnail, mask, polynomial_order = 2)
+            bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = 1)
 
         #elif sub_background == 'shift_and_subtract': just use the bkgs from earlier
 
