@@ -561,7 +561,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     filter_name:    a string of which filter the source is in.
     plot:           whether or not to plot results here. Should plot later using plot_trace_spectra
     output_name:    name of the fits file to write the result. If None, no file is written 
-    sub_background: whether or not to run a background subtraction routine by shift and subtracting
+    sub_background: None to not run background subtraction, 
+                    'shift_and_subtract' to run a background subtraction routine by shift and subtracting
+                    '2D_polynomial' to run 2D polynomial fitting to subtract backgrond. 
     *method:        method for spectral extraction. Choices are
                         (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
                                         is in skimage_order parameter (fast).
@@ -638,8 +640,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         if mode=='spec' and verbose:
             print("Extracting spectrum".format(j))
 
-        #Should we subtrack the background? 
-        if sub_background:        
+        #Should we subtract the background? 
+        #for first round, we have to do shift and subtract just to find the trace
+        if sub_background != None:        
             #############################################
             ######If data is in the slit mode, perform shift and subtract to remove background
             #############################################
@@ -706,7 +709,20 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                                                           fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
             widths += [trace_width]
 
-        #if background subtraction type is fit_background, then call the function
+        #After findTrace is run, we can do 2D polynomial background subtraction
+        if sub_background == '2D_polynomial':
+            #update background frame with a 2D fitted background. 
+
+            #first mask out the trace using results from findTrace
+            if trace_angle is None:
+                mask = make_mask_from_findTrace(trace, trace_width, measured_trace_angle)
+            else:
+                mask = make_mask_from_findTrace(trace, trace_width, trace_angle)
+
+            #then run the 2d polynomial function, update bkg_sub and bkg
+            bkg_sub, bkg = fit_background_2d_polynomial(thumbnail, mask, polynomial_order = 2)
+
+        #elif sub_background == 'shift_and_subtract': just use the bkgs from earlier
 
         
         if diag_mask:

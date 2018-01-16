@@ -519,6 +519,7 @@ def get_relative_image_offsets(cutouts, plot = False, save_cutout = False):
     im0_stacks = []
     for j in range(n_sources):
         #Create the horizontal stack
+        
         stack = np.concatenate((cutouts[0,j,0,:,:], cutouts[0,j,1,:,:], cutouts[0,j,2,:,:],cutouts[0,j,3,:,:]), axis=1)
         
         #Get rid of outlying pixels
