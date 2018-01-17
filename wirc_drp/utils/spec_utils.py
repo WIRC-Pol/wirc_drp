@@ -722,7 +722,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #then run the 2d polynomial function, update bkg_sub and bkg
             del bkg
             del bkg_sub
-            bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = 1)
+            bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = 2)
            
             #debugging
 
