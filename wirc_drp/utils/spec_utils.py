@@ -843,8 +843,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
-            plt.imshow(sub_rotated, origin = 'lower')
-            plt.show()
+            #plt.imshow(sub_rotated, origin = 'lower')
+            #plt.show()
 
             if DQ_thumbnails is not None and use_DQ:
                 DQ_rotated = frame_rotate(DQ_copy[j,:,:], rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
