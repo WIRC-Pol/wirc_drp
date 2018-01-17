@@ -545,7 +545,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
 # @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
-    bkg_sub_shift_size = 21, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
+    bkg_sub_shift_size = 21, bkg_poly_order = 2, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
     diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
     spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None):
     """
@@ -563,7 +563,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     output_name:    name of the fits file to write the result. If None, no file is written 
     sub_background: None to not run background subtraction, 
                     'shift_and_subtract' to run a background subtraction routine by shift and subtracting
-                    '2D_polynomial' to run 2D polynomial fitting to subtract backgrond. 
+                    '2D_polynomial' to run 2D polynomial fitting to subtract backgrond. If this is selected, bkg_poly_order is the order 
+                    of polynomial used
     *method:        method for spectral extraction. Choices are
                         (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
                                         is in skimage_order parameter (fast).
@@ -722,7 +723,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #then run the 2d polynomial function, update bkg_sub and bkg
             del bkg
             del bkg_sub
-            bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = 2)
+            bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = bkg_poly_order)
            
             #debugging
 
