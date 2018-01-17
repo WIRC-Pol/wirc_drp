@@ -727,7 +727,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #debugging
 
             plt.imshow(bkg_sub, origin = 'lower')
-            plr.show()
+            plt.show()
 
         #elif sub_background == 'shift_and_subtract': just use the bkgs from earlier
 
