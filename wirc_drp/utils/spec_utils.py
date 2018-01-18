@@ -545,7 +545,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
 # @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
-    bkg_sub_shift_size = 21, bkg_poly_order = 2, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
+    bkg_sub_shift_size = 21, bkg_poly_order = 2,debug_bkgsub = False, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
     diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
     spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None):
     """
@@ -732,9 +732,18 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = bkg_poly_order)
            
             #debugging
-
-            #plt.imshow(bkg_sub, origin = 'lower')
-            #plt.show()
+            if debug_bkgsub:
+                plt.imshow(mask, origin = 'lower')
+                plt.show()
+                plt.imshow(bkg_sub, origin = 'lower')
+                plt.colorbar()
+                plt.show()
+                plt.imshow(bkg, origin = 'lower')
+                plt.colorbar()
+                plt.show()
+                if bkg_poly_order == 0:
+                    print(bkg[0,0])
+                    print(np.median(thumbnail.flatten()))
 
         #elif sub_background == 'shift_and_subtract': just use the bkgs from earlier
 
@@ -881,7 +890,18 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spec_res, spec_var = optimal_extraction(rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
                 gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
                 spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth) 
+            spec_res_zero, spec_var_zero = optimal_extraction(rotated, np.zeros(np.shape(rotated)), ext_range,
+                bad_pix_masking=bad_pix_masking, gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip,
+                verbose = verbose, bad_pixel_mask = DQ_final, spatial_smooth=spatial_smooth, spectral_smooth=spectral_smooth) 
 
+            if debug_bkgsub:
+                plt.show()
+                plt.plot(spec_res, label = 'with bkg')
+                plt.plot(spec_res_zero, label = 'without bkg')
+                plt.legend(loc = 2)
+                plt.show()   
+                plt.plot(spec_res_zero - spec_res)
+                plt.show()
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
