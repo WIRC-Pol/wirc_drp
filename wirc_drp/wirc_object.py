@@ -1300,7 +1300,7 @@ class wircspec_source(object):
     
     def extract_spectra(self, sub_background = False, plot=False, method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, \
                         fitfunction = 'Moffat', sum_method = 'weighted_sum', trace_angle = None, box_size = 1, poly_order = 4, align = True, verbose = True,
-                        fractional_fit_type = None, bkg_sub_shift_size = 21):
+                        fractional_fit_type = None, bkg_sub_shift_size = 21, bkg_poly_order = 2, debug_bkgsub = False):
         """
         *method:        method for spectral extraction. Choices are
         (i) skimage: this is just the profile_line method from skimage. Order for interpolation
@@ -1325,7 +1325,7 @@ class wircspec_source(object):
             sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, 
             trace_angle = trace_angle, fitfunction = fitfunction, sum_method = sum_method, bad_pix_masking = bad_pix_masking, 
             box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose,fractional_fit_type = fractional_fit_type,
-            bkg_sub_shift_size = bkg_sub_shift_size)
+            bkg_sub_shift_size = bkg_sub_shift_size, bkg_poly_order = bkg_poly_order, debug_bkgsub = debug_bkgsub)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
