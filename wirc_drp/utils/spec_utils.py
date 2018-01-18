@@ -1309,6 +1309,8 @@ def align_spectral_cube(spectral_cube, ref_trace = None):
     for i in range(spectral_cube.shape[1]): #this dimension is the 4 spectral traces for wirc+pol
         aligned_cube[:,i,:,:] = align_set_of_traces(spectral_cube[:,i,:,:], ref_trace)
 
+    return aligned_cube
+
 def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, xmin = 0, xmax = -1):
     """
     scale_and_combine_spectra takes a spectra cube from get_spec_cube_from_wirc_obj. For each trace 
