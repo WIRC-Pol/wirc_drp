@@ -667,19 +667,25 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
             if slit_num != 'slitless' or shift_dir == 'horizontal':
-                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] )))
+                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ], order = 0),shift( thumbnail, [0,bkg_sub_shift_size ], order = 0 )))
 
                 bkg = np.nanmean(bkg_stack, axis=2)
+
+                #if median filter background
+                #bkg = median_filter(bkg, 3)
 
             elif shift_dir == 'vertical':
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ]),shift( thumbnail, [bkg_sub_shift_size ,0] )))
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ], order = 0),shift( thumbnail, [bkg_sub_shift_size ,0], order = 0)))
                 bkg = np.nanmean(bkg_stack, axis=2)
-            elif shift_dir =='diagonal': #for slitless data, shift in diagonal
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] )))
-                bkg = np.nanmean(bkg_stack, axis=2)
-            #else:
-            #    print('')
 
+            elif shift_dir =='diagonal': #for slitless data, shift in diagonal
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0),\
+                            shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 )))
+                bkg = np.nanmean(bkg_stack, axis=2)
+
+
+            #if median filter background
+            #bkg = median_filter(bkg, 3)
 
             bkg_sub = thumbnail - bkg
 
@@ -1262,7 +1268,7 @@ def align_set_of_traces(traces_cube, ref_trace):
 
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], (0,shift_size), order = 1) # this shifts wl, flux, and flux_error at the same time. 
+        new_cube[i] = shift(traces_cube[i], (0,shift_size), order = 0) # this shifts wl, flux, and flux_error at the same time. order = 0 so no interpolation 
             
     return new_cube
 
