@@ -194,7 +194,7 @@ class wirc_data(object):
                 #Check if background is already reduced
                 bkg_reduced = background_hdu[0].header["CALBRTED"]
 
-                if self.bkg_reduced == False:
+                if bkg_reduced == False:
                     #Checking Dark Exposure times and scaling if need be
                     if dark_exp_time != bkg_exp_time:
                         if verbose:
