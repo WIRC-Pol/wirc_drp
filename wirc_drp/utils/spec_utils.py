@@ -1288,7 +1288,7 @@ def align_set_of_traces(traces_cube, ref_trace):
 
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], (0,shift_size), order = 0) # this shifts wl, flux, and flux_error at the same time. order = 0 so no interpolation 
+        new_cube[i] = shift(traces_cube[i], shift_size, order = 0) # this shifts wl, flux, and flux_error at the same time. order = 0 so no interpolation 
             
     return new_cube
 
