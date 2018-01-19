@@ -1284,6 +1284,25 @@ def align_set_of_traces(traces_cube, ref_trace):
     for i, j in enumerate(traces_cube):
         #print(np.max(ref), np.max(j))
         #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
+        corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j/np.nanmax(j))[::-1]) )#j[1,:] is the flux vector
+
+        shift_size = np.nanargmax(corr) - len(ref) +1
+        #print(shift_size)
+        new_cube[i] = shift(traces_cube[i], (0,shift_size), order = 0) # this shifts wl, flux, and flux_error at the same time. order = 0 so no interpolation 
+            
+    return new_cube
+
+def align_spectral_cube_helper(traces_cube, ref_trace):
+    """
+    align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
+    and align them with respect to the reference trace of the same length. 
+    """
+    new_cube = np.zeros(traces_cube.shape)
+    ref = ref_trace
+    #fig, (ax, ax2) = plt.subplots(2,4, figsize = (20,10))
+    for i, j in enumerate(traces_cube):
+        #print(np.max(ref), np.max(j))
+        #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
         corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j[1,:]/np.nanmax(j[1,:]))[::-1]) )#j[1,:] is the flux vector
 
         shift_size = np.nanargmax(corr) - len(ref) +1
@@ -1307,7 +1326,7 @@ def align_spectral_cube(spectral_cube, ref_trace = None):
     aligned_cube = np.zeros(spectral_cube.shape) 
     #loop through 4 spectral traces
     for i in range(spectral_cube.shape[1]): #this dimension is the 4 spectral traces for wirc+pol
-        aligned_cube[:,i,:,:] = align_set_of_traces(spectral_cube[:,i,:,:], ref_trace)
+        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:], ref_trace)
 
     return aligned_cube
 
