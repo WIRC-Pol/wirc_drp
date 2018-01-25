@@ -165,11 +165,6 @@ class wirc_data(object):
             else:
                 print("No dark filename found, continuing without subtracting a dark")
 
-            if destripe:
-                if verbose:
-                    print("Destriping the detector image")
-                self.full_image = calibration.destripe_raw_image(self.full_image)
-
             if self.bkg_fn is not None:
                 background_hdu = fits.open(self.bkg_fn)
                 background = background_hdu[0].data
@@ -293,6 +288,12 @@ class wirc_data(object):
             if replace_nans: 
                 nanmask = np.isnan(self.full_image) #nan = True, just in case this is useful
                 self.full_image = np.nan_to_num(self.full_image)
+
+            if destripe:
+                if verbose:
+                    print("Destriping the detector image")
+                self.full_image = calibration.destripe_after_bkg_sub(self.full_image)
+
 
             #Turn on the calibrated flag
             self.calibrated = True
@@ -1300,7 +1301,7 @@ class wircspec_source(object):
     
     def extract_spectra(self, sub_background = False, plot=False, method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, \
                         fitfunction = 'Moffat', sum_method = 'weighted_sum', trace_angle = None, box_size = 1, poly_order = 4, align = True, verbose = True,
-                        fractional_fit_type = None, bkg_sub_shift_size = 21, bkg_poly_order = 2, debug_bkgsub = False):
+                        fractional_fit_type = None, bkg_sub_shift_size = 21, bkg_poly_order = 2, debug_bkgsub = False, spatial_sigma = 3):
         """
         *method:        method for spectral extraction. Choices are
         (i) skimage: this is just the profile_line method from skimage. Order for interpolation
@@ -1325,7 +1326,8 @@ class wircspec_source(object):
             sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, 
             trace_angle = trace_angle, fitfunction = fitfunction, sum_method = sum_method, bad_pix_masking = bad_pix_masking, 
             box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose,fractional_fit_type = fractional_fit_type,
-            bkg_sub_shift_size = bkg_sub_shift_size, bkg_poly_order = bkg_poly_order, debug_bkgsub = debug_bkgsub)
+            bkg_sub_shift_size = bkg_sub_shift_size, bkg_poly_order = bkg_poly_order, debug_bkgsub = debug_bkgsub, spatial_sigma = spatial_sigma)
+        
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         #for i in spectra:
         #    plt.plot(i)
@@ -1350,7 +1352,6 @@ class wircspec_source(object):
         self.spectra_widths = spectra_widths
         self.spectra_angles = spectra_angles
 
-    
     def rough_lambda_calibration(self, filter_name="J", method=1, lowcut=0, highcut=-1):
         #Rough wavelength calibration. Will have to get better later!
         
