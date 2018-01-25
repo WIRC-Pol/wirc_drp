@@ -1389,10 +1389,18 @@ def traceWidth(trace, location, fit_length):
         print('Given location and fit_length fall of the trace image.')
         return None
     else:
-        #create a flux vector 
+        #create a flux vector
+        ypos = []
+        xpos = []
         flux = np.zeros(2*fit_length)
         for i in range(2*fit_length):
+            ypos.append(location[0] - fit_length + i)
+            xpos.append(location[1] - fit_length + i)
             flux[i] = trace[location[0] - fit_length + i , location[1] - fit_length + i ]
+    #    plt.show()
+    #    plt.imshow(trace, origin = 'lower')
+    #    plt.plot(xpos, ypos, 'r-')
+    #    plt.show()
         #fit parameters
         x = range(len(flux))
         gauss = models.Gaussian1D(mean = np.argmax(flux), stddev = 4, amplitude = np.max(flux))#, bounds = {'stddev':[-5,5]}) 
@@ -1402,6 +1410,17 @@ def traceWidth(trace, location, fit_length):
         res = f(gauss+poly, x, flux)
 
         return res[0].stddev.value
+
+def traceWidth_after_rotation(trace, fitlength = 10):
+    [ymax], [xmax] = np.where(trace == np.max(trace))       #nice way to get maximum coordinates
+    flux = trace[ymax - fitlength:ymax + fitlength, xmax]   #vertical line since image is rotated
+    x = range(len(flux))
+    gauss = models.Gaussian1D(mean = np.argmax(flux), stddev = 4, amplitude = np.max(flux))
+    f = fitting.LevMarLSQFitter()
+    res = f(gauss, x, flux)                                 #fitting to a gaussian
+    return res.stddev.value                              #returning standard deviation
+       
+
 
 def clean_thumbnails_for_cosmicrays(thumbnails, thumbnails_dq=None, nsig=3):
     '''
