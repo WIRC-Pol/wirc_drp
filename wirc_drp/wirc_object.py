@@ -45,7 +45,7 @@ class wirc_data(object):
     """
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True,
-        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None,verbose = True):    
+        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, verbose = True):    
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file, 
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once. 
@@ -165,33 +165,6 @@ class wirc_data(object):
             else:
                 print("No dark filename found, continuing without subtracting a dark")
 
-            if self.bkg_fn is not None:
-                background_hdu = fits.open(self.bkg_fn)
-                background = background_hdu[0].data
-                bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
-                #Checking Dark Exposure times and scaling if need be
-                if dark_exp_time != bkg_exp_time:
-                    if verbose:
-                        print("The master dark file doesn't have the same exposure time as the background image. We'll scale the dark for now, but this isn't ideal")
-                    bk_factor = bkg_exp_time/dark_exp_time
-                else: 
-                    bk_factor = 1. 
-                if verbose:
-                    print("Subtracting background frame {} from all science files".format(self.bkg_fn))
-
-                if self.dark_fn is not None:
-                    background = background - bk_factor*master_dark
-
-                scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
-
-                #Subtract the background
-                self.full_image -= scale_bkg*background
-
-                #Update the header
-                self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
-                self.header['BKG_FN'] = self.bkg_fn
-
-
             if self.flat_fn is not None:
                 #Open the master flat
                 master_flat_hdu = fits.open(self.flat_fn)
@@ -208,6 +181,43 @@ class wirc_data(object):
                 
             else:
                 print("No flat filename found, continuing without divinding by a falt")
+
+            if self.bkg_fn is not None:
+                background_hdu = fits.open(self.bkg_fn)
+                background = background_hdu[0].data
+                bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
+                #Check if background is already reduced
+                bkg_reduced = background_hdu[0].header["CALBRTED"]
+
+                if bkg_reduced == False:
+                    #Checking Dark Exposure times and scaling if need be
+                    if dark_exp_time != bkg_exp_time:
+                        if verbose:
+                            print("The master dark file doesn't have the same exposure time as the background image. We'll scale the dark for now, but this isn't ideal")
+                        bk_factor = bkg_exp_time/dark_exp_time
+                    else: 
+                        bk_factor = 1. 
+                    if verbose:
+                        print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+
+                    if self.dark_fn is not None:
+                        background = background - bk_factor*master_dark
+                    if self.flat_fn is not None:
+                        background = background/master_flat
+                else: #if the background is already reduced
+                    pass #do nothing, it's already good!
+
+                scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
+
+                #Subtract the background
+                self.full_image -= scale_bkg*background
+
+                #Update the header
+                self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
+                self.header['BKG_FN'] = self.bkg_fn
+
+
+
 
 #            #If a background image is provided then subtract it out
 #            if self.bkg_fn is not None:
