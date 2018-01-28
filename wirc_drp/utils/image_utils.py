@@ -129,8 +129,8 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     if im_package =='scipy':
     	sky_image_filt = ndimage.median_filter(sky_image,3) 
     else:#just use cv2 im_package == 'cv2':   
-    	sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
-    # plt.imshow(sky_image_filt)
+    	 sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
+   # plt.imshow(sky_image_filt)
     # plt.show()
 
     # Load science image, either from file or as np array
@@ -1412,13 +1412,13 @@ def traceWidth(trace, location, fit_length):
         return res[0].stddev.value
 
 def traceWidth_after_rotation(trace, fitlength = 10):
-    [ymax], [xmax] = np.where(trace == np.max(trace))       #nice way to get maximum coordinates
-    flux = trace[ymax - fitlength:ymax + fitlength, xmax]   #vertical line since image is rotated
-    x = range(len(flux))
-    gauss = models.Gaussian1D(mean = np.argmax(flux), stddev = 4, amplitude = np.max(flux))
+    collapsed = np.sum(trace, axis = 1)              #collapsing trace along x axis
+    x = range(len(collapsed))
+    
+    gauss = models.Gaussian1D(mean = np.argmax(collapsed), stddev = 3, amplitude = np.max(collapsed))
     f = fitting.LevMarLSQFitter()
-    res = f(gauss, x, flux)                                 #fitting to a gaussian
-    return res.stddev.value                              #returning standard deviation
+    res = f(gauss, x, collapsed)                     #fitting collapsed trace to a gaussian
+    return res.stddev.value                          #returning standard deviation
        
 
 
