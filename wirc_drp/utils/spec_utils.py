@@ -13,14 +13,12 @@ import sys, os
 import numpy as np
 from matplotlib import pyplot as plt
 from wirc_drp.constants import *
-
 from scipy.optimize import least_squares
 from scipy.optimize import basinhopping
 from scipy.ndimage import shift, median_filter
 from scipy.ndimage import gaussian_filter
 from scipy import ndimage as ndi
 from scipy.signal import fftconvolve
-
 from skimage.measure import profile_line
 
 from astropy.modeling import models, fitting
@@ -444,15 +442,15 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         #Profile image; first pass, eq 14, then smooth with a median filter
         P_0 = np.copy(data)
         P_0 = (data - background)/flux_0 #this is dividing each column (x) in data-background by the sum in that column
+        
         #smooth with a median filter only in the dispersion direction (x); note that the index is (y,x) here
         P_0 = median_filter(P_0, size = (spatial_smooth,spectral_smooth))
-        #enforce non negativity and unity sum in the spatial direction
+
+        ##enforce non negativity and unity sum in the spatial direction
         P_0[P_0 < 0] = 0
         P_sum, var_Psum = sum_across_trace(P_0, variance, extraction_range)
         P_0 = P_0/P_sum
         
-        #for i in range(P_0.shape[1]):
-        #    plt.scatter(i, np.sum(P_0[extraction_range[0]:extraction_range[1],i]))
         if plot:
             plt.figure()
             for i in range(extraction_range[0], extraction_range[1]):
@@ -464,7 +462,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
                 plt.xlabel('Spectral pixel')
             plt.title('Spectral Profile')
             plt.show()
-
+        
         #Now, optimization step. This version makes no attempts to deal with bad pixel
         #print(flux_0.shape, P_0.shape)
         
@@ -478,9 +476,6 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         else:
             Mask = np.logical_and(np.ones(data.shape), bad_pixel_mask) #use all pixels, this will quit the while loop automatically
 
-
-        #plt.imshow(variance_opt,origin ='lower', norm = LogNorm())
-
         #Summation terms
         #sum P(D-S)/V
         sum1, foo = sum_across_trace(Mask*P_0*(data-background)/variance_opt, variance, extraction_range) 
@@ -489,15 +484,11 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         #sum P**2/V
         sum3, foo = sum_across_trace(Mask*P_0**2/variance_opt,variance, extraction_range) 
         
-        #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0])
-        #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'b')
-        
         #plt.plot(sum_across_trace(P_0*(data-background), variance, extraction_range)[0],'c')
         #plt.plot(sum_across_trace(variance_opt, variance, extraction_range)[0],'r')
         #plt.plot(sum1 ,'r')
         #plt.plot(sumP,'g')
         #plt.plot(sum3,'b')
-        #plt.show()
 
         #compute optimized flux and variance spectra
         flux_opt_final = np.nan_to_num(sum1/sum3)
@@ -545,7 +536,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
 # @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
-    bkg_sub_shift_size = 21, bkg_poly_order = 2,debug_bkgsub = False, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
+    bkg_sub_shift_size = 21, bkg_poly_order = 2, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
     diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
     spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None):
     """
@@ -643,7 +634,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         #Should we subtract the background? 
         #for first round, we have to do shift and subtract just to find the trace
-        if sub_background != None:        
+        if sub_background != None and mode == 'pol':        
             #############################################
             ######If data is in the slit mode, perform shift and subtract to remove background
             #############################################
@@ -663,7 +654,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #else:
              #   bkg_sub, bkg = fit_and_subtract_background(thumbnail)
 
-        #For now, do shift and subtract always
+            #For now, do shift and subtract always
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
             if slit_num != 'slitless' or shift_dir == 'horizontal':
@@ -682,6 +673,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0),\
                             shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 )))
                 bkg = np.nanmean(bkg_stack, axis=2)
+                
+         
 
 
             #if median filter background
@@ -693,6 +686,11 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
             # bkg_sub = bkg_sub * thumb_mask
             # bkg = bkg * thumb_mask
+         
+        elif sub_background != None and mode == 'spec':
+            medval = np.median(thumbnail.flatten())
+            bkg = np.ones(np.shape(thumbnail))*medval
+            bkg_sub = thumbnail - bkg
 
         else: #if not background subtraction, set bkg to 0.
             bkg_sub = np.copy(thumbnail)
@@ -722,32 +720,15 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #first mask out the trace using results from findTrace
             if trace_angle is None:
-                mask = make_mask_from_findTrace(trace, trace_width, measured_trace_angle)
+                mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
             else:
-                mask = make_mask_from_findTrace(trace, trace_width, trace_angle)
+                mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle)
 
             #then run the 2d polynomial function, update bkg_sub and bkg
             del bkg
             del bkg_sub
             bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = bkg_poly_order)
            
-            #debugging
-            if debug_bkgsub:
-                plt.imshow(mask, origin = 'lower')
-                plt.show()
-                plt.imshow(bkg_sub, origin = 'lower')
-                plt.colorbar()
-                plt.show()
-                plt.imshow(bkg, origin = 'lower')
-                plt.colorbar()
-                plt.show()
-                if bkg_poly_order == 0:
-                    print(bkg[0,0])
-                    print(np.median(thumbnail.flatten()))
-
-        #elif sub_background == 'shift_and_subtract': just use the bkgs from earlier
-
-        
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.
@@ -858,6 +839,10 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
+            if mode == 'spec':
+                real_width = image_utils.traceWidth_after_rotation(sub_rotated)
+                
+
             #plt.imshow(sub_rotated, origin = 'lower')
             #plt.show()
 
@@ -884,24 +869,19 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # #because the pixel width changes as we rotate the image 
             # lower = int(np.floor(vert_max - spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))))) #is this LISP or what?
             # upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
+            
+            bkg = rotated-sub_rotated
+            
+            if mode == 'spec':
+                ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma)
+            else:
+                ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
+            widths += [real_width]
 
-            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
-            spec_res, spec_var = optimal_extraction(rotated, rotated - sub_rotated, ext_range, bad_pix_masking = bad_pix_masking, \
+            spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
                 gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
                 spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth) 
-            spec_res_zero, spec_var_zero = optimal_extraction(rotated, np.zeros(np.shape(rotated)), ext_range,
-                bad_pix_masking=bad_pix_masking, gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip,
-                verbose = verbose, bad_pixel_mask = DQ_final, spatial_smooth=spatial_smooth, spectral_smooth=spectral_smooth) 
-
-            if debug_bkgsub:
-                plt.show()
-                plt.plot(spec_res, label = 'with bkg')
-                plt.plot(spec_res_zero, label = 'without bkg')
-                plt.legend(loc = 2)
-                plt.show()   
-                plt.plot(spec_res_zero - spec_res)
-                plt.show()
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
