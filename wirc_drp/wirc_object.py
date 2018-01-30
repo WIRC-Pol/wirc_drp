@@ -165,10 +165,7 @@ class wirc_data(object):
             else:
                 print("No dark filename found, continuing without subtracting a dark")
 
-            if destripe:
-                if verbose:
-                    print("Destriping the detector image")
-                self.full_image = calibration.destripe_raw_image(self.full_image)
+
 
             if self.flat_fn is not None:
                 #Open the master flat
@@ -222,7 +219,10 @@ class wirc_data(object):
                 self.header['BKG_FN'] = self.bkg_fn
 
 
-
+            if destripe:
+                if verbose:
+                    print("Destriping the detector image")
+                self.full_image = calibration.destripe_raw_image(self.full_image)
 
 #            #If a background image is provided then subtract it out
 #            if self.bkg_fn is not None:
