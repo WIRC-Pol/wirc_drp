@@ -220,7 +220,7 @@ class wirc_data(object):
             if destripe:
                 if verbose:
                     print("Destriping the detector image")
-                self.full_image = calibration.destripe_raw_image(self.full_image)
+                self.full_image = calibration.destripe_after_bkg_sub(self.full_image)
 
 #            #If a background image is provided then subtract it out
 #            if self.bkg_fn is not None:
