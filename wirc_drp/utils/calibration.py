@@ -175,7 +175,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     ##### Now write the bad pixel map
     hdu[0].data = bad_px.astype(int)#np.array(bad_px.mask, dtype=float)
     #Parse the last fileanme
-    bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+    # bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
     
     #Add history keywords
     hdu[0].header['HISTORY'] = "############################"
