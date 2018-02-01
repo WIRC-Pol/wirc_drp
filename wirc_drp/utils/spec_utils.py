@@ -728,7 +728,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             if trace_angle is None:
                 mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
             else:
-                mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle[i])
+                mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle[j])
 
             #then run the 2d polynomial function, update bkg_sub and bkg
             del bkg
@@ -783,9 +783,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             if trace_angle == None:
                 rotate_spec_angle = measured_trace_angle #use the measured angle
             else:
-                rotate_spec_angle = trace_angle[i] #use the given value
+                rotate_spec_angle = trace_angle[j] #use the given value
                 if verbose:
-                    print("use given ", trace_angle[i]," instead. change this by setting trace_angle to None")
+                    print("use given ", trace_angle[j]," instead. change this by setting trace_angle to None")
             #start = time.time()
             spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  False, return_residual = 1, \
                                                                         fitfunction = fitfunction, box_size = box_size, poly_order = poly_order,
@@ -807,9 +807,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             if trace_angle == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
-                rotate_spec_angle = trace_angle[i] 
+                rotate_spec_angle = trace_angle[j] 
                 if verbose:
-                    print("using given angle of ", trace_angle[i]," deg. change this by setting trace_angle to None")
+                    print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = bkg_sub.shape[0]
@@ -836,9 +836,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             if trace_angle == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
-                rotate_spec_angle = trace_angle[i] 
+                rotate_spec_angle = trace_angle[j] 
                 if verbose:
-                    print("using given angle of ", trace_angle[i]," deg. change this by setting trace_angle to None")
+                    print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = bkg_sub.shape[0]
