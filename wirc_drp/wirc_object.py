@@ -90,7 +90,7 @@ class wirc_data(object):
 
             self.calibrated = False
             self.bkg_subbed = False
-            
+
             self.n_sources = 0
             self.source_list = []
             self.dark_fn = dark_fn        
@@ -187,10 +187,7 @@ class wirc_data(object):
                 background = background_hdu[0].data
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
                 #Check if background is already reduced
-                try:
-                    bkg_reduced = background_hdu[0].header["CALBRTED"]
-                except KeyError as e:
-                    bkg_reduced = False
+                bkg_reduced = background_hdu[0].header["CALBRTED"]
 
                 if bkg_reduced == False:
                     #Checking Dark Exposure times and scaling if need be
@@ -220,10 +217,10 @@ class wirc_data(object):
                 self.header['BKG_FN'] = self.bkg_fn
 
 
-            #if destripe:
-            #    if verbose:
-            #        print("Destriping the detector image")
-            #    self.full_image = calibration.destripe_after_bkg_sub(self.full_image)
+            if destripe:
+                if verbose:
+                    print("Destriping the detector image")
+                self.full_image = calibration.destripe_raw_image(self.full_image)
 
 #            #If a background image is provided then subtract it out
 #            if self.bkg_fn is not None:
@@ -1336,6 +1333,7 @@ class wircspec_source(object):
         """
         if verbose:
             print("Performing Spectral Extraction for source {}".format(self.index))
+
         
         #call spec_extraction to actually extract spectra
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract= spec_utils.spec_extraction(self.trace_images, self.slit_pos, 
