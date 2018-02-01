@@ -220,10 +220,10 @@ class wirc_data(object):
                 self.header['BKG_FN'] = self.bkg_fn
 
 
-            if destripe:
-                if verbose:
-                    print("Destriping the detector image")
-                self.full_image = calibration.destripe_after_bkg_sub(self.full_image)
+            #if destripe:
+            #    if verbose:
+            #        print("Destriping the detector image")
+            #    self.full_image = calibration.destripe_after_bkg_sub(self.full_image)
 
 #            #If a background image is provided then subtract it out
 #            if self.bkg_fn is not None:
