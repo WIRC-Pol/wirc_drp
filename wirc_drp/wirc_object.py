@@ -187,7 +187,10 @@ class wirc_data(object):
                 background = background_hdu[0].data
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
                 #Check if background is already reduced
-                bkg_reduced = background_hdu[0].header["CALBRTED"]
+                try:
+                    bkg_reduced = background_hdu[0].header["CALBRTED"]
+                except KeyError as e:
+                    bkg_reduced = False
 
                 if bkg_reduced == False:
                     #Checking Dark Exposure times and scaling if need be
