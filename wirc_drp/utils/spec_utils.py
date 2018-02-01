@@ -537,7 +537,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 # @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
     bkg_sub_shift_size = 21, bkg_poly_order = 2, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
-    diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
+    diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
     spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None):
     """
     This is the main function to perform spectral extraction on the spectral image
@@ -622,6 +622,12 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     #lists to collect widths and angles of the traces
     widths = []
     angles = []
+    #if the given angle is only one, make it into a list
+    try:
+        len(trace_angle) #if pass then angle is a list
+    except:
+        trace_angle = [trace_angle]*ntraces #just repeat the given nubmer 4 times
+
     thumbnails_to_extract = [] #This is to collect the thumbnails that will actually be extracted (e.g. bkg subtracted/rotated)
     for j in range(ntraces):    
         trace_title = trace_titles[j]
@@ -709,7 +715,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             widths += [trace_width]
             angles += [measured_trace_angle]
         else:
-            angles += [trace_angle]
+            angles += [trace_angle[j]] #use the given angle
             raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot, diag_mask = diag_mask, mode = mode,
                                                           fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
             widths += [trace_width]

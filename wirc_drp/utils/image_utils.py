@@ -156,8 +156,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         ffmask = fits.open(wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
         fftmask = np.ndarray.astype(ffmask,bool)
         fftmask = fftmask[::-1,:]
-        science_image_filt[np.where(~fftmask)] = 0.
-        sky_image_filt[np.where(~fftmask)] = 0.
+        # science_image_filt[np.where(~fftmask)] = 0.
+        # sky_image_filt[np.where(~fftmask)] = 0.
+        science_image_filt[np.where(~fftmask)] = np.median(science_image_filt)
+        sky_image_filt[np.where(~fftmask)] = np.median(sky_image_filt)
     #     med_sci = np.nanmedian(science_image_filt[fftmask])
     #     med_sky = np.nanmedian(sky_image_filt[fftmask])
 
