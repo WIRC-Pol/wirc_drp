@@ -26,7 +26,8 @@ from wirc_drp import version # For versioning (requires gitpython 'pip install g
 import copy
 
 def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
-                global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False):
+                global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
+                output_dir = None):
 
     
     """
@@ -141,10 +142,16 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     hdu[0].header['HISTORY'] = "############################"
 
     #Parse the last fileanme
-    flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
+    if output_dir is not None:
+        flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
+        flat_outname = flat_outname.rsplit('/',1)[0]
+        flat_outname = output_dir+flat_outname
+    else:    
+        flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
+    
+    #Write the fits file
     if verbose:
         print(("Writing master flat to {}".format(flat_outname)))
-    #Write the fits file
     hdu.writeto(flat_outname, overwrite=True)
 
     #If there's already a hot pixel map then we'll add to it. 
@@ -157,10 +164,18 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
         print("Will deal with hot pixel map from dark frames in the calibrate function")
 
     #else: 
+    #Parse the last fileanme
+    if output_dir is not None:
+        bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+        bp_outname = bp_outname.rsplit('/',1)[0]
+        bp_outname = output_dir+bp_outname
+    else:    
+        bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+
     ##### Now write the bad pixel map
     hdu[0].data = bad_px.astype(int)#np.array(bad_px.mask, dtype=float)
     #Parse the last fileanme
-    bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+    # bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
     
     #Add history keywords
     hdu[0].header['HISTORY'] = "############################"
@@ -177,7 +192,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
     return flat_outname, bp_outname
     
-def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
+def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5, output_dir = None):
 
     """
     Create a master dark file from the median of a list of fits files
@@ -237,7 +252,13 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
     hdu[0].header['HISTORY'] = "############################"
 
     #Parse the last fileanme
-    dark_outname = dark_list[-1].rsplit('.',1)[0]+"_master_dark.fits"
+    if output_dir is not None:
+        dark_outname = dark_list[-1].rsplit('.',1)[0]+"_master_dark.fits"
+        dark_outname = dark_outname.rsplit("/",1)[0]
+        dark_outname = output_dir+dark_outname
+    else:
+        dark_outname = dark_list[-1].rsplit('.',1)[0]+"_master_dark.fits"
+
     print(("Writing master dark to {}".format(dark_outname)))
     #Write the fits file
     hdu.writeto(dark_outname, overwrite=True)
@@ -255,7 +276,13 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5):
     hdu[0].header['HISTORY'] = "############################"
 
     #Parse the last fileanme
-    bp_outname = dark_list[-1].rsplit('.',1)[0]+"_hp_map.fits" #hp map is from dark, as oppose to bp map from flat
+    if output_dir is not None:
+        bp_outname = dark_list[-1].rsplit('.',1)[0]+"_hp_map.fits"
+        bp_outname = bp_outname.rsplit("/",1)[0]
+        bp_outname = output_dir+bp_outname
+    else:
+        bp_outname = dark_list[-1].rsplit('.',1)[0]+"_hp_map.fits" #hp map is from dark, as oppose to bp map from flat
+
     print(("Writing master dark to {}".format(bp_outname)))
     #Write the fits file
     hdu.writeto(bp_outname, overwrite=True)
