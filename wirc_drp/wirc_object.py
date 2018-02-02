@@ -130,7 +130,7 @@ class wirc_data(object):
             self.source_list = []
             
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe=False, verbose=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False):
         '''
         Apply dark and flat-field correction
         '''
@@ -220,7 +220,7 @@ class wirc_data(object):
                 self.header['BKG_FN'] = self.bkg_fn
 
 
-            if destripe:
+            if destripe_raw:
                 if verbose:
                     print("Destriping the detector image")
                 self.full_image = calibration.destripe_raw_image(self.full_image)
@@ -1287,7 +1287,6 @@ class wircspec_source(object):
                 if verbose: 
                     print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
                 self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
-
             #check method
             if method == 'interpolate':
                 #iterate through the 4 thumbnails
@@ -1300,7 +1299,6 @@ class wircspec_source(object):
                 for i in range(len(self.trace_images)):    
                     bad_pix_map = self.trace_images_DQ[i].astype(bool)
                     self.trace_images[i] = calibration.cleanBadPix(self.trace_images[i], bad_pix_map, replacement_box = box_size)                
-        
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
     def plot_cutouts(self, **kwargs):
