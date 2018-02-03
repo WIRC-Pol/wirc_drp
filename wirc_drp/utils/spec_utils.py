@@ -460,16 +460,16 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
 
         if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
-            fig, ax = plt.subplots(3,1)
+            fig, ax = plt.subplots(1,3)
             ax[0].imshow(data - background, origin = 'lower')
             ax[0].plot([0,1],extraction_range, '-')
-            ax[0].suptitle('Data - background')
+            ax[0].set_title('Data - background')
             ax[1].imshow(variance_opt, origin = 'lower')
             ax[1].plot([0,1],extraction_range, '-')
-            ax[1].suptitle('Optimized variance')
+            ax[1].set_title('Optimized variance')
             ax[2].imshow(P_0, origin = 'lower')
             ax[2].plot([0,1],extraction_range, '-')
-            ax[2].suptitle('Profile image')
+            ax[2].set_title('Profile image')
             # for i in range(extraction_range[0], extraction_range[1]):
             #     plt.plot(P_0[i,:])
             #     #plt.plot(median_filter(P_0[i,:], 10))
