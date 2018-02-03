@@ -1172,10 +1172,12 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
     
     if plot:
         to_plot = np.where(weights == 0, 0, 1)
-        print('Plotting')
+        #print('Plotting')
         #plt.plot(peaks_spline*to_plot)
-        plt.plot(to_plot)
+        plt.imshow(thumbnail, origin = 'lower')
+        #plt.plot(to_plot)
         plt.plot(fit)
+        plt.plot(peaks)
 
 
     #Now for the trace width
