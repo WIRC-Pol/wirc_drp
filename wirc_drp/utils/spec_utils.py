@@ -451,23 +451,34 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         P_sum, var_Psum = sum_across_trace(P_0, variance, extraction_range)
         P_0 = P_0/P_sum
         
-        if plot:
-            plt.figure()
-            for i in range(extraction_range[0], extraction_range[1]):
-                plt.plot(P_0[i,:])
-                #plt.plot(median_filter(P_0[i,:], 10))
-                plt.ylim([-0.05,0.2])
-                plt.xlim([30,140])
-                plt.ylabel('P')
-                plt.xlabel('Spectral pixel')
-            plt.title('Spectral Profile')
-            plt.show()
+
         
         #Now, optimization step. This version makes no attempts to deal with bad pixel
         #print(flux_0.shape, P_0.shape)
         
         #optimized variance 
         variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
+
+        if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
+            fig, ax = plt.subplots(3,1)
+            ax[0].imshow(data - background, origin = 'lower')
+            ax[0].plot([0,1],extraction_range, '-')
+            ax[0].suptitle('Data - background')
+            ax[1].imshow(variance_opt, origin = 'lower')
+            ax[1].plot([0,1],extraction_range, '-')
+            ax[1].suptitle('Optimized variance')
+            ax[2].imshow(P_0, origin = 'lower')
+            ax[2].plot([0,1],extraction_range, '-')
+            ax[2].suptitle('Profile image')
+            # for i in range(extraction_range[0], extraction_range[1]):
+            #     plt.plot(P_0[i,:])
+            #     #plt.plot(median_filter(P_0[i,:], 10))
+            #     plt.ylim([-0.05,0.2])
+            #     plt.xlim([30,140])
+            #     plt.ylabel('P')
+            #     plt.xlabel('Spectral pixel')
+            # plt.title('Spectral Profile')
+            # plt.show()
 
         #compare data to model and reject spurious pixels, this is 1 for good pixels
         if bad_pix_masking:
@@ -887,7 +898,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
-                gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
+                gain = 1.2, read_out_noise = 12, plot = plot, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
                 spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth) 
 
             spectra.append(spec_res)
