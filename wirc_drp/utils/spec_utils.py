@@ -549,7 +549,8 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
     bkg_sub_shift_size = 21, bkg_poly_order = 2, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
     diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
-    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None):
+    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None,
+    plot_optimal_extraction = False, plot_findTrace = False):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -721,13 +722,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         start = time.time()            
         
         if trace_angle[j] is None:
-            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot, diag_mask=diag_mask, mode=mode,
+            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
                                                                   fractional_fit_type=fractional_fit_type) #linear fit to the trace
             widths += [trace_width]
             angles += [measured_trace_angle]
         else:
             angles += [trace_angle[j]] #use the given angle
-            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot, diag_mask = diag_mask, mode = mode,
+            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
                                                           fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
             widths += [trace_width]
         
@@ -898,7 +899,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
-                gain = 1.2, read_out_noise = 12, plot = plot, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
+                gain = 1.2, read_out_noise = 12, plot = plot_optimal_extraction, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
                 spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth) 
 
             spectra.append(spec_res)
