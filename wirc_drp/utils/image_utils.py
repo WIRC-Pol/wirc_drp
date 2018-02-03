@@ -1173,7 +1173,8 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
     if plot:
         to_plot = np.where(weights == 0, 0, 1)
         print('Plotting')
-        plt.plot(peaks_spline*to_plot)
+        #plt.plot(peaks_spline*to_plot)
+        plt.plot(to_plot)
         plt.plot(fit)
 
 
