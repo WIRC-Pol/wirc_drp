@@ -478,7 +478,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
             #     plt.ylabel('P')
             #     plt.xlabel('Spectral pixel')
             # plt.title('Spectral Profile')
-            # plt.show()
+            plt.show()
 
         #compare data to model and reject spurious pixels, this is 1 for good pixels
         if bad_pix_masking:
