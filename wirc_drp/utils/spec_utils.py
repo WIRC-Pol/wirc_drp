@@ -709,7 +709,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
         
-        if trace_angle is None:
+        if trace_angle[j] is None:
             raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot, diag_mask=diag_mask, mode=mode,
                                                                   fractional_fit_type=fractional_fit_type) #linear fit to the trace
             widths += [trace_width]
@@ -719,7 +719,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot, diag_mask = diag_mask, mode = mode,
                                                           fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
             widths += [trace_width]
-
+        
         #After findTrace is run, we can do 2D polynomial background subtraction
         if sub_background == '2D_polynomial':
             #update background frame with a 2D fitted background. 
@@ -833,7 +833,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle == None: #if the trace angle is not given, use the measured angle
+            if trace_angle[j] == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
                 rotate_spec_angle = trace_angle[j] 
