@@ -762,6 +762,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             del bkg, bkg_sub
             #set background level to the masked out version of the thumbnail. 
             bkg_level = np.median(thumbnail[~mask])
+            print("background is = ",bkg_level)
             bkg = np.ones(thumbnail.shape) * bkg_level
             bkg_sub = thumbnail - bkg 
            
