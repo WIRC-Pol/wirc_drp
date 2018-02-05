@@ -754,9 +754,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             del bkg_sub
             bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = bkg_poly_order)
            
-        if diag_mask:
-            mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
-            bkg_sub[~mask] = 0.
+        #if diag_mask:
+        #    mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
+        #    bkg_sub[~mask] = 0.
 
         if verbose:
             print("Trace width {}".format(trace_width))
