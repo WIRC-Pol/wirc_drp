@@ -680,7 +680,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
             if slit_num != 'slitless' or shift_dir == 'horizontal':
-                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ], order = 0),shift( thumbnail, [0,bkg_sub_shift_size ], order = 0 )))
+                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),
+                                        shift( thumbnail, [0,bkg_sub_shift_size ], order = 0,mode = 'nearest' )))
 
                 bkg = np.nanmean(bkg_stack, axis=2)
 
@@ -688,12 +689,13 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 #bkg = median_filter(bkg, 3)
 
             elif shift_dir == 'vertical':
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ], order = 0),shift( thumbnail, [bkg_sub_shift_size ,0], order = 0)))
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ], order = 0,mode = 'nearest'),
+                                        shift( thumbnail, [bkg_sub_shift_size ,0], order = 0,mode = 'nearest')))
                 bkg = np.nanmean(bkg_stack, axis=2)
 
             elif shift_dir =='diagonal': #for slitless data, shift in diagonal
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0),\
-                            shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 )))
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
+                            shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
                 bkg = np.nanmean(bkg_stack, axis=2)
                 
          
