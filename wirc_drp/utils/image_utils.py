@@ -1176,7 +1176,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
     angle = np.degrees(np.arctan(p[-2]))
 
     #Now for the trace width, mask irrelevent area to prevent traceWidth trying to fit weird places in the image
-    on_trace = np.where( np.abs(fit-peaks) < 5) #5 pixels
+    on_trace = np.abs(fit-peaks) < 5 #5 pixels
     x_bigpeak = np.argmax(peak_size*on_trace) #set "peaks" that are not on trace to zero
     y_bigpeak = peaks[x_bigpeak]
     width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
