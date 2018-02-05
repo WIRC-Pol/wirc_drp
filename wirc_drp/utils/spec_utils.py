@@ -619,7 +619,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     if DQ_thumbnails is not None:
         DQ_copy = copy.deepcopy(DQ_thumbnails)
     
-    #Flip some of the traces around. do this after background
+    #Flip some of the traces around.
     if mode=='pol': 
         thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
         thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
@@ -915,7 +915,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                         fit_im[int(trace[i]),i] = 1 
                 rotated_fit_im = frame_rotate(fit_im, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
                 vert_max = np.argmax( np.sum(rotated_fit_im, axis = 1))
-                ext_range = [vert_max - real_width*spatial_sigma, vert_max + real_width*spatial_sigma]    
+                ext_range = [int(vert_max - real_width*spatial_sigma), int(vert_max + real_width*spatial_sigma)]    
 
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
