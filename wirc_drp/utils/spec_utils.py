@@ -753,6 +753,17 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             del bkg
             del bkg_sub
             bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = bkg_poly_order)
+        elif sub_background == 'median':
+            #first mask out the trace using results from findTrace
+            if trace_angle is None:
+                mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
+            else:
+                mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle[j])
+            del bkg, bkg_sub
+            #set background level to the masked out version of the thumbnail. 
+            bkg_level = np.median(thumbnail[~mask])
+            bkg = np.ones(thumbnail.shape) * bkg_level
+            bkg_sub = thumbnail - bkg 
            
         #if diag_mask:
         #    mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
