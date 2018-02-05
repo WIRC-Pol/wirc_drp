@@ -1169,15 +1169,6 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order)
 
     fit = np.polyval(p,range(np.shape(thumbnail)[1]))
-    
-    if plot:
-        to_plot = np.where(weights == 0, 0, 1)
-        #print('Plotting')
-        #plt.plot(peaks_spline*to_plot)
-        plt.imshow(thumbnail, origin = 'lower')
-        #plt.plot(to_plot)
-        plt.plot(fit)
-        plt.plot(peaks)
 
 
     #Now for the trace width
@@ -1189,6 +1180,17 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
     #second to last element of p is the linear order.
 #    print(p[-2])
     angle = np.degrees(np.arctan(p[-2]))
+
+    if plot:
+        to_plot = np.where(weights == 0, 0, 1)
+        #print('Plotting')
+        #plt.plot(peaks_spline*to_plot)
+        plt.imshow(thumbnail, origin = 'lower')
+        #plt.plot(to_plot)
+        plt.plot(fit)
+        plt.plot(peaks)
+        plt.title('Width = %.2f, angle = %.2f'%(width, angle))
+
 
     return peaks, fit, width, angle
 
