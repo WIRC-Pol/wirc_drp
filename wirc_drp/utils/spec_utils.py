@@ -912,7 +912,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 for i in range(fit_im.shape[1]):
                     print(trace[i])
                     if trace[i] > 0 and trace[i] < fit_im.shape[1]:
-                        fit_im[trace[i],i] = 1 
+                        fit_im[int(trace[i]),i] = 1 
                 rotated_fit_im = frame_rotate(fit_im, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
                 vert_max = np.argmax( np.sum(rotated_fit_im, axis = 1))
                 ext_range = [vert_max - real_width*spatial_sigma, vert_max + real_width*spatial_sigma]    
