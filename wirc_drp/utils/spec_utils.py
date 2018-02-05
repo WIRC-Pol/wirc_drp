@@ -619,7 +619,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     if DQ_thumbnails is not None:
         DQ_copy = copy.deepcopy(DQ_thumbnails)
     
-    #Flip some of the traces around.
+    #Flip some of the traces around. 
     if mode=='pol': 
         thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
         thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
@@ -694,8 +694,12 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 bkg = np.nanmean(bkg_stack, axis=2)
 
             elif shift_dir =='diagonal': #for slitless data, shift in diagonal
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
-                            shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
+                if j in [0,1]:
+                    bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
+                                shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
+                elif j in [2,3]: #different diagonal for U traces. This is equivalent to doing shift and sub before flipping the traces.
+                    bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
+                                shift( thumbnail, [-bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
                 bkg = np.nanmean(bkg_stack, axis=2)
                 
          
