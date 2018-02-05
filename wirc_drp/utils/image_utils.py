@@ -1087,7 +1087,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
 
 
     if diag_mask and mode=='pol':
-        mask = makeDiagMask(np.shape(thumbnail)[0],50)
+        mask = makeDiagMask(np.shape(thumbnail)[0],100)
         thumbnail[~mask] = 0.0
         # plt.imshow(thumbnail)
     

@@ -914,12 +914,14 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
                 fit_im = np.zeros(thumbnail.shape) 
                 for i in range(fit_im.shape[1]):
-                    print(trace[i])
+                    #print(trace[i])
                     if trace[i] > 0 and trace[i] < fit_im.shape[1]:
+			#print(int(trace[i]),i)
                         fit_im[int(trace[i]),i] = 1 
                 rotated_fit_im = frame_rotate(fit_im, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
                 vert_max = np.argmax( np.sum(rotated_fit_im, axis = 1))
-                ext_range = [vert_max - real_width*spatial_sigma, vert_max + real_width*spatial_sigma]    
+                ext_range = [int(vert_max - real_width*spatial_sigma), int(vert_max + real_width*spatial_sigma)]
+                print(ext_range)    
 
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
@@ -1932,7 +1934,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
 
         diag_mask = 0
         if diag_mask:
-            mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
+            mask = makeDiagMask(np.shape(bkg_sub)[0],100)
             bkg_sub[~mask] = 0.
 
         if verbose:
