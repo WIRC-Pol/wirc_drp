@@ -864,8 +864,10 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
-            if mode == 'spec':
-                real_width = image_utils.traceWidth_after_rotation(sub_rotated)
+            #measure real_width after rotation. Now do this for polarimetric data too
+            real_width = image_utils.traceWidth_after_rotation(sub_rotated)
+
+
                 
 
             #plt.imshow(sub_rotated, origin = 'lower')
@@ -896,13 +898,22 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
             
             bkg = rotated-sub_rotated
+
+            # #extraction range should come from findTrace output, not having to be found again!
+
+
             
             if mode == 'spec':
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma)
                 widths += [real_width]
             else:
-                ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
-            
+                #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
+                fit_im = np.zeros(thumbnail.shape) 
+                for i in range(fit_im.shape[1]):
+                    fit_im[fit[i],i] = 1 
+                rotated_fit_im = frame_rotate(fit_im, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+                vert_max = np.argmax( np.sum(rotated_fit_im, axis = 1))
+                ext_range = [vert_max - real_width*spatial_sigma, vert_max + real_width*spatial_sigma]    
 
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
