@@ -1170,16 +1170,18 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
 
     fit = np.polyval(p,range(np.shape(thumbnail)[1]))
 
-
-    #Now for the trace width
-    x_bigpeak = np.argmax(peak_size)
-    y_bigpeak = peaks[x_bigpeak]
-    width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
-
     #now the angle
     #second to last element of p is the linear order.
 #    print(p[-2])
     angle = np.degrees(np.arctan(p[-2]))
+
+    #Now for the trace width, mask irrelevent area to prevent traceWidth trying to fit weird places in the image
+    on_trace = np.where( np.abs(fit-peaks) < 5) #5 pixels
+    x_bigpeak = np.argmax(peak_size*on_trace) #set "peaks" that are not on trace to zero
+    y_bigpeak = peaks[x_bigpeak]
+    width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
+
+
 
     if plot:
         to_plot = np.where(weights == 0, 0, 1)
