@@ -1455,7 +1455,7 @@ def clean_thumbnails_for_cosmicrays(thumbnails, thumbnails_dq=None, nsig=3):
 
         # if thumbnails_dq is not None:
             # bp_mask = thumbnails_dq[i] | bpmask
-        thumbnails_dq[np.where(bpmask)] = 4
+        thumbnails_dq[i][np.where(bpmask)] = 4
 
         # bp_masks.append(bpmask)
 
