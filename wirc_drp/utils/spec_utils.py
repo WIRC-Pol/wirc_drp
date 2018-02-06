@@ -463,16 +463,16 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
             fig, ax = plt.subplots(1,3,figsize = (15,5))
             ax[0].imshow(data - background, origin = 'lower')
-            ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '-')
-            ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '-')
+            ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
+            ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[0].set_title('Data - background')
             ax[1].imshow(variance_opt, origin = 'lower')
-            ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '-')
-            ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '-')
+            ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
+            ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[1].set_title('Optimized variance')
-            ax[2].imshow(P_0, origin = 'lower')
-            ax[2].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '-')
-            ax[2].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '-')
+            ax[2].imshow(P_0, origin = 'lower',vmin=0,vmax=0.5)
+            ax[2].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
+            ax[2].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[2].set_title('Profile image')
             # for i in range(extraction_range[0], extraction_range[1]):
             #     plt.plot(P_0[i,:])
@@ -754,7 +754,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = bkg_poly_order)
         elif sub_background == 'median':
             #first mask out the trace using results from findTrace
-            if trace_angle is None:
+            if trace_angle[j] is None:
                 mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
             else:
                 mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle[j])
