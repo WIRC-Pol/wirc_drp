@@ -1192,6 +1192,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
         plt.plot(fit)
         plt.plot(peaks)
         plt.title('Width = %.2f, angle = %.2f'%(width, angle))
+        plt.show()
 
 
     return peaks, fit, width, angle
