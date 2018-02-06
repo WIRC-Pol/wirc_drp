@@ -458,7 +458,8 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         
         #optimized variance 
         variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
-        print('Extraction range is', extraction_range)
+        if verbose:
+            print('Extraction range is', extraction_range)
         if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
             fig, ax = plt.subplots(1,3,figsize = (15,5))
             ax[0].imshow(data - background, origin = 'lower')
@@ -550,11 +551,10 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
 # @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
-    bkg_sub_shift_size = 21, bkg_poly_order = 2, filter_bkg_size = None,
-    method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
-    diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
-    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None,
-    plot_optimal_extraction = False, plot_findTrace = False):
+    bkg_sub_shift_size = 21, bkg_poly_order = 2, filter_bkg_size = None, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
+    bad_pix_masking = 0,skimage_order=4, width_scale=1., diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', 
+    box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
+    spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None, plot_optimal_extraction = False, plot_findTrace = False):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -679,6 +679,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #For now, do shift and subtract always
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
+
             if slit_num != 'slitless' or shift_dir == 'horizontal':
                 bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),
                                         shift( thumbnail, [0,bkg_sub_shift_size ], order = 0,mode = 'nearest' )))
@@ -697,10 +698,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
                             shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
                 bkg = np.nanmean(bkg_stack, axis=2)
-                
+            
          
-
-
             #if median filter background
             if filter_bkg_size != None:
                 bkg = median_filter(bkg, filter_bkg_size)
@@ -762,7 +761,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             del bkg, bkg_sub
             #set background level to the masked out version of the thumbnail. 
             bkg_level = np.median(thumbnail[~mask])
-            print("background is = ",bkg_level)
+            if verbose: 
+                print("background is = ",bkg_level)
             bkg = np.ones(thumbnail.shape) * bkg_level
             bkg_sub = thumbnail - bkg 
            
@@ -878,8 +878,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #measure real_width after rotation. Now do this for polarimetric data too
             real_width = image_utils.traceWidth_after_rotation(sub_rotated)
-
-
                 
 
             #plt.imshow(sub_rotated, origin = 'lower')
