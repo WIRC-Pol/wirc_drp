@@ -1443,8 +1443,9 @@ def clean_thumbnails_for_cosmicrays(thumbnails, thumbnails_dq=None, nsig=3):
         for bpx,bpy in [(np.where(bpmask)[0],np.where(bpmask)[1])]:
             thumbnails[0,bpx,bpy] = np.nanmedian(thumbnails[0,bpx[0]-2:bpx[0]+2,bpy[1]-2:bpy[1]+2])
 
-        if thumbnails_dq is not None:
-            bp_mask = thumbnails_dq[i] | bpmask
+        # if thumbnails_dq is not None:
+            # bp_mask = thumbnails_dq[i] | bpmask
+        thumbnails_dq[np.where(bp_mask)] = 4
 
         bp_masks.append(bp_mask)
 
