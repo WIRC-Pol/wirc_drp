@@ -451,23 +451,37 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         P_sum, var_Psum = sum_across_trace(P_0, variance, extraction_range)
         P_0 = P_0/P_sum
         
-        if plot:
-            plt.figure()
-            for i in range(extraction_range[0], extraction_range[1]):
-                plt.plot(P_0[i,:])
-                #plt.plot(median_filter(P_0[i,:], 10))
-                plt.ylim([-0.05,0.2])
-                plt.xlim([30,140])
-                plt.ylabel('P')
-                plt.xlabel('Spectral pixel')
-            plt.title('Spectral Profile')
-            plt.show()
+
         
         #Now, optimization step. This version makes no attempts to deal with bad pixel
         #print(flux_0.shape, P_0.shape)
         
         #optimized variance 
         variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
+        print('Extraction range is', extraction_range)
+        if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
+            fig, ax = plt.subplots(1,3,figsize = (15,5))
+            ax[0].imshow(data - background, origin = 'lower')
+            ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '-')
+            ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '-')
+            ax[0].set_title('Data - background')
+            ax[1].imshow(variance_opt, origin = 'lower')
+            ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '-')
+            ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '-')
+            ax[1].set_title('Optimized variance')
+            ax[2].imshow(P_0, origin = 'lower')
+            ax[2].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '-')
+            ax[2].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '-')
+            ax[2].set_title('Profile image')
+            # for i in range(extraction_range[0], extraction_range[1]):
+            #     plt.plot(P_0[i,:])
+            #     #plt.plot(median_filter(P_0[i,:], 10))
+            #     plt.ylim([-0.05,0.2])
+            #     plt.xlim([30,140])
+            #     plt.ylabel('P')
+            #     plt.xlabel('Spectral pixel')
+            # plt.title('Spectral Profile')
+            plt.show()
 
         #compare data to model and reject spurious pixels, this is 1 for good pixels
         if bad_pix_masking:
@@ -536,9 +550,11 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
 # @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
-    bkg_sub_shift_size = 21, bkg_poly_order = 2, method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
-    diag_mask = False, trace_angle = -45, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
-    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None):
+    bkg_sub_shift_size = 21, bkg_poly_order = 2, filter_bkg_size = None,
+    method = 'optimal_extraction', niter = 2, sig_clip = 5, bad_pix_masking = 0,skimage_order=4, width_scale=1., 
+    diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, mode = 'pol', 
+    spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False,spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None,
+    plot_optimal_extraction = False, plot_findTrace = False):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -622,6 +638,12 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     #lists to collect widths and angles of the traces
     widths = []
     angles = []
+    #if the given angle is only one, make it into a list
+    try:
+        len(trace_angle) #if pass then angle is a list
+    except:
+        trace_angle = [trace_angle]*ntraces #just repeat the given nubmer 4 times
+
     thumbnails_to_extract = [] #This is to collect the thumbnails that will actually be extracted (e.g. bkg subtracted/rotated)
     for j in range(ntraces):    
         trace_title = trace_titles[j]
@@ -658,7 +680,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # bkg = (shift( thumbnail, [0,-21] ) + shift( thumbnail, [0,21] ))/2
 
             if slit_num != 'slitless' or shift_dir == 'horizontal':
-                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ], order = 0),shift( thumbnail, [0,bkg_sub_shift_size ], order = 0 )))
+                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),
+                                        shift( thumbnail, [0,bkg_sub_shift_size ], order = 0,mode = 'nearest' )))
 
                 bkg = np.nanmean(bkg_stack, axis=2)
 
@@ -666,19 +689,21 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 #bkg = median_filter(bkg, 3)
 
             elif shift_dir == 'vertical':
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ], order = 0),shift( thumbnail, [bkg_sub_shift_size ,0], order = 0)))
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ], order = 0,mode = 'nearest'),
+                                        shift( thumbnail, [bkg_sub_shift_size ,0], order = 0,mode = 'nearest')))
                 bkg = np.nanmean(bkg_stack, axis=2)
 
             elif shift_dir =='diagonal': #for slitless data, shift in diagonal
-                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0),\
-                            shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 )))
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
+                            shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
                 bkg = np.nanmean(bkg_stack, axis=2)
                 
          
 
 
             #if median filter background
-            #bkg = median_filter(bkg, 3)
+            if filter_bkg_size != None:
+                bkg = median_filter(bkg, filter_bkg_size)
 
             bkg_sub = thumbnail - bkg
 
@@ -703,17 +728,17 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #width is the width of the trace at its brightest point. 
         start = time.time()            
         
-        if trace_angle is None:
-            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot, diag_mask=diag_mask, mode=mode,
+        if trace_angle[j] is None:
+            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
                                                                   fractional_fit_type=fractional_fit_type) #linear fit to the trace
             widths += [trace_width]
             angles += [measured_trace_angle]
         else:
-            angles += [trace_angle]
-            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot, diag_mask = diag_mask, mode = mode,
+            angles += [trace_angle[j]] #use the given angle
+            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
                                                           fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
             widths += [trace_width]
-
+        
         #After findTrace is run, we can do 2D polynomial background subtraction
         if sub_background == '2D_polynomial':
             #update background frame with a 2D fitted background. 
@@ -722,16 +747,28 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             if trace_angle is None:
                 mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
             else:
-                mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle)
+                mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle[j])
 
             #then run the 2d polynomial function, update bkg_sub and bkg
             del bkg
             del bkg_sub
             bkg_sub, bkg = image_utils.fit_background_2d_polynomial(thumbnail, mask, polynomial_order = bkg_poly_order)
+        elif sub_background == 'median':
+            #first mask out the trace using results from findTrace
+            if trace_angle is None:
+                mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
+            else:
+                mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle[j])
+            del bkg, bkg_sub
+            #set background level to the masked out version of the thumbnail. 
+            bkg_level = np.median(thumbnail[~mask])
+            print("background is = ",bkg_level)
+            bkg = np.ones(thumbnail.shape) * bkg_level
+            bkg_sub = thumbnail - bkg 
            
-        if diag_mask:
-            mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
-            bkg_sub[~mask] = 0.
+        #if diag_mask:
+        #    mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
+        #    bkg_sub[~mask] = 0.
 
         if verbose:
             print("Trace width {}".format(trace_width))
@@ -777,9 +814,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             if trace_angle == None:
                 rotate_spec_angle = measured_trace_angle #use the measured angle
             else:
-                rotate_spec_angle = trace_angle #use the given value
+                rotate_spec_angle = trace_angle[j] #use the given value
                 if verbose:
-                    print("use given ", trace_angle," instead. change this by setting trace_angle to None")
+                    print("use given ", trace_angle[j]," instead. change this by setting trace_angle to None")
             #start = time.time()
             spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  False, return_residual = 1, \
                                                                         fitfunction = fitfunction, box_size = box_size, poly_order = poly_order,
@@ -801,9 +838,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             if trace_angle == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
-                rotate_spec_angle = trace_angle 
+                rotate_spec_angle = trace_angle[j] 
                 if verbose:
-                    print("using given angle of ", trace_angle," deg. change this by setting trace_angle to None")
+                    print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = bkg_sub.shape[0]
@@ -827,20 +864,22 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle == None: #if the trace angle is not given, use the measured angle
+            if trace_angle[j] == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
-                rotate_spec_angle = trace_angle 
+                rotate_spec_angle = trace_angle[j] 
                 if verbose:
-                    print("using given angle of ", trace_angle," deg. change this by setting trace_angle to None")
+                    print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = bkg_sub.shape[0]
             sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
-            if mode == 'spec':
-                real_width = image_utils.traceWidth_after_rotation(sub_rotated)
+            #measure real_width after rotation. Now do this for polarimetric data too
+            real_width = image_utils.traceWidth_after_rotation(sub_rotated)
+
+
                 
 
             #plt.imshow(sub_rotated, origin = 'lower')
@@ -871,17 +910,28 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
             
             bkg = rotated-sub_rotated
+
+            # #extraction range should come from findTrace output, not having to be found again!
+
+
             
             if mode == 'spec':
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma)
                 widths += [real_width]
             else:
-                ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
-            
+                #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
+                fit_im = np.zeros(thumbnail.shape) 
+                for i in range(fit_im.shape[1]):
+                    #print(trace[i])
+                    if trace[i] > 0 and trace[i] < fit_im.shape[1]:
+                        fit_im[int(trace[i]),i] = 1 
+                rotated_fit_im = frame_rotate(fit_im, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+                vert_max = np.argmax( np.sum(rotated_fit_im, axis = 1))
+                ext_range = [int(vert_max - real_width*spatial_sigma), int(vert_max + real_width*spatial_sigma)]    
 
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
-                gain = 1.2, read_out_noise = 12, plot = 0, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
+                gain = 1.2, read_out_noise = 12, plot = plot_optimal_extraction, niter = niter, sig_clip = sig_clip, verbose = verbose, bad_pixel_mask=DQ_final,
                 spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth) 
 
             spectra.append(spec_res)

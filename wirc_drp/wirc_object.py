@@ -130,7 +130,7 @@ class wirc_data(object):
             self.source_list = []
             
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe=False, verbose=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False):
         '''
         Apply dark and flat-field correction
         '''
@@ -187,7 +187,10 @@ class wirc_data(object):
                 background = background_hdu[0].data
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
                 #Check if background is already reduced
-                bkg_reduced = background_hdu[0].header["CALBRTED"]
+                try:
+                    bkg_reduced = background_hdu[0].header["CALBRTED"]
+                except KeyError as e:
+                    bkg_reduced = False
 
                 if bkg_reduced == False:
                     #Checking Dark Exposure times and scaling if need be
@@ -217,10 +220,10 @@ class wirc_data(object):
                 self.header['BKG_FN'] = self.bkg_fn
 
 
-            if destripe:
+            if destripe_raw:
                 if verbose:
                     print("Destriping the detector image")
-                self.full_image = calibration.destripe_after_bkg_sub(self.full_image)
+                self.full_image = calibration.destripe_raw_image(self.full_image)
 
 #            #If a background image is provided then subtract it out
 #            if self.bkg_fn is not None:
@@ -983,7 +986,8 @@ class wircpol_source(object):
         self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,thumbnails_dq=self.trace_images_DQ, nsig=nsig)
 
 
-    def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False, method = 'optimal_extraction', spatial_sigma = 3,
+    def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False, plot_optimal_extraction = False, plot_findTrace = False,
+        method = 'optimal_extraction', spatial_sigma = 3, filter_bkg_size = None,
         lamda_sigma=10, width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
         sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True,debug_DQ=False,s=1,
         spectral_smooth=10,spatial_smooth=1):
@@ -1011,7 +1015,7 @@ class wircpol_source(object):
         #call spec_extraction to actually extract spectra
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, self.slit_pos, 
             sub_background = sub_background, bkg_sub_shift_size = bkg_sub_shift_size , shift_dir = shift_dir, plot=plot, bkg_poly_order = bkg_poly_order,
-            method=method, 
+            plot_optimal_extraction = plot_optimal_extraction , plot_findTrace = plot_findTrace, method=method, filter_bkg_size = filter_bkg_size,
             width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction, 
             sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
             use_DQ = use_DQ, debug_DQ=debug_DQ,spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth,spatial_sigma=spatial_sigma) 
@@ -1284,7 +1288,6 @@ class wircspec_source(object):
                 if verbose: 
                     print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
                 self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
-
             #check method
             if method == 'interpolate':
                 #iterate through the 4 thumbnails
@@ -1297,7 +1300,6 @@ class wircspec_source(object):
                 for i in range(len(self.trace_images)):    
                     bad_pix_map = self.trace_images_DQ[i].astype(bool)
                     self.trace_images[i] = calibration.cleanBadPix(self.trace_images[i], bad_pix_map, replacement_box = box_size)                
-        
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
     def plot_cutouts(self, **kwargs):
@@ -1312,7 +1314,8 @@ class wircspec_source(object):
         plt.colorbar(cax = cbar_ax)
         plt.show()
     
-    def extract_spectra(self, sub_background = False, plot=False, method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, \
+    def extract_spectra(self, sub_background = False, plot=False, plot_optimal_extraction = False, plot_findTrace = False,
+                         method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, filter_bkg_size = None,\
                         fitfunction = 'Moffat', sum_method = 'weighted_sum', trace_angle = None, box_size = 1, poly_order = 4, align = True, verbose = True,
                         fractional_fit_type = None, bkg_sub_shift_size = 21, bkg_poly_order = 0, spatial_sigma = 3):
         """
@@ -1333,10 +1336,12 @@ class wircspec_source(object):
         """
         if verbose:
             print("Performing Spectral Extraction for source {}".format(self.index))
+
         
         #call spec_extraction to actually extract spectra
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract= spec_utils.spec_extraction(self.trace_images, self.slit_pos, 
-            sub_background = sub_background,plot=plot, method=method, width_scale=width_scale, diag_mask=diag_mask, 
+            sub_background = sub_background,plot=plot, plot_optimal_extraction = plot_optimal_extraction , plot_findTrace = plot_findTrace,
+            method=method, width_scale=width_scale, diag_mask=diag_mask, filter_bkg_size = filter_bkg_size,
             trace_angle = trace_angle, fitfunction = fitfunction, sum_method = sum_method, bad_pix_masking = bad_pix_masking, 
             box_size = box_size, poly_order = poly_order,mode='spec', verbose = verbose,fractional_fit_type = fractional_fit_type,
             bkg_sub_shift_size = bkg_sub_shift_size, bkg_poly_order = bkg_poly_order, spatial_sigma = spatial_sigma)

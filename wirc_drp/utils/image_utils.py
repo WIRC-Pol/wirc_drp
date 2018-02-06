@@ -156,8 +156,10 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         ffmask = fits.open(wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
         fftmask = np.ndarray.astype(ffmask,bool)
         fftmask = fftmask[::-1,:]
-        science_image_filt[np.where(~fftmask)] = 0.
-        sky_image_filt[np.where(~fftmask)] = 0.
+        # science_image_filt[np.where(~fftmask)] = 0.
+        # sky_image_filt[np.where(~fftmask)] = 0.
+        science_image_filt[np.where(~fftmask)] = np.median(science_image_filt)
+        sky_image_filt[np.where(~fftmask)] = np.median(sky_image_filt)
     #     med_sci = np.nanmedian(science_image_filt[fftmask])
     #     med_sky = np.nanmedian(sky_image_filt[fftmask])
 
@@ -1085,7 +1087,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
 
 
     if diag_mask and mode=='pol':
-        mask = makeDiagMask(np.shape(thumbnail)[0],25)
+        mask = makeDiagMask(np.shape(thumbnail)[0],100)
         thumbnail[~mask] = 0.0
         # plt.imshow(thumbnail)
     
@@ -1167,23 +1169,31 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order)
 
     fit = np.polyval(p,range(np.shape(thumbnail)[1]))
-    
-    if plot:
-        to_plot = np.where(weights == 0, 0, 1)
-        print('Plotting')
-        plt.plot(peaks_spline*to_plot)
-        plt.plot(fit)
-
-
-    #Now for the trace width
-    x_bigpeak = np.argmax(peak_size)
-    y_bigpeak = peaks[x_bigpeak]
-    width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
 
     #now the angle
     #second to last element of p is the linear order.
 #    print(p[-2])
     angle = np.degrees(np.arctan(p[-2]))
+
+    #Now for the trace width, mask irrelevent area to prevent traceWidth trying to fit weird places in the image
+    on_trace = np.abs(fit-peaks) < 5 #5 pixels
+    x_bigpeak = np.argmax(peak_size*on_trace) #set "peaks" that are not on trace to zero
+    y_bigpeak = peaks[x_bigpeak]
+    width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
+
+
+
+    if plot:
+        to_plot = np.where(weights == 0, 0, 1)
+        #print('Plotting')
+        #plt.plot(peaks_spline*to_plot)
+        plt.imshow(thumbnail, origin = 'lower')
+        #plt.plot(to_plot)
+        plt.plot(fit)
+        plt.plot(peaks)
+        plt.title('Width = %.2f, angle = %.2f'%(width, angle))
+        plt.show()
+
 
     return peaks, fit, width, angle
 
