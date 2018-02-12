@@ -18,7 +18,6 @@ import pdb
 import copy
 
 class wirc_data(object):
-
     """
     A wirc data file, that may include reduced data products
 
@@ -225,24 +224,24 @@ class wirc_data(object):
                     print("Destriping the detector image")
                 self.full_image = calibration.destripe_raw_image(self.full_image)
 
-#            #If a background image is provided then subtract it out
-#            if self.bkg_fn is not None:
-#                background_hdu = fits.open(self.bkg_fn)
-#                background = background_hdu[0].data
-#                if verbose:
-#                    print("Subtracting background frame {} from all science files".format(self.bkg_fn))
-#
-#                if self.dark_fn is not None:
-#                    background = background - factor*master_dark
-#
-#                scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
-#
-#                #Subtract the background
-#                self.full_image -= scale_bkg*background
-#
-#                #Update the header
-#                self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
-#                self.header['BKG_FN'] = self.bkg_fn   
+           # #If a background image is provided then subtract it out
+           # if self.bkg_fn is not None:
+           #     background_hdu = fits.open(self.bkg_fn)
+           #     background = background_hdu[0].data
+           #     if verbose:
+           #         print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+
+           #     if self.dark_fn is not None:
+           #         background = background - factor*master_dark
+
+           #     scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
+
+           #     #Subtract the background
+           #     self.full_image -= scale_bkg*background
+
+           #     #Update the header
+           #     self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
+           #     self.header['BKG_FN'] = self.bkg_fn   
 
 
             #If a bad pixel map is provided then correct for bad pixels, taking into account the clean_bad_pix and mask_mad_pixels flags
@@ -911,7 +910,15 @@ class wircpol_source(object):
         
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
-    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), **kwargs):
+    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, origin='lower',**kwargs):
+        '''
+        Plot the source cutouts
+
+        -------
+        plot_dq  - Show the dq images instead of the cutouts
+
+
+        '''
 
         #Would you like to choose the specific figure that we're using? 
         if fig_num is not None:
@@ -921,22 +928,35 @@ class wircpol_source(object):
             fig = plt.figure(figsize=figsize)
 
         ax = fig.add_subplot(141)
-        plt.imshow(self.trace_images[0,:,:], **kwargs)
-        plt.text(5,275,"Top - Left", color='w')
+
+        if plot_dq:
+            plt.imshow(self.trace_images_DQ[0,:,:], origin=origin, **kwargs)
+        else:
+            plt.imshow(self.trace_images[0,:,:], origin=origin, **kwargs)
+        plt.text(5,140,"Top - Left", color='w')
 
         ax = fig.add_subplot(142)
-        plt.imshow(self.trace_images[1,:,:], **kwargs)
-        plt.text(5,275,"Bottom - Right", color='w')
+        if plot_dq:
+            plt.imshow(self.trace_images_DQ[1,:,:], origin=origin, **kwargs)
+        else:
+            plt.imshow(self.trace_images[1,:,:], origin=origin, **kwargs)
+        plt.text(5,140,"Bottom - Right", color='w')
         ax.set_yticklabels([])
 
         ax = fig.add_subplot(143)
-        plt.imshow(self.trace_images[2,:,:], **kwargs)
-        plt.text(5,275,"Top - Right", color='w')
+        if plot_dq:
+            plt.imshow(self.trace_images_DQ[2,:,:], origin=origin, **kwargs)
+        else:
+            plt.imshow(self.trace_images[2,:,:], origin=origin, **kwargs)
+        plt.text(5,140,"Top - Right", color='w')
         ax.set_yticklabels([])
 
         ax = fig.add_subplot(144)
-        plt.imshow(self.trace_images[3,:,:], **kwargs)
-        plt.text(5,275,"Bottom - Left", color='w')
+        if plot_dq:
+            plt.imshow(self.trace_images_DQ[3,:,:], origin=origin, **kwargs)
+        else:
+            plt.imshow(self.trace_images[3,:,:], origin=origin, **kwargs)
+        plt.text(5,140,"Bottom - Left", color='w')
         ax.set_yticklabels([])
         
         fig.subplots_adjust(right=0.85)
@@ -944,7 +964,6 @@ class wircpol_source(object):
         plt.colorbar(cax = cbar_ax)
 
         plt.show()
-
 
 
     def plot_extracted_cutouts(self, **kwargs):
