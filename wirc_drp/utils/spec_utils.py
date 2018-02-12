@@ -359,7 +359,8 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
 def sum_across_trace(data, variance, extraction_range):
     """
     extract spectrum by simply summing in the spatial direction
-    This also serves as a helper function for optimal_extraction
+    This also serves as a helper function for 
+action
     Input:
         data: 2D numpy array of the data, background subtracted
         variance: 2D numpy array of the variance of the data
@@ -458,7 +459,8 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         
         #optimized variance 
         variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
-        print('Extraction range is', extraction_range)
+        variance_opt = variance #try this for now
+        #print('Extraction range is', extraction_range)
         if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
             fig, ax = plt.subplots(1,3,figsize = (15,5))
             ax[0].imshow(data - background, origin = 'lower')
@@ -466,6 +468,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
             ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '-')
             ax[0].set_title('Data - background')
             ax[1].imshow(variance_opt, origin = 'lower')
+            #ax[1].imshow(np.abs(variance - variance_opt), origin  = 'lower')
             ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '-')
             ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '-')
             ax[1].set_title('Optimized variance')
