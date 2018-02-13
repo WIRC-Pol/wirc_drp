@@ -559,9 +559,9 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
 # @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
-    bkg_sub_shift_size = 21, bkg_poly_order = 2, filter_bkg_size = None, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
+    bkg_sub_shift_size = 31, bkg_poly_order = 2, filter_bkg_size = None, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
     bad_pix_masking = 0,skimage_order=4, width_scale=1., diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', 
-    box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 3,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
+    box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 5,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
     spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None, plot_optimal_extraction = False, plot_findTrace = False):
     """
     This is the main function to perform spectral extraction on the spectral image

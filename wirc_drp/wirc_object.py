@@ -1005,8 +1005,9 @@ class wircpol_source(object):
         self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,thumbnails_dq=self.trace_images_DQ, nsig=nsig)
 
 
-    def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 21, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False, plot_optimal_extraction = False, plot_findTrace = False,
-        method = 'optimal_extraction', spatial_sigma = 3, filter_bkg_size = None,
+    def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 31, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False, 
+        plot_optimal_extraction = False, plot_findTrace = False,
+        method = 'optimal_extraction', spatial_sigma = 5, filter_bkg_size = None,
         lamda_sigma=10, width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
         sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True,debug_DQ=False,s=1,
         spectral_smooth=10,spatial_smooth=1):
