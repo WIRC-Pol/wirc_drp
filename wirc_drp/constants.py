@@ -59,6 +59,12 @@ slit_hole_gap = 21 #pixels. Again, this is spec. should be remeasured
 slit_position_x = 1027-1
 slit_position_y = 1060-1
 
+# Nominal offsets (dx,dy) between traces and zeroth order in PG mode
+dUL = (-442.76, 451.76)
+dLL = (-452.90, -446.85)
+dUR = (451.90, 442.55)
+dLR = (442.25, -457.75)
+
 #grating specification
 wlPerPix = 2.83/1000 #wl coverage per diagonal pixel in microns
 #zero order image flux/total flux. 1% for the current spec.
