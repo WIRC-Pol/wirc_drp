@@ -440,6 +440,7 @@ def trace_checker(full_image, wo_source_list, verbose = False):
         zeroth_loc = wo_source_list[source].pos
         if verbose:
             print('Checking traces for source '+ str(source) + ' at location ' + str(zeroth_loc))
+            plt.figure(figsize=(8,8))
         # for UL
         for quad in range(len(quads)):
             trace_count += 1
@@ -447,10 +448,9 @@ def trace_checker(full_image, wo_source_list, verbose = False):
             thumbn = full_image[int(round(trace_loc[1]-50)):int(round(trace_loc[1]+50)), int(round(trace_loc[0]-50)):int(round(trace_loc[0]+50))]
             if verbose:
                 print('Checking diagonal for '+ quads[quad] + ' trace ...')
-                plt.figure(figsize=(4,4))
                 plt.subplot(nsources,4,trace_count)
                 plt.imshow(thumbn, origin='lower')
-                plt.title('Source ' + str(source) + ' ' + quads[quad] + ' trace')
+                plt.title('Source ' + str(source) + ' ' + quads[quad])
             if quads[quad] == 'UL':
                 thumbn_orient = np.flipud(thumbn)
             elif quads[quad] == 'UR':
