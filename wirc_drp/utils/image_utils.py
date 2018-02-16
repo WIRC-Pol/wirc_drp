@@ -72,6 +72,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     """    
 
     # TODO:
+    # - Use trace_checker()
     # - Implement for H images too
     # - Include location of the two sky background holes/slits and traces
 
