@@ -70,7 +70,7 @@ def align_spectra(source_list, ref_source = None, xlow=0, xhigh=-1):
 
             source_list[i].trace_spectra[j,1,:] = shift(source_list[i].trace_spectra[j,1,:], -shift_size)
 
-def get_angles_widths_from_list(filelist, source_number = 0):
+def get_angles_widths_from_list(filelist, data_dir = '', source_number = 0):
     """
     Go through the list of calibrated and extracted files and read out angles for given source_number
     """
@@ -80,7 +80,7 @@ def get_angles_widths_from_list(filelist, source_number = 0):
     filelist = asci.read(filelist, format = 'no_header')['col1'] 
 
     for j in filelist:
-        hdulist = fits.open(j)
+        hdulist = fits.open(data_dir+j)
         i = source_number
         try:
             widths += [np.fromstring(hdulist[(2*i)+2].header["WIDTHS"][1:-1], sep = ' ')]
