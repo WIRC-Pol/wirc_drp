@@ -4,6 +4,7 @@ import numpy as np
 import copy
 from scipy.ndimage import shift
 from scipy.signal import fftconvolve 
+from astropy.io import ascii as asci
 
 
 def plot_source_traces(source_list, cmap = None, figsize=(8,8), plot_lims = None):
@@ -68,17 +69,23 @@ def align_spectra(source_list, ref_source = None, xlow=0, xhigh=-1):
 
             source_list[i].trace_spectra[j,1,:] = shift(source_list[i].trace_spectra[j,1,:], -shift_size)
 
-def get_angles_widths_from_list(filelist):
+def get_angles_widths_from_list(filelist, source_number = 0):
     """
-    Go through the list of calibrated and extracted files and read out angles
+    Go through the list of calibrated and extracted files and read out angles for given source_number
     """
     angles = []
     widths = []
-    try:
-        widths += [np.fromstring(hdulist[(2*i)+2].header["WIDTHS"][1:-1], sep = ' ')]
-        angles += [np.fromstring(hdulist[(2*i)+2].header["ANGLES"][1:-1], sep = ' ')]
-    except:
-        print('Widths or angles not available')
+
+    filelist = asci.read(filelist, format = 'no_header')['col1'] 
+
+    for j in filelist:
+        hdulist = fits.open(j)
+        i = source_number
+        try:
+            widths += [np.fromstring(hdulist[(2*i)+2].header["WIDTHS"][1:-1], sep = ' ')]
+            angles += [np.fromstring(hdulist[(2*i)+2].header["ANGLES"][1:-1], sep = ' ')]
+        except:
+            print('Widths or angles not available')
     return np.array(widths), np.array(angles)
 
 
