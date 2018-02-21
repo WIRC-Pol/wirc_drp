@@ -191,6 +191,198 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     hdu.writeto(bp_outname, overwrite=True)
 
     return flat_outname, bp_outname
+
+def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
+                global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
+                output_dir = None, zeroth_order_flat = None, zeroth_transmission_factor = 0.012, offsets = [4,-1], plot = False):
+
+    
+    """
+    Create a master normalized PG flat file given a list of fits files of PG flat fields from
+    WIRC. This function also removes the zeroth order transmission in the PG flat, provided a zeroth order flat (with mask in and PG out),
+    a transmission factor, and the y, x offsets between the 0th order frame and the 0th order ghost in the PG frame.
+    
+    flats are scaled with mode or median (in case that illumination change, like in twilight flat)
+    and then median combined to reject spurious pixels. 
+
+    It also saves a bad pixel map of pixels that are further than sig_bad_pix sigma away from the median (mean?)
+    
+    
+    flat_list: a list of file names for flat fields
+    master_dark_fname: a file name of a combined dark frame of the same exposure time as these flats
+    normalize: How to normalize the flat field, by 'median' or 'mode'
+    local_sig_bad_pix: sigmas used to reject bad pixel based on local standard deviation in a box of size given by median_box_size
+    global_sig_bad_pix: igmas used to reject bad pixel based on global distribution of the pixel-to-pixel variation 
+    local_box_size: the dimension of the size of the local box used to do median and standard deviation filters
+    sig_bad_pix: we define bad pixels as pixels with value more than sig_bad_pix*sqrt(variance) away from the median of the frame
+    hotp_map_fname: file name of the hot pixel map from the dark frame, will be deprecated and let calibrate function deal with combinding 
+                    two maps
+    output_dir: where to save the output flat file
+    zeroth_order_flat: either a filename or an array representing the median combined zeroth order flat (mask in, PG out)
+    zeroth_transmission_factor: this is a factor of the 0th order flux leaking into PG flat. The nominal measured figure is 0.012 (1.2%). 
+    offsets: the presence of PG offsets the 0th order image by some amout. This parameter moves the 0th order flat back so it subtracts 
+            the 0th order ghost in the PG flat cleanly.
+    """
+
+    #Open the master dark
+    master_dark_hdu = f.open(master_dark_fname)
+    master_dark = master_dark_hdu[0].data
+    dark_shape = np.shape(master_dark)
+
+    if verbose:
+        print(("Subtracting {} from each flat file".format(master_dark_fname)))
+    dark_exp_time = master_dark_hdu[0].header['EXPTIME']
+
+    #Open all files into a 3D array
+    foo = np.empty((dark_shape[0],dark_shape[1],len(flat_list)))
+
+    #Open first flat file to check exposure time
+    first_flat_hdu = f.open(flat_list[0])
+    flat_exp_time = first_flat_hdu[0].header['EXPTIME']
+
+    
+    if dark_exp_time != flat_exp_time:
+        print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal", UserWarning)
+        factor = flat_exp_time/dark_exp_time
+    else: 
+        factor = 1. 
+
+    #We've already read it, so we'll stick it in foo
+    
+    print("Combining flat files")
+    for i in range(0,len(flat_list)):
+        #subtract dark for each file, then normalize by mode
+        hdu = f.open(flat_list[i])
+        d_sub = hdu[0].data  - factor*master_dark
+
+        #cleaned_d_sub = d_sub - ndimage.shift(zeroth_transmission_factor*zeroth_order_flat,offsets, order = 0) #full pixel shift
+
+        #normalize
+        if normalize == 'mode':
+            d_sub = d_sub/mode(d_sub, axis = None, nan_policy = 'omit')
+        elif normalize == 'median':
+            d_sub = d_sub/np.nanmedian(d_sub)
+        foo[:,:,i] = d_sub
+        
+    #Median combine frames
+    uncleaned_flat = np.median(foo, axis = 2)
+
+    #For PG_flat, subtract zeroth order flat
+    flat = uncleaned_flat - ndimage.shift(zeroth_transmission_factor*zeroth_order_flat,offsets, order = 0) #full pixel shift
+
+    ###Now, deal with bad pixel.
+        
+    #Filter bad pixels
+    #bad_px = sigma_clip(flat, sigma = sig_bad_pix) #old and bad
+    ###Major update here: do sigma clipping on the pix-to-pix flat with the large scale vignette removed
+    ###Also add local sigma clipping
+    def stddevFilter(img, box_size):
+        """ from 
+        https://stackoverflow.com/questions/28931265/calculating-variance-of-an-image-python-efficiently/36266187#36266187
+        This function compute the standard deviation of an image in a
+        moving box of a given size. The pixel i,j of the output is the 
+        standard deviation of the pixel value in the box_size x box_size box
+        around the i,j pixel in the original image. 
+        """
+        wmean, wsqrmean = (cv2.boxFilter(x, -1, (box_size, box_size), \
+            borderType=cv2.BORDER_REFLECT) for x in (img, img*img))
+        return np.sqrt(wsqrmean - wmean*wmean)
+
+    #median flat
+    median_flat = median_filter(flat, local_box_size) #arbitrary size, shouldn't matter as long as it's big enough
+    #standard deviation image
+    stddev_im = stddevFilter(flat, local_box_size)
+
+    #Local clipping
+    local_bad_pix = np.abs(median_flat - flat) > local_sig_bad_pix*stddev_im
+
+    #Global clipping here to reject awful pixels and dust, bad columns, etc
+    pix_to_pix = flat/median_flat 
+    global_bad_px = sigma_clip(pix_to_pix, sigma = global_sig_bad_pix).mask #9 seems to work best
+
+    #logic combine
+    bad_px = np.logical_or(global_bad_px, local_bad_pix)
+    
+    #Normalize good pixel values
+    if normalize == 'median':
+        norm_flat = flat/np.nanmedian(flat[~bad_px]) 
+    elif normalize == 'mode':
+        norm_flat = flat/mode(flat, axis = None, nan_policy = 'omit')
+    #Stick it back in the last hdu 
+    hdu[0].data = norm_flat
+
+    #Add pipeline version and history keywords
+    vers = version.get_version()
+    hdu[0].header.set('PL_VERS',vers,'Version of pipeline used for processing')
+    hdu[0].header['HISTORY'] = "############################"
+    hdu[0].header['HISTORY'] = "Created master flat by median combining the following:"
+    for i in range(len(flat_list)):
+        hdu[0].header['HISTORY'] = flat_list[i]
+    if normalize == 'median':
+        hdu[0].header['HISTORY'] = "Normalized to the median of the master flat"
+    elif normalize == 'mode':
+        hdu[0].header['HISTORY'] = "Normalized to the mode of the master flat"
+    hdu[0].header['HISTORY'] = "Performed bad pixel local and global sigma clipping with {}, {}sigmas".format(local_sig_bad_pix, global_sig_bad_pix)
+    hdu[0].header['HISTORY'] = "Zeroth order removed by {], with factor {}, and offsets {},{}".format(zeroth_order_flat, zeroth_transmission_factor,
+                                                                                                        offsets[0], offsets[1])}
+    hdu[0].header['HISTORY'] = "############################"
+
+    if plot:
+        fig, ax = plt.subplots(2,1,figsize = (20,10))
+        ax[0].imshow(uncleaned_flat/np.nanmedian(uncleaned_flat[~bad_px])/pix_to_pix, origin = lower)
+        ax[1].imshow(norm_flat/pix_to_pix, origin = lower)
+        plt.show()
+
+    #Parse the last fileanme
+    if output_dir is not None:
+        flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
+        flat_outname = flat_outname.rsplit('/',1)[0]
+        flat_outname = output_dir+flat_outname
+    else:    
+        flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
+    
+    #Write the fits file
+    if verbose:
+        print(("Writing master flat to {}".format(flat_outname)))
+    hdu.writeto(flat_outname, overwrite=True)
+
+    #If there's already a hot pixel map then we'll add to it. 
+    if hotp_map_fname != None:
+        #read in the existing bp map
+        #hdu = f.open(hotp_map_fname)
+        #hdu[0].data += np.array(bad_px.mask, dtype=float)
+        #hdu[0].data = np.logical_or(hdu[0].data.astype(bool), bad_px) #use logical or to combine bad pixel maps
+        #bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+        print("Will deal with hot pixel map from dark frames in the calibrate function")
+
+    #else: 
+    #Parse the last fileanme
+    if output_dir is not None:
+        bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+        bp_outname = bp_outname.rsplit('/',1)[0]
+        bp_outname = output_dir+bp_outname
+    else:    
+        bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+
+    ##### Now write the bad pixel map
+    hdu[0].data = bad_px.astype(int)#np.array(bad_px.mask, dtype=float)
+    #Parse the last fileanme
+    # bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
+    
+    #Add history keywords
+    hdu[0].header['HISTORY'] = "############################"
+    hdu[0].header['HISTORY'] = "Created bad pixel map by sigma clipping on pixel-to-pixel flat{}".format(flat_outname)
+    hdu[0].header['HISTORY'] = "Bad pixel cutoffs: local sigma = {} and global sigma = {} for clipping".format(local_sig_bad_pix, global_sig_bad_pix)
+   #hdu[0].header['HISTORY'] = "Bad pixel cutoff of {}sigma".format(sig_bad_pix)
+    hdu[0].header['HISTORY'] = "A pixel value of 1 indicates a bad pixel"
+    hdu[0].header['HISTORY'] = "############################"
+
+    if verbose:
+        print(("Writing bad pixel map to {}".format(bp_outname)))
+    #Write the fits file
+    hdu.writeto(bp_outname, overwrite=True)
+
+    return flat_outname, bp_outname
     
 def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5, output_dir = None):
 
