@@ -218,7 +218,7 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     hotp_map_fname: file name of the hot pixel map from the dark frame, will be deprecated and let calibrate function deal with combinding 
                     two maps
     output_dir: where to save the output flat file
-    zeroth_order_flat: either a filename or an array representing the median combined zeroth order flat (mask in, PG out)
+    zeroth_order_flat: a filename of the median combined zeroth order flat (mask in, PG out)
     zeroth_transmission_factor: this is a factor of the 0th order flux leaking into PG flat. The nominal measured figure is 0.012 (1.2%). 
     offsets: the presence of PG offsets the 0th order image by some amout. This parameter moves the 0th order flat back so it subtracts 
             the 0th order ghost in the PG flat cleanly.
@@ -232,6 +232,9 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     if verbose:
         print(("Subtracting {} from each flat file".format(master_dark_fname)))
     dark_exp_time = master_dark_hdu[0].header['EXPTIME']
+
+    #Open the zeroth order
+    zeroth_order_flat = f.open(zeroth_order_flat)[0].data
 
     #Open all files into a 3D array
     foo = np.empty((dark_shape[0],dark_shape[1],len(flat_list)))
