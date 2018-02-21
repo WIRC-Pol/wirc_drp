@@ -28,6 +28,7 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
 from image_registration import chi2_shift
+from wirc_drp import constants
 
 from photutils import RectangularAperture, aperture_photometry,make_source_mask
 from astropy.stats import sigma_clipped_stats
@@ -71,6 +72,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     """    
 
     # TODO:
+    # - Use trace_checker()
     # - Implement for H images too
     # - Include location of the two sky background holes/slits and traces
 
@@ -412,6 +414,77 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         print('LL quadrant trace locations:\n',locs['LL'].T,'\n')
 
     return locs
+
+def trace_checker(full_image, wo_source_list, verbose = False):
+
+    '''
+    Flag sources with suspicious traces by checking mid-diagonals.
+
+        Input:
+            full_image: full calibrated science (PG) image
+            wo_source_list: wircpol_object source list
+        Output:
+            source_ok: list with True for sources with good traces and False for sources with bad traces
+    '''
+
+    trace_diag_val = [] # Value list for trace in each quad
+    trace_diag_ok = [] # True/False list for trace in each quad
+    quads_ok = [] # True/False list for each quad
+    source_ok = [] # True/False list for nsources
+    nsources = len(wo_source_list)
+    quads_diff = [constants.dUL, constants.dUR, constants.dLR, constants.dLL] # offsets from zeroth order
+    quads = ['UL', 'UR', 'LR', 'LL']
+    trace_count = 0
+    plt.ion()
+
+    for source in range(nsources):
+        zeroth_loc = wo_source_list[source].pos
+        if verbose:
+            print('Checking traces for source '+ str(source) + ' at location ' + str(zeroth_loc))
+            plt.figure(figsize=(8,8))
+        # for UL
+        for quad in range(len(quads)):
+            trace_count += 1
+            trace_loc = (zeroth_loc[0] + quads_diff[quad][0], zeroth_loc[1] + quads_diff[quad][1]) # trace locs with rounded offsets
+            thumbn = full_image[int(round(trace_loc[1]-50)):int(round(trace_loc[1]+50)), int(round(trace_loc[0]-50)):int(round(trace_loc[0]+50))]
+            if verbose:
+                print('Checking diagonal for '+ quads[quad] + ' trace ...')
+                plt.subplot(nsources,4,trace_count)
+                plt.imshow(thumbn, origin='lower')
+                plt.title('Source ' + str(source) + ' ' + quads[quad])
+            if quads[quad] == 'UL':
+                thumbn_orient = np.flipud(thumbn)
+            elif quads[quad] == 'UR':
+                thumbn_orient = np.fliplr(np.flipud(thumbn))
+            elif quads[quad] == 'LR':
+                thumbn_orient = np.fliplr(thumbn)
+            elif quads[quad] == 'LL':
+                thumbn_orient = thumbn
+            diag_val = []
+            for diag_offset in range(-10,11):
+                diag = np.diagonal(thumbn_orient, diag_offset).copy()
+                diag_val.append(np.sum(diag))
+                opt_diag_offset = diag_val.index(max(diag_val)) - 10
+                #print(opt_diag_offset)
+                diag0 = np.diagonal(thumbn_orient, opt_diag_offset).copy()
+                diag_plus = np.diagonal(thumbn_orient, opt_diag_offset+1).copy()
+                diag_minus = np.diagonal(thumbn_orient, opt_diag_offset-1).copy()
+                full_diag = np.concatenate((diag0[20:-20], diag_plus[20:-20], diag_minus[20:-20]), axis=0)
+                #norm_diag = full_diag / np.max(full_diag)
+                trace_diag_val.append(np.median(full_diag))
+                td_sig = 3
+                td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
+            if (np.median(full_diag) > td_thres) & (np.median(thumbn_orient[0:19,80:99].diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(thumbn_orient[80:99,0:19].diagonal(opt_diag_offset).copy()) < td_thres):
+                trace_diag_ok.append(True)
+            else:
+                trace_diag_ok.append(False)
+        if all(trace_diag_ok):
+            source_ok.append(True)
+        else:
+            source_ok.append(False)
+        
+    return source_ok
+
 
 def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seeing, plot = False):
     #Previously named coarse_regis
