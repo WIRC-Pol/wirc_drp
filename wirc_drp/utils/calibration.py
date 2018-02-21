@@ -366,11 +366,11 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
 
     #Parse the last fileanme
     if output_dir is not None:
-        flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
+        flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_PG_flat.fits"
         flat_outname = flat_outname.rsplit('/',1)[0]
         flat_outname = output_dir+flat_outname
     else:    
-        flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
+        flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_PG_flat.fits"
     
     #Write the fits file
     if verbose:
