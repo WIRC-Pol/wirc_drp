@@ -194,7 +194,8 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
 def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
                 global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
-                output_dir = None, zeroth_order_flat = None, zeroth_transmission_factor = 0.012, offsets = [4,-1], plot = False):
+                output_dir = None, zeroth_order_flat_fname = None, zeroth_transmission_factor = 0.012, offsets = [4,-1], 
+                normal_flat_fname = None, plot = False):
 
     
     """
@@ -218,10 +219,12 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     hotp_map_fname: file name of the hot pixel map from the dark frame, will be deprecated and let calibrate function deal with combinding 
                     two maps
     output_dir: where to save the output flat file
-    zeroth_order_flat: a filename of the median combined zeroth order flat (mask in, PG out)
+    zeroth_order_flat_fname: a filename of the median combined zeroth order flat (mask in, PG out)
     zeroth_transmission_factor: this is a factor of the 0th order flux leaking into PG flat. The nominal measured figure is 0.012 (1.2%). 
     offsets: the presence of PG offsets the 0th order image by some amout. This parameter moves the 0th order flat back so it subtracts 
             the 0th order ghost in the PG flat cleanly.
+    normal_flat_fname: for plotting, it is instructive to show PG flat/normal flat to show the zeroth order ghost. If this is not given, then
+                       use an archival flat. 
     """
 
     #Open the master dark
@@ -233,8 +236,7 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
         print(("Subtracting {} from each flat file".format(master_dark_fname)))
     dark_exp_time = master_dark_hdu[0].header['EXPTIME']
 
-    #Open the zeroth order
-    zeroth_order_flat = f.open(zeroth_order_flat)[0].data
+
 
     #Open all files into a 3D array
     foo = np.empty((dark_shape[0],dark_shape[1],len(flat_list)))
@@ -243,12 +245,22 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     first_flat_hdu = f.open(flat_list[0])
     flat_exp_time = first_flat_hdu[0].header['EXPTIME']
 
+    #Open the zeroth order
+    zeroth_order_flat = f.open(zeroth_order_flat_fname)[0].data
+    if verbose:
+        print("Subtracting zeroth order frame {} using transmission factor {} and offsets [{},{}]".format(zeroth_order_flat_fname, zeroth_transmission_factor, offsets[0],offsets[1]))
+
     
     if dark_exp_time != flat_exp_time:
         print("The master dark file doesn't have the same exposure time as the flats. We'll scale the dark for now, but this isn't ideal", UserWarning)
         factor = flat_exp_time/dark_exp_time
     else: 
         factor = 1. 
+
+    #scale the zeroth order image to the same exposure time
+    zeroth_exp_factor = flat_exp_time/float(f.getheader(zeroth_order_flat_fname)['EXPTIME'])
+    print(zeroth_exp_factor)
+    zeroth_order_flat = zeroth_exp_factor*zeroth_order_flat #scale it to the same exposure time of PG flats
 
     #We've already read it, so we'll stick it in foo
     
@@ -271,7 +283,7 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     uncleaned_flat = np.median(foo, axis = 2)
 
     #For PG_flat, subtract zeroth order flat
-    flat = uncleaned_flat - ndimage.shift(zeroth_transmission_factor*zeroth_order_flat,offsets, order = 0) #full pixel shift
+    flat = uncleaned_flat - shift(zeroth_transmission_factor*zeroth_order_flat,offsets, order = 0) #full pixel shift
 
     ###Now, deal with bad pixel.
         
@@ -326,14 +338,30 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     elif normalize == 'mode':
         hdu[0].header['HISTORY'] = "Normalized to the mode of the master flat"
     hdu[0].header['HISTORY'] = "Performed bad pixel local and global sigma clipping with {}, {}sigmas".format(local_sig_bad_pix, global_sig_bad_pix)
-    hdu[0].header['HISTORY'] = "Zeroth order removed by {], with factor {}, and offsets {},{}".format(zeroth_order_flat, zeroth_transmission_factor,
-                                                                                                        offsets[0], offsets[1])}
+    hdu[0].header['HISTORY'] = "Zeroth order removed by {}, with factor {}, and offsets [{},{}]".format(zeroth_order_flat_fname, zeroth_transmission_factor, offsets[0], offsets[1])
     hdu[0].header['HISTORY'] = "############################"
 
     if plot:
-        fig, ax = plt.subplots(2,1,figsize = (20,10))
-        ax[0].imshow(uncleaned_flat/np.nanmedian(uncleaned_flat[~bad_px])/pix_to_pix, origin = lower)
-        ax[1].imshow(norm_flat/pix_to_pix, origin = lower)
+        if normal_flat_fname == None:
+            normal_flat_fname = "/scr/data/calibrations/median_flat_J.fits"
+        normal_flat = f.open(normal_flat_fname)[0].data
+        fig, ax = plt.subplots(2,2,figsize = (20,20))
+        ax0 = ax[0,0].imshow(uncleaned_flat/np.nanmedian(uncleaned_flat[~bad_px])/normal_flat, origin = 'lower', vmin = 1, vmax = 1.17)
+        ax1 = ax[0,1].imshow(norm_flat/normal_flat, origin = 'lower', vmin =1, vmax = 1.17)
+        ax2 = ax[1,0].imshow(uncleaned_flat/np.nanmedian(uncleaned_flat[~bad_px])/normal_flat, origin = 'lower', vmin = 1, vmax = 1.17)
+        ax3 = ax[1,1].imshow(norm_flat/normal_flat, origin = 'lower', vmin =1, vmax = 1.17)
+        ax[0,0].set_xlim([400,1600])
+        ax[0,0].set_ylim([400,1600])
+        ax[0,1].set_xlim([400,1600])
+        ax[0,1].set_ylim([400,1600])
+        ax[1,0].set_xlim([400,1000])
+        ax[1,0].set_ylim([1100,1600])
+        ax[1,1].set_xlim([400,1000])
+        ax[1,1].set_ylim([1100,1600])
+        ax[0,0].set_title('PG flat')
+        ax[0,1].set_title('Zeroth order subtracted')
+        plt.colorbar(ax0, ax = ax[0,0])
+        plt.colorbar(ax1, ax = ax[0,1])
         plt.show()
 
     #Parse the last fileanme
