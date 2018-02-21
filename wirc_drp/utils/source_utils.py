@@ -67,3 +67,18 @@ def align_spectra(source_list, ref_source = None, xlow=0, xhigh=-1):
             shift_size = (np.nanargmax(corr) - len0)/2
 
             source_list[i].trace_spectra[j,1,:] = shift(source_list[i].trace_spectra[j,1,:], -shift_size)
+
+def get_angles_widths_from_list(filelist):
+    """
+    Go through the list of calibrated and extracted files and read out angles
+    """
+    angles = []
+    widths = []
+    try:
+        widths += [np.fromstring(hdulist[(2*i)+2].header["WIDTHS"][1:-1], sep = ' ')]
+        angles += [np.fromstring(hdulist[(2*i)+2].header["ANGLES"][1:-1], sep = ' ')]
+    except:
+        print('Widths or angles not available')
+    return np.array(widths), np.array(angles)
+
+
