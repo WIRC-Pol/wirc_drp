@@ -5,6 +5,7 @@ import copy
 from scipy.ndimage import shift
 from scipy.signal import fftconvolve 
 from astropy.io import ascii as asci
+from astropy.io import fits 
 
 
 def plot_source_traces(source_list, cmap = None, figsize=(8,8), plot_lims = None):
