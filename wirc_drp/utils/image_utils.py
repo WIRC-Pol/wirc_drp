@@ -1249,7 +1249,10 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
         #plt.plot(to_plot)
         plt.plot(fit)
         plt.plot(peaks)
-        plt.title('Width = %.2f, angle = %.2f'%(width, angle))
+        try:
+            plt.title('Width = %.2f, angle = %.2f'%(width, angle))
+        except:
+            plt.title('Error in width or angle')
         plt.show()
 
 
