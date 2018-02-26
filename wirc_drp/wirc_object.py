@@ -8,6 +8,7 @@ import warnings
 import wirc_drp.utils.image_utils as image_utils
 import wirc_drp.utils.spec_utils as spec_utils
 import wirc_drp.utils.calibration as calibration
+from wirc_drp import constants
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 from astropy import time as ap_time, coordinates as coord, units as u
@@ -748,7 +749,8 @@ class wirc_data(object):
             #print ("ending iteration #",i)
 
 
-    def find_sources(self, direct_image_fn = None, threshold_sigma = 5, guess_seeing = 4, plot = False, mode = 'pol'):
+    def find_sources(self, image_fn, sky = None, threshold_sigma = 5, guess_seeing = 1, plot = False, verbose = False, brightness_sort=False, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, use_full_frame_mask=True, force_figures = False, mode = 'pol'):
+        
         """
         Find the number of sources in the image and create a wircpol_source objects for each one
 
@@ -757,36 +759,62 @@ class wirc_data(object):
 
         """
         
-        if mode == 'pol':
-            if direct_image_fn is not None:
+        if mode == 'direct':
+            print('Finding sources in direct image with no mask or PG ...')
 
-                #Open the direct image
-                direct_image = fits.open(direct_image_fn)[0].data
-                
-                #Get the focal plane mask. 
-                mask = cross_mask_ns.astype('bool') #What does our mask look like? 
+            #Open the direct image
+            direct_image = fits.open(image_fn)[0].data
+            
+            #Get the focal plane mask. 
+            mask = cross_mask_ns.astype('bool') #What does our mask look like? 
 
-                #Find the sources 
-                locations = image_utils.find_sources_in_direct_image(direct_image, mask, threshold_sigma = threshold_sigma, guess_seeing = guess_seeing, plot = plot)
+            #Find the sources 
+            locations = image_utils.find_sources_in_direct_image(direct_image, mask, threshold_sigma = threshold_sigma, guess_seeing = guess_seeing, plot = plot)
 
-                #How many sources are there? 
-                self.n_sources = np.shape(locations[0,:])[0]+1
+            #How many sources are there? 
+            self.n_sources = np.shape(locations[0,:])[0]+1
+            self.header['NSOURCES'] = self.n_sources
 
-                #Append all the new objects
-                for source in range(self.n_sources):
-                    self.source_list.append(wircpol_source(locations[source, 0], locations[source,1],source))
+            #Append all the new objects
+            for source in range(self.n_sources):
+                self.source_list.append(wircpol_source(locations[source, 0], locations[source,1],source))
 
-            else: 
-                print("No direct image filename given. For now we can only find sources automatically in a direct image, so we'll assume that there's a source in the middle slit. If you wish you can add other sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) \
-                #where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1")
-
-                self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
-                self.n_sources = 1
+            # else: 
+            #     print("No direct image filename given. For now we can only find sources automatically in a direct image, so we'll assume that there's a source in the middle slit. If you wish you can add other sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) \
+            #     #where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1")
+        elif mode == 'simple':
+            print("Assuming just a source in slit. If you wish you can add more sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1 ")
+            self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
+            self.n_sources = 1
                 
             self.header['NSOURCES'] = self.n_sources
         elif mode == 'spec':
             print("AUTOMATIC Identification of spec mode sources is not yet implemented. Hopefully soon.")
 
+        elif mode == 'pol':
+            print('Finding sources in specpol image ...')
+            locations = image_utils.locate_traces(image_fn, sky = sky, sigmalim = threshold_sigma, plot = plot, verbose = verbose, brightness_sort=brightness_sort, update_w_chi2_shift=update_w_chi2_shift, im_package = im_package, max_sources=max_sources, use_full_frame_mask=use_full_frame_mask, force_figures = force_figures, seeing = guess_seeing)
+
+            # Number of sources
+            self.n_sources = len(locations['UL'][0])
+            self.header['NSOURCES'] = self.n_sources
+
+            source_ok = image_utils.check_traces(image_fn, locations, verbose = verbose)
+
+            source_flag = [not i for i in source_ok]
+
+            locations['flag'] = source_flag
+
+            source_ok_ind = [i for i, x in enumerate(source_ok) if x]
+
+            # List of sources. Create source with wircpol_source([x,y],slit_pos,wirc_data.n_sources+1)
+            print('Adding '+str(len(source_ok_ind))+' good sources to source_list.')
+            for source in source_ok_ind:
+                slit_dist = np.sqrt((locations['spot0'][0][source] - constants.slit_position_x)**2 + (locations['spot0'][1][source] - constants.slit_position_y)**2) # source distance to slit
+                if slit_dist < 20: # if distance to slit is less than 20 pix
+                    self.source_list.append(wircpol_source([locations['spot0'][1][source],locations['spot0'][0][source]], 1, source)) # assume it's in slit, and add source to list
+                else: # if not
+                    self.source_list.append(wircpol_source([locations['spot0'][1][source],locations['spot0'][0][source]], 'slitless', source)) # assume it's outside the slit ('slitless'), and add source to list
     
     def add_source(self, x,y, slit_pos = "slitless"):
         self.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
@@ -806,7 +834,7 @@ class wirc_data(object):
 
 class wircpol_source(object):
     """
-    A point-source in a a wircpol_data image    
+    A point-source in a wircpol_data image    
 
     Args:
         pos - [x,y] - the location in the image of the source
@@ -882,7 +910,7 @@ class wircpol_source(object):
         except:
             if verbose: 
                 print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
-                self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
+            self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
 
         # if replace_bad_pixels:
         #     #iterate through the 4 thumbnails
@@ -1297,8 +1325,7 @@ class wircspec_source(object):
         """
 
         locs = [int(self.pos[0]),int(self.pos[1])]
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,
-                                        filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose=verbose)[0])
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose=verbose)[0])
         if image_DQ is not None:
 
             try:

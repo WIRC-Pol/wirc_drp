@@ -52,8 +52,7 @@ def shift_figure(x_figs,y_figs=0):
 
 # @jit
 # @profile
-def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, 
-    use_full_frame_mask=True, force_figures = False, seeing = 0.75):
+def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, use_full_frame_mask=True, force_figures = False, seeing = 0.75):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -76,36 +75,27 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # - Implement for H images too
     # - Include location of the two sky background holes/slits and traces
 
-    # Mean location of traces in reference sequence (x1,y1),(x2,y2)
-    # This was measured for a bright unpolarized standard 
-    UL_trace = [(553.48, 1726.52), (619, 1661)] 
-    LR_trace = [(1442.25, 814.25), (1500.25, 754.25)]
-    LL_trace = [(544.2, 763.55), (608, 826.75)]
-    UR_trace = [(1451.5, 1655.75), (1510.3, 1713.35)]
-    spot0 = (1029, 1242)
     UL_slit_trace = (573, 1024+500) # This should always be the same. Added even if not found.
+
     # Distance of 0th order, UR, LR, and LL traces to UL traces
-    UL = ((UL_trace[0][0]+UL_trace[1][0])/2, (UL_trace[0][1]+UL_trace[1][1])/2)
-    LR = ((LR_trace[0][0]+LR_trace[1][0])/2, (LR_trace[0][1]+LR_trace[1][1])/2)
-    LL = ((LL_trace[0][0]+LL_trace[1][0])/2, (LL_trace[0][1]+LL_trace[1][1])/2)
-    UR = ((UR_trace[0][0]+UR_trace[1][0])/2, (UR_trace[0][1]+UR_trace[1][1])/2)
-    UR_diff = (UR[0]-UL[0], UR[1]-UL[1])
-    LR_diff = (LR[0]-UL[0], LR[1]-UL[1])
-    LL_diff = (LL[0]-UL[0], LL[1]-UL[1]) 
-    spot0_diff = (spot0[0]-UL[0], spot0[1]-UL[1])
+    UR_diff = np.asarray(constants.dUR) - np.asarray(constants.dUL)
+    LR_diff = np.asarray(constants.dLR) - np.asarray(constants.dUL)
+    LL_diff = np.asarray(constants.dLL) - np.asarray(constants.dUL)
+    spot0_diff = -np.asarray(constants.dUL)
+
     ############
 
     # MAIN CODE ###########
 
     # Load cropped and centered trace template image
-    template_fn = wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
+    template_fn = constants.wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
     
     if verbose:
         print("Loading Template from {}".format(template_fn))
 
     trace_template_hdulist = fits.open(template_fn)
     trace_template = trace_template_hdulist[0].data
-    trace_template = median_filter(trace_template,int(seeing/plate_scale))
+    trace_template = ndimage.median_filter(trace_template,int(seeing/constants.plate_scale))
     # # Plot trace template image
     # fig = plt.figure()
     # plt.imshow(trace_template, origin='lower')
@@ -124,14 +114,19 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         sky_image_hdulist = fits.open(sky) 
         sky_image = sky_image_hdulist[0].data
         if verbose:
-            print('Processing science file '+ science + ' ...')
+            print('Loading sky background '+ sky + ' ...')
+    elif sky == None:
+        if verbose:
+            print('No sky background image given. Assuming it has already been subtracted.')
     else:
         sky_image = sky.copy()
+        if verbose:
+            print('Using supplied sky background array ...')
     # Filter sky image to remove bad pixels
-    if im_package =='scipy':
-    	sky_image_filt = ndimage.median_filter(sky_image,3) 
-    else:#just use cv2 im_package == 'cv2':   
-    	 sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
+    if (im_package =='scipy') and (sky!=None):
+        sky_image_filt = ndimage.median_filter(sky_image,3) 
+    elif (im_package =='cv2') and (sky!=None):
+        sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
    # plt.imshow(sky_image_filt)
     # plt.show()
 
@@ -139,14 +134,18 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     if isinstance(science, str):
         science_image_hdulist = fits.open(science)
         science_image = science_image_hdulist[0].data
+        if verbose:
+            print('Loading science image '+ science + ' ...')
     else:
         science_image = science.copy()
+        if verbose:
+            print('Using supplied science array ...')
 
     # Filter science image to remove bad pixels
     if im_package == 'scipy':
-    	science_image_filt = ndimage.median_filter(science_image,3)
-    else: #use cv2
-    	science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'f'),3)    
+        science_image_filt = ndimage.median_filter(science_image,3)
+    elif im_package == 'cv2': #use cv2.
+        science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'f'),3)    
     # # Plot science image
     # fig = plt.figure()
     # plt.imshow(science_image_filt, origin='lower')
@@ -155,13 +154,14 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
 
      # # If use_full_frame_mask
     if use_full_frame_mask:
-        ffmask = fits.open(wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
+        ffmask = fits.open(constants.wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
         fftmask = np.ndarray.astype(ffmask,bool)
         fftmask = fftmask[::-1,:]
         # science_image_filt[np.where(~fftmask)] = 0.
         # sky_image_filt[np.where(~fftmask)] = 0.
         science_image_filt[np.where(~fftmask)] = np.median(science_image_filt)
-        sky_image_filt[np.where(~fftmask)] = np.median(sky_image_filt)
+        if (sky!=None):
+            sky_image_filt[np.where(~fftmask)] = np.median(sky_image_filt)
     #     med_sci = np.nanmedian(science_image_filt[fftmask])
     #     med_sky = np.nanmedian(sky_image_filt[fftmask])
 
@@ -169,8 +169,13 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     #     med_sci = np.nanmedian(science_image_filt)
     #     med_sky = np.nanmedian(sky_image_filt)
         
-    # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
-    stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
+    # Subtract sky image from science image -> Scale the sky so the medians of the two images match.
+    if sky != None:
+        stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
+        if verbose:
+            print('Subtracting sky image from science image ...')
+    else:
+        stars_image = science_image_filt
 
     # Cut out upper left quadrant of stars_image
     # stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
@@ -207,7 +212,7 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     # Get trace coordinates and add to x and y lists
     for dy,dx in traces:
         x_center = (dx.start + dx.stop - 1)/2
-        y_center = (dy.start + dy.stop - 1)/2 + ylow # or 1023?
+        y_center = (dy.start + dy.stop - 1)/2 + ylow
 
         size = trace_template.shape[0]/2
         cutout = stars_image_UL[int(y_center-size-ylow):int(y_center+size-ylow),int(x_center-size):int(x_center+size)]
@@ -243,8 +248,9 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
 
     # Trace locations array with all coordinates
     locs_UL = np.array([x_locs, y_locs])
-    # Add slit trace position to trace locations
-    locs_UL = np.append(locs_UL, np.swapaxes(np.array([UL_slit_trace]),0,1), 1)
+
+    # Add slit trace position to trace locations. RN: Not adding slit trace per default anymore. If source is there, locate_traces() should pick it up. 
+    #locs_UL = np.append(locs_UL, np.swapaxes(np.array([UL_slit_trace]),0,1), 1)
 
     # Calculate location of corresponding traces (and 0th order) in other three quadrants
     locs_UR = locs_UL + np.swapaxes(np.array([UR_diff]),0,1)
@@ -252,132 +258,74 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
     locs_LL = locs_UL + np.swapaxes(np.array([LL_diff]),0,1)
     locs_spot0 = locs_UL + np.swapaxes(np.array([spot0_diff]),0,1)
 
-    pix_vals_UL=[]
-    #Do we want to sort the sources by their brightness? 
-    if brightness_sort: 
-        # Now we'll calculate the pixel value at each x,y value
-        for i in range(np.shape(locs_UL)[1]):
-            pix_vals_UL.append(science_image_filt[np.floor(locs_UL[0,i]).astype('int'),np.floor(locs_UL[1,i]).astype('int')]+\
-                science_image_filt[np.floor(locs_UR[0,i]).astype('int'),np.floor(locs_UR[1,i]).astype('int')]+\
-                science_image_filt[np.floor(locs_LR[0,i]).astype('int'),np.floor(locs_LR[1,i]).astype('int')]+\
-                science_image_filt[np.floor(locs_LL[0,i]).astype('int'),np.floor(locs_LL[1,i]).astype('int')])
-        pix_vals_UL = np.array(pix_vals_UL)
-        pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
-        # Now reorder locs_UL so that it's according to pix_vals_UL
-        locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
-        locs_UR = np.array([[locs_UR[0,i],locs_UR[1,i]] for i in pix_vals_argsort]).T
-        locs_LL = np.array([[locs_LL[0,i],locs_LL[1,i]] for i in pix_vals_argsort]).T
-        locs_LR = np.array([[locs_LR[0,i],locs_LR[1,i]] for i in pix_vals_argsort]).T
-        locs_spot0 = np.array([[locs_spot0[0,i],locs_spot0[1,i]] for i in pix_vals_argsort]).T
+    n_sources = len(locs_spot0.T)
+    trace_diag_flag = [False] * n_sources
 
-    # Flag suspicious traces by checking mid-diagonals
-    trace_diag_val = []
-    trace_diag_flag = []
+    if verbose:
+        print('Found ' + str(n_sources) + ' sources')
+    #source_ok = trace_checker(stars_image, source_list_pre, verbose = True)
+
+    # pix_vals_UL=[] RN: This sorting business messes with the indexing. Commenting out for now.
+    # #Do we want to sort the sources by their brightness? 
+    # if brightness_sort: 
+    #     # Now we'll calculate the pixel value at each x,y value
+    #     for i in range(np.shape(locs_UL)[1]):
+    #         pix_vals_UL.append(science_image_filt[np.floor(locs_UL[0,i]).astype('int'),np.floor(locs_UL[1,i]).astype('int')]+\
+    #             science_image_filt[np.floor(locs_UR[0,i]).astype('int'),np.floor(locs_UR[1,i]).astype('int')]+\
+    #             science_image_filt[np.floor(locs_LR[0,i]).astype('int'),np.floor(locs_LR[1,i]).astype('int')]+\
+    #             science_image_filt[np.floor(locs_LL[0,i]).astype('int'),np.floor(locs_LL[1,i]).astype('int')])
+    #     pix_vals_UL = np.array(pix_vals_UL)
+    #     pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
+    #     # Now reorder locs_UL so that it's according to pix_vals_UL
+    #     locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
+    #     locs_UR = np.array([[locs_UR[0,i],locs_UR[1,i]] for i in pix_vals_argsort]).T
+    #     locs_LL = np.array([[locs_LL[0,i],locs_LL[1,i]] for i in pix_vals_argsort]).T
+    #     locs_LR = np.array([[locs_LR[0,i],locs_LR[1,i]] for i in pix_vals_argsort]).T
+    #     locs_spot0 = np.array([[locs_spot0[0,i],locs_spot0[1,i]] for i in pix_vals_argsort]).T
+
+    # # Flag suspicious traces by checking mid-diagonals. This currently only checks diagonals of UL trace. Check UL, UR, LL, and LR by running trace_checker() separately instead!
+    # trace_diag_val = []
+    # trace_diag_flag = []
     
-    for n in range(0,locs_UL.shape[1]):
-        thumbn = stars_image[int(round(locs_UL[1,n]))-50:int(round(locs_UL[1,n]))+50, int(round(locs_UL[0,n]))-50:int(round(locs_UL[0,n]))+50]
-        diag_val = []
-        for diag_offset in range(-10,11):
-            diag = np.diagonal(np.flipud(thumbn), diag_offset).copy()
-            diag_val.append(np.sum(diag))
-        opt_diag_offset = diag_val.index(max(diag_val)) - 10
-        #print(opt_diag_offset)
-        diag0 = np.diagonal(np.flipud(thumbn), opt_diag_offset).copy()
-        diag_plus = np.diagonal(np.flipud(thumbn), opt_diag_offset+1).copy()
-        diag_minus = np.diagonal(np.flipud(thumbn), opt_diag_offset-1).copy()
-        full_diag = np.concatenate((diag0[20:-20], diag_plus[20:-20], diag_minus[20:-20]), axis=0)
-        #norm_diag = full_diag / np.max(full_diag)
-        trace_diag_val.append(np.median(full_diag))
-        td_sig = 3
-        td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
-        if (np.median(full_diag) > td_thres) & (np.median(np.flipud(thumbn[0:19,80:99]).diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(np.flipud(thumbn[80:99,0:19]).diagonal(opt_diag_offset).copy()) < td_thres):
-            trace_diag_flag.append(False)
-        else:
-            trace_diag_flag.append(True)
+    # for n in range(0,locs_UL.shape[1]):
+    #     thumbn = stars_image[int(round(locs_UL[1,n]))-50:int(round(locs_UL[1,n]))+50, int(round(locs_UL[0,n]))-50:int(round(locs_UL[0,n]))+50]
+    #     diag_val = []
+    #     for diag_offset in range(-10,11):
+    #         diag = np.diagonal(np.flipud(thumbn), diag_offset).copy()
+    #         diag_val.append(np.sum(diag))
+    #     opt_diag_offset = diag_val.index(max(diag_val)) - 10
+    #     #print(opt_diag_offset)
+    #     diag0 = np.diagonal(np.flipud(thumbn), opt_diag_offset).copy()
+    #     diag_plus = np.diagonal(np.flipud(thumbn), opt_diag_offset+1).copy()
+    #     diag_minus = np.diagonal(np.flipud(thumbn), opt_diag_offset-1).copy()
+    #     full_diag = np.concatenate((diag0[20:-20], diag_plus[20:-20], diag_minus[20:-20]), axis=0)
+    #     #norm_diag = full_diag / np.max(full_diag)
+    #     trace_diag_val.append(np.median(full_diag))
+    #     td_sig = 3
+    #     td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
+    #     if (np.median(full_diag) > td_thres) & (np.median(np.flipud(thumbn[0:19,80:99]).diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(np.flipud(thumbn[80:99,0:19]).diagonal(opt_diag_offset).copy()) < td_thres):
+    #         trace_diag_flag.append(False)
+    #     else:
+    #         trace_diag_flag.append(True)
             
     #print(trace_diag_val, '\n', trace_diag_flag)
 
-    #Put all the good traces at the to
-    args = np.argsort(trace_diag_flag)
-    locs_UL = locs_UL[:,args][:,:max_sources]
-    locs_UR = locs_UR[:,args][:,:max_sources]
-    locs_LL = locs_LL[:,args][:,:max_sources]
-    locs_LR = locs_LR[:,args][:,:max_sources]
-    locs_spot0 = locs_spot0[:,args][:,:max_sources]
-    trace_diag_flag = np.array(trace_diag_flag)[args][:max_sources]
-
-    if verbose:
-        for i in range(len(trace_diag_flag)):
-            if verbose:
-                    print('Trace', str(i+1), 'too noisy or crossing quadrant limit. Flagging!') 
-        # Print list of trace location coordinates in UL quadrant
-        print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
-        for tr in range(0,locs_UL.shape[1]):
-            print('Trace', str(tr+1), ': (', locs_UL[:,tr][0], locs_UL[:,tr][1], ')')
+    #Put all the good traces at the top. RN: This sorting business messes with the indexing. Commenting out for now.
+    # args = np.argsort(trace_diag_flag)
+    # locs_UL = locs_UL[:,args][:,:max_sources]
+    # locs_UR = locs_UR[:,args][:,:max_sources]
+    # locs_LL = locs_LL[:,args][:,:max_sources]
+    # locs_LR = locs_LR[:,args][:,:max_sources]
+    # locs_spot0 = locs_spot0[:,args][:,:max_sources]
+    # trace_diag_flag = np.array(trace_diag_flag)[args][:max_sources]
 
 
-    # Gather all trace and 0th order locations (and flags) in dictionary
+    # Gather all trace and 0th order locations in a dictionary
     locs = {'UL': locs_UL, 'UR': locs_UR, 'LR': locs_LR, 'LL': locs_LL, 'spot0': locs_spot0, 'flag': trace_diag_flag}
 
-    # Show cutout of all traces in stars_image
+    # # Show location of all found traces in stars_image
     if plot == True:
-        plt.ion() # Turning on interactive mode for plotting (shows figure and releases terminal prompt)
-
-        if force_figures:
-            fig = plt.figure(1)
-            plt.clf()
-            fig, axes = plt.subplots(nrows=locs_UL.shape[1], ncols=5, num=1,figsize=(6.4,4.8))
-        else: 
-            fig, axes = plt.subplots(nrows=locs_UL.shape[1], ncols=5)
-
-        for n in range(0,locs_UL.shape[1]):
-            #plt.subplot(peaks.shape[1]+1,5,n*5+1)
-            axes[n,0].imshow(stars_image[int(round(locs_UL[1,n])-50):int(round(locs_UL[1,n])+50), int(round(locs_UL[0,n])-50):int(round(locs_UL[0,n])+50)], origin='lower')
-            axes[n,0].set_yticks([])
-            axes[n,0].set_xticks([])
-
-            if trace_diag_flag[n] == True:
-                for pos in ['top', 'bottom', 'right', 'left']:
-                    axes[n,0].spines[pos].set_color('red')
-            #plt.subplot(peaks.shape[1]+1,5,n*5+2)
-            axes[n,1].imshow(stars_image[int(round(locs_UR[1,n])-50):int(round(locs_UR[1,n])+50), int(round(locs_UR[0,n])-50):int(round(locs_UR[0,n])+50)], origin='lower')
-            axes[n,1].set_yticks([])
-            axes[n,1].set_xticks([])
-            if trace_diag_flag[n] == True:
-                for pos in ['top', 'bottom', 'right', 'left']:
-                    axes[n,1].spines[pos].set_color('red')
-            #plt.subplot(peaks.shape[1]+1,5,n*5+3)
-            axes[n,2].imshow(stars_image[int(round(locs_LR[1,n])-50):int(round(locs_LR[1,n])+50), int(round(locs_LR[0,n])-50):int(round(locs_LR[0,n])+50)], origin='lower')
-            axes[n,2].set_yticks([])
-            axes[n,2].set_xticks([])
-            if trace_diag_flag[n] == True:
-                for pos in ['top', 'bottom', 'right', 'left']:
-                    axes[n,2].spines[pos].set_color('red')
-            #plt.subplot(peaks.shape[1]+1,5,n*5+4)
-            axes[n,3].imshow(stars_image[int(round(locs_LL[1,n])-50):int(round(locs_LL[1,n])+50), int(round(locs_LL[0,n])-50):int(round(locs_LL[0,n])+50)], origin='lower')
-            axes[n,3].set_yticks([])
-            axes[n,3].set_xticks([])
-            if trace_diag_flag[n] == True:
-                for pos in ['top', 'bottom', 'right', 'left']:
-                    axes[n,3].spines[pos].set_color('red')
-            #plt.subplot(peaks.shape[1]+1,5,n*5+5)
-            axes[n,4].imshow(stars_image[int(round(locs_spot0[1,n])-50):int(round(locs_spot0[1,n])+50), int(round(locs_spot0[0,n])-50):int(round(locs_spot0[0,n])+50)], origin='lower')
-            axes[n,4].set_yticks([])
-            axes[n,4].set_xticks([])
-            if trace_diag_flag[n] == True:
-                for pos in ['top', 'bottom', 'right', 'left']:
-                    axes[n,4].spines[pos].set_color('red')
-
-        plt.suptitle('Thumbnail cutouts of found sources', size='large')
-        for row in range(0,locs_UL.shape[1]-1):
-            axes[row,0].set_ylabel('Source '+str(row+1))
-        axes[locs_UL.shape[1]-1,0].set_ylabel('Source in slit')
-        ytitle = ['UL', 'UR', 'LR', 'LL', '0th order']
-        for col in range(0,5):
-            axes[0,col].set_title(ytitle[col], size='medium')
-        #fig.savefig(target_file[0:target_file.find('.fits')]+'.pdf', format='pdf')
-
-        plt.draw()
+        plt.ion() # Turning on interactive mode for plotting (shows figure and releases terminal prompt) 
         
         # Plot UL quadrant of sky subtracted science image with found traces labelled
         if force_figures:
@@ -390,19 +338,19 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         plt.colorbar()
         plt.xlim(xlow,xhigh)
         plt.ylim(ylow,yhigh)
-        for n in range(0,locs_UL.shape[1]-1):
+        for n in range(0,locs_UL.shape[1]):
             if trace_diag_flag[n] == True:
                 #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
                 plt.annotate('Trace '+str(n+1), (locs_UL[0,n],locs_UL[1,n]),color='red')
             else:
                 #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
                 plt.annotate('Trace '+str(n+1), (locs_UL[0,n],locs_UL[1,n]),color='white')
-        if trace_diag_flag[locs_UL.shape[1]-1] == True:
-            #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
-            plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='red')
-        else:
-            #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
-            plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='white')
+        # if trace_diag_flag[locs_UL.shape[1]-1] == True:
+        #     #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
+        #     plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='red')
+        # else:
+        #     #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
+        #     plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='white')
 
         plt.draw()
 
@@ -413,45 +361,60 @@ def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, bri
         print('LR quadrant trace locations:\n',locs['LR'].T,'\n')
         print('LL quadrant trace locations:\n',locs['LL'].T,'\n')
 
+    # Number of sources
+    #self.n_sources = len(locs['UL'][0])
+    #n_sources = len(locs['UL'][0])
+
+    # List of sources. Create source with wircpol_source([x,y],slit_pos,wirc_data.n_sources+1)
+    # for source in range(self.n_sources-1):
+    #     self.source_list.append(wircpol_source([locs['spot0'][0][source],locs['spot0'][1][source]], 'slitless', source))
+    # # Add the last source (assumed in slit) to the list
+    # self.source_list.append(wircpol_source([locs['spot0'][0][-1],locs['spot0'][1][-1]], 1, self.n_sources))
+
+    # for source in range(n_sources-1):
+    #     source_list.append(wircpol_source([locs['spot0'][0][source],locs['spot0'][1][source]], 'slitless', source))
+    # # Add the last source (assumed in slit) to the list
+    # source_list.append(wircpol_source([locs['spot0'][0][-1],locs['spot0'][1][-1]], 1, n_sources))
+
     return locs
 
-def trace_checker(full_image, wo_source_list, verbose = False):
+def check_traces(full_image, wo_source_list, verbose = False):
 
     '''
     Flag sources with suspicious traces by checking mid-diagonals.
 
         Input:
             full_image: full calibrated science (PG) image
-            wo_source_list: wircpol_object source list
+            wo_source_list: wircpol_object source list OR locs list
         Output:
             source_ok: list with True for sources with good traces and False for sources with bad traces
     '''
 
-    trace_diag_val = [] # Value list for trace in each quad
-    trace_diag_ok = [] # True/False list for trace in each quad
-    quads_ok = [] # True/False list for each quad
-    source_ok = [] # True/False list for nsources
-    nsources = len(wo_source_list)
+    if isinstance(wo_source_list, dict):
+            nsources = len(wo_source_list['spot0'].T)
+    else:
+            nsources = len(wo_source_list)
     quads_diff = [constants.dUL, constants.dUR, constants.dLR, constants.dLL] # offsets from zeroth order
     quads = ['UL', 'UR', 'LR', 'LL']
     trace_count = 0
     plt.ion()
 
+    source_ok = [] # True/False list for nsources
     for source in range(nsources):
-        zeroth_loc = wo_source_list[source].pos
+        if isinstance(wo_source_list, dict):
+            zeroth_loc = wo_source_list['spot0'][:,source]
+        else:
+            zeroth_loc = wo_source_list[source].pos
         if verbose:
-            print('Checking traces for source '+ str(source) + ' at location ' + str(zeroth_loc))
+            print('Checking traces for source '+ str(source+1) + ' at location ' + str(zeroth_loc))
             plt.figure(figsize=(8,8))
         # for UL
+        trace_diag_val = [] # Value list for trace in each quad
+        trace_diag_ok = [] # True/False list for trace in each quad
         for quad in range(len(quads)):
             trace_count += 1
             trace_loc = (zeroth_loc[0] + quads_diff[quad][0], zeroth_loc[1] + quads_diff[quad][1]) # trace locs with rounded offsets
             thumbn = full_image[int(round(trace_loc[1]-50)):int(round(trace_loc[1]+50)), int(round(trace_loc[0]-50)):int(round(trace_loc[0]+50))]
-            if verbose:
-                print('Checking diagonal for '+ quads[quad] + ' trace ...')
-                plt.subplot(nsources,4,trace_count)
-                plt.imshow(thumbn, origin='lower')
-                plt.title('Source ' + str(source) + ' ' + quads[quad])
             if quads[quad] == 'UL':
                 thumbn_orient = np.flipud(thumbn)
             elif quads[quad] == 'UR':
@@ -476,8 +439,30 @@ def trace_checker(full_image, wo_source_list, verbose = False):
                 td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
             if (np.median(full_diag) > td_thres) & (np.median(thumbn_orient[0:19,80:99].diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(thumbn_orient[80:99,0:19].diagonal(opt_diag_offset).copy()) < td_thres):
                 trace_diag_ok.append(True)
+                framecol = 'green'
+                if verbose:
+                    print('Looks alright!')
             else:
                 trace_diag_ok.append(False)
+                framecol = 'red'
+                if verbose:
+                    print('No good!')
+            if verbose:
+                print('Checking diagonal for '+ quads[quad] + ' trace ...')
+                plt.subplot(nsources,5,trace_count)
+                plt.imshow(thumbn, origin='lower')
+                ax = plt.gca()
+                plt.setp(ax.spines.values(), color=framecol, linewidth=3)
+                plt.title('Source ' + str(source+1) + ' ' + quads[quad])
+        trace_count += 1
+        thumb0 = full_image[int(round(zeroth_loc[1]-50)):int(round(zeroth_loc[1]+50)), int(round(zeroth_loc[0]-50)):int(round(zeroth_loc[0]+50))]
+        if verbose:
+            plt.subplot(nsources,5,trace_count)
+            plt.imshow(thumb0, origin='lower')
+            ax = plt.gca()
+            plt.setp(ax.spines.values(), color=framecol, linewidth=3)
+            plt.title('Source ' + str(source+1) + ' 0th')
+            print('\n')
         if all(trace_diag_ok):
             source_ok.append(True)
         else:
