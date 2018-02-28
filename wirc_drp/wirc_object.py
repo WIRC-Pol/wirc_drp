@@ -802,7 +802,10 @@ class wirc_data(object):
             self.n_sources = len(locations['UL'][0])
             self.header['NSOURCES'] = self.n_sources
 
-            source_ok = image_utils.check_traces(image_fn, locations, verbose = verbose)
+            source_check = image_utils.check_traces(image_fn, locations, verbose = verbose)
+
+            source_ok = source_check[0]
+            source_brightness = source_check[1]
 
             source_flag = [not i for i in source_ok]
 
@@ -818,6 +821,10 @@ class wirc_data(object):
                     self.source_list.append(wircpol_source([locations['spot0'][1][source],locations['spot0'][0][source]], 1, source)) # assume it's in slit, and add source to list
                 else: # if not
                     self.source_list.append(wircpol_source([locations['spot0'][1][source],locations['spot0'][0][source]], 'slitless', source)) # assume it's outside the slit ('slitless'), and add source to list
+
+            # Sort the source_list with brightest source on top
+            self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
+
     
     def add_source(self, x,y, slit_pos = "slitless"):
         self.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
