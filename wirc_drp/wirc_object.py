@@ -750,7 +750,7 @@ class wirc_data(object):
 
 
     def find_sources(self, image_fn, sky = None, threshold_sigma = 5, guess_seeing = 1, plot = False, verbose = False, brightness_sort=False, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, 
-                    use_full_frame_mask=True, force_figures = False, mode = 'pol', guess_location = None):
+                    use_full_frame_mask=True, force_figures = False, mode = 'pol', guess_location = None, verbos = False):
         
         """
         Find the number of sources in the image and create a wircpol_source objects for each one. In 'pol' mode the traces will be verified and only the good sources will be saved. 
@@ -765,7 +765,8 @@ class wirc_data(object):
         """
         
         if mode == 'direct':
-            print('Finding sources in direct image with no mask or PG ...')
+            if verbose:
+                print('Finding sources in direct image with no mask or PG ...')
 
             #Open the direct image
             direct_image = fits.open(image_fn)[0].data
@@ -789,12 +790,15 @@ class wirc_data(object):
             #     #where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1")
         elif mode == 'simple':
             if guess_location is None:
-                print("Assuming just a source in slit. If you wish you can add more sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1 ")
+                if verbose:
+                    print("Assuming just a source in slit. If you wish you can add more sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1 ")
                 self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
             elif len(guess_location) == 2:
-                print("Use the given location x,y = %.2f, %.2f"%(guess_location[0], guess_location[1]))
+                if verbose:
+                    print("Use the given location x,y = %.2f, %.2f"%(guess_location[0], guess_location[1]))
                 self.source_list.append(wircpol_source([guess_location[1],guess_location[0]],'slitless',self.n_sources+1))
             else:
+                #if verbose:
                 print("Leave guess_location as None if source is in slit, otherwise give guess_location in [x,y] format.")
             self.n_sources = 1
                 
@@ -803,7 +807,8 @@ class wirc_data(object):
             print("AUTOMATIC Identification of spec mode sources is not yet implemented. Hopefully soon.")
 
         elif mode == 'pol':
-            print('Finding sources in specpol image ...')
+            if verbose:
+                print('Finding sources in specpol image ...')
             locations = image_utils.locate_traces(image_fn, sky = sky, sigmalim = threshold_sigma, plot = plot, verbose = verbose, brightness_sort=brightness_sort, update_w_chi2_shift=update_w_chi2_shift, im_package = im_package, max_sources=max_sources, use_full_frame_mask=use_full_frame_mask, force_figures = force_figures, seeing = guess_seeing)
 
             # Number of sources
