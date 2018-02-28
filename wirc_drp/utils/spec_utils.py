@@ -1315,7 +1315,13 @@ def align_set_of_traces(traces_cube, ref_trace, oversampling = 10):
     align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
     and align them with respect to the reference trace of the same length. 
     """
+    #make sure the oversampling factor is integer
     oversampling = int(oversampling)
+    #make sure no nans are involved
+    ref_trace = np.nan_to_num(ref_trace)
+    traces_cube = np.nan_to_num(traces_cube)
+
+    #array for results
     new_cube = np.zeros(traces_cube.shape)
     #upsample, nearest neighbor
     ref = zoom(ref_trace, oversampling, order = 1)
@@ -1337,7 +1343,12 @@ def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
     align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
     and align them with respect to the reference trace of the same length. 
     """
+    #make sure the oversampling factor is integer
     oversampling = int(oversampling)
+    #make sure no nans are involved
+    ref_trace = np.nan_to_num(ref_trace)
+    traces_cube = np.nan_to_num(traces_cube)
+    #array for results
     new_cube = np.zeros(traces_cube.shape)
     #ref = ref_trace
     #oversampling
