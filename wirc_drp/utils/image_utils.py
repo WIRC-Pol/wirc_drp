@@ -122,9 +122,9 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         if verbose:
             print('No sky background image given. Assuming it has already been subtracted.')
     # Filter sky image to remove bad pixels
-    if (im_package =='scipy') and (sky!=None):
+    if (im_package =='scipy') and (type(sky)==np.ndarray):
         sky_image_filt = ndimage.median_filter(sky_image,3) 
-    elif (im_package =='cv2') and (sky!=None):
+    elif (im_package =='cv2') and (type(sky)==np.ndarray):
         sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
    # plt.imshow(sky_image_filt)
     # plt.show()
@@ -159,7 +159,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         # science_image_filt[np.where(~fftmask)] = 0.
         # sky_image_filt[np.where(~fftmask)] = 0.
         science_image_filt[np.where(~fftmask)] = np.median(science_image_filt)
-        if (sky!=None):
+        if type(sky)==np.ndarray:
             sky_image_filt[np.where(~fftmask)] = np.median(sky_image_filt)
     #     med_sci = np.nanmedian(science_image_filt[fftmask])
     #     med_sky = np.nanmedian(sky_image_filt[fftmask])
@@ -169,7 +169,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
     #     med_sky = np.nanmedian(sky_image_filt)
         
     # Subtract sky image from science image -> Scale the sky so the medians of the two images match.
-    if sky != None:
+    if type(sky)==np.ndarray:
         stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
         if verbose:
             print('Subtracting sky image from science image ...')
@@ -492,7 +492,7 @@ def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seei
     """    
 
     locations = []
-    if direct_image != None:
+    if type(direct_image) == np.ndarray:
         
         #First find sources in the slitless area        
         
