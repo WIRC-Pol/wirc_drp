@@ -119,8 +119,14 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     pix_to_pix = flat/median_flat 
     global_bad_px = sigma_clip(pix_to_pix, sigma = global_sig_bad_pix).mask #9 seems to work best
 
+    #also set all 0 and negative pixels in flat as bad
+    non_positive = flat <= 0 
+
     #logic combine
     bad_px = np.logical_or(global_bad_px, local_bad_pix)
+
+    #also add non_positive pixels
+    bad_px = np.logical_or(bad_px, non_positive)
     
     #Normalize good pixel values
     if normalize == 'median':
