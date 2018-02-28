@@ -1347,14 +1347,14 @@ def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
     for i, j in enumerate(traces_cube):
         #print(np.max(ref), np.max(j))
         #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
-        up_spec = zoom(j, oversampling, order = 0) #upsample the spectrum
+        up_spec = zoom(j, oversampling, order = 1) #upsample the spectrum
 
         #corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j[1,:]/np.nanmax(j[1,:]))[::-1]) )#j[1,:] is the flux vector
         corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((up_spec[1,:]/np.nanmax(up_spec[1,:]))[::-1]) )#j[1,:] is the flux vector
 
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. order = 0 so no interpolation 
+        new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
             
     return new_cube
 
