@@ -1386,7 +1386,7 @@ def align_spectral_cube(spectral_cube, oversampling = 10, ref_trace = None):
     aligned_cube = np.zeros(spectral_cube.shape) 
     #loop through 4 spectral traces
     for i in range(spectral_cube.shape[1]): #this dimension is the 4 spectral traces for wirc+pol
-        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:], ref_trace)
+        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:],  ref_trace , oversampling = oversampling)
 
     return aligned_cube
 
