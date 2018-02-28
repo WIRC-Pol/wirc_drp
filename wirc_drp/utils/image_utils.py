@@ -71,6 +71,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
     """    
 
     # TODO:
+    # - Reactivate sort after brightest trace
     # - Implement for H images too
 
     UL_slit_trace = (573, 1024+500) # This should always be the same. Added even if not found.
@@ -385,7 +386,7 @@ def check_traces(full_image, wo_source_list, verbose = False):
             full_image: full calibrated science (PG) image
             wo_source_list: wircpol_object source list OR locs list
         Output:
-            source_ok: list with True for sources with good traces and False for sources with bad traces
+            (source_ok, source_brightness): tuple containing a list (source_ok) with True for sources with good traces and False for sources with bad traces, and a list (source_brightness) with a brighness metric for the sources.
     '''
 
     if isinstance(wo_source_list, dict):
@@ -397,6 +398,7 @@ def check_traces(full_image, wo_source_list, verbose = False):
     trace_count = 0
     plt.ion()
 
+    source_brightness = []
     source_ok = [] # True/False list for nsources
     for source in range(nsources):
         if isinstance(wo_source_list, dict):
@@ -432,10 +434,11 @@ def check_traces(full_image, wo_source_list, verbose = False):
                 diag_minus = np.diagonal(thumbn_orient, opt_diag_offset-1).copy()
                 full_diag = np.concatenate((diag0[20:-20], diag_plus[20:-20], diag_minus[20:-20]), axis=0)
                 #norm_diag = full_diag / np.max(full_diag)
-                trace_diag_val.append(np.median(full_diag))
+                full_diag_med = np.median(full_diag)
+                trace_diag_val.append(full_diag_med)
                 td_sig = 3
                 td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
-            if (np.median(full_diag) > td_thres) & (np.median(thumbn_orient[0:19,80:99].diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(thumbn_orient[80:99,0:19].diagonal(opt_diag_offset).copy()) < td_thres):
+            if (full_diag_med > td_thres) & (np.median(thumbn_orient[0:19,80:99].diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(thumbn_orient[80:99,0:19].diagonal(opt_diag_offset).copy()) < td_thres):
                 trace_diag_ok.append(True)
                 framecol = 'green'
                 if verbose:
@@ -465,8 +468,9 @@ def check_traces(full_image, wo_source_list, verbose = False):
             source_ok.append(True)
         else:
             source_ok.append(False)
+        source_brightness.append(np.sum(trace_diag_val))
         
-    return source_ok
+    return(source_ok, source_brightness)
 
 
 def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seeing, plot = False):
