@@ -1369,7 +1369,7 @@ def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
             
     return new_cube
 
-def align_spectral_cube(spectral_cube, ref_trace = None):
+def align_spectral_cube(spectral_cube, oversampling = 10, ref_trace = None):
     """
     A higher level function to run align_set_of_traces. This function takes a wirc+pol cube with dimensions
     (number of observations, 4 spectral traces, 3(wavelength, flux, flux_err), number of spectral pixels)
