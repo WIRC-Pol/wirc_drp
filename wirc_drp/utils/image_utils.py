@@ -113,13 +113,13 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         sky_image = sky_image_hdulist[0].data
         if verbose:
             print('Loading sky background '+ sky + ' ...')
-    elif sky == None:
-        if verbose:
-            print('No sky background image given. Assuming it has already been subtracted.')
-    else:
+    elif type(sky) == np.ndarray: #if array
         sky_image = sky.copy()
         if verbose:
             print('Using supplied sky background array ...')
+    else: # sky == None:
+        if verbose:
+            print('No sky background image given. Assuming it has already been subtracted.')
     # Filter sky image to remove bad pixels
     if (im_package =='scipy') and (sky!=None):
         sky_image_filt = ndimage.median_filter(sky_image,3) 
