@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from wirc_drp.constants import *
 from scipy.optimize import least_squares
 from scipy.optimize import basinhopping
-from scipy.ndimage import shift, median_filter
+from scipy.ndimage import shift, median_filter, zoom
 from scipy.ndimage import gaussian_filter
 from scipy import ndimage as ndi
 from scipy.signal import fftconvolve
@@ -1310,45 +1310,66 @@ def rough_lambda_and_filter_calibration(spectra, widths, xpos, ypos, band = "J",
 
 
 
-def align_set_of_traces(traces_cube, ref_trace):
+def align_set_of_traces(traces_cube, ref_trace, oversampling = 10):
     """
     align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
     and align them with respect to the reference trace of the same length. 
     """
+    #make sure the oversampling factor is integer
+    oversampling = int(oversampling)
+    #make sure no nans are involved
+    ref_trace = np.nan_to_num(ref_trace)
+    traces_cube = np.nan_to_num(traces_cube)
+
+    #array for results
     new_cube = np.zeros(traces_cube.shape)
-    ref = ref_trace
+    #upsample, nearest neighbor
+    ref = zoom(ref_trace, oversampling, order = 1)
     #fig, (ax, ax2) = plt.subplots(2,4, figsize = (20,10))
     for i, j in enumerate(traces_cube):
         #print(np.max(ref), np.max(j))
         #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
-        corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j/np.nanmax(j))[::-1]) )#j[1,:] is the flux vector
-
+        up_spec = zoom(j, oversampling, order = 1) #upsample the spectrum
+        #corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j/np.nanmax(j))[::-1]) )#j[1,:] is the flux vector
+        corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((up_spec/np.nanmax(up_spec))[::-1]) )#j[1,:] is the flux vector
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], shift_size, order = 0) # this shifts wl, flux, and flux_error at the same time. order = 0 so no interpolation 
+        new_cube[i] = shift(traces_cube[i], shift_size/oversampling, order = 1) # this shifts wl, flux, and flux_error at the same time. order = 1 so linear interpolation 
             
     return new_cube
 
-def align_spectral_cube_helper(traces_cube, ref_trace):
+def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
     """
     align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
     and align them with respect to the reference trace of the same length. 
     """
+    #make sure the oversampling factor is integer
+    oversampling = int(oversampling)
+    #make sure no nans are involved
+    ref_trace = np.nan_to_num(ref_trace)
+    traces_cube = np.nan_to_num(traces_cube)
+    #array for results
     new_cube = np.zeros(traces_cube.shape)
-    ref = ref_trace
+    #ref = ref_trace
+    #oversampling
+    ref = zoom(ref_trace, oversampling, order = 1)
+
     #fig, (ax, ax2) = plt.subplots(2,4, figsize = (20,10))
     for i, j in enumerate(traces_cube):
         #print(np.max(ref), np.max(j))
         #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
-        corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j[1,:]/np.nanmax(j[1,:]))[::-1]) )#j[1,:] is the flux vector
+        up_spec = zoom(j, oversampling, order = 1) #upsample the spectrum
+
+        #corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j[1,:]/np.nanmax(j[1,:]))[::-1]) )#j[1,:] is the flux vector
+        corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((up_spec[1,:]/np.nanmax(up_spec[1,:]))[::-1]) )#j[1,:] is the flux vector
 
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], (0,shift_size), order = 0) # this shifts wl, flux, and flux_error at the same time. order = 0 so no interpolation 
+        new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
             
     return new_cube
 
-def align_spectral_cube(spectral_cube, ref_trace = None):
+def align_spectral_cube(spectral_cube, oversampling = 10, ref_trace = None):
     """
     A higher level function to run align_set_of_traces. This function takes a wirc+pol cube with dimensions
     (number of observations, 4 spectral traces, 3(wavelength, flux, flux_err), number of spectral pixels)
@@ -1359,11 +1380,13 @@ def align_spectral_cube(spectral_cube, ref_trace = None):
     #Define reference if not given,
     if ref_trace == None:
         ref_trace = spectral_cube[0,0,1,:] #This is first observation, first trace (Qp), flux, and the whole vector
+    elif ref_trace == 'median':
+        ref_trace = np.nanmedian(spectral_cube[:,0,1,:], axis = 0)
     #create a destination array
     aligned_cube = np.zeros(spectral_cube.shape) 
     #loop through 4 spectral traces
     for i in range(spectral_cube.shape[1]): #this dimension is the 4 spectral traces for wirc+pol
-        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:], ref_trace)
+        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:],  ref_trace , oversampling = oversampling)
 
     return aligned_cube
 
