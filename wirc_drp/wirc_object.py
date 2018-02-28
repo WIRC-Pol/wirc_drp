@@ -794,9 +794,13 @@ class wirc_data(object):
                     print("Assuming just a source in slit. If you wish you can add more sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1 ")
                 self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
             elif len(guess_location) == 2:
+                x = guess_location[0]
+                y = guess_location[1]
+                if update_w_chi2_shift:
+                    x,y = image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name)
                 if verbose:
                     print("Use the given location x,y = %.2f, %.2f"%(guess_location[0], guess_location[1]))
-                self.source_list.append(wircpol_source([guess_location[1],guess_location[0]],'slitless',self.n_sources+1))
+                self.source_list.append(wircpol_source([y,x],'slitless',self.n_sources+1))
             else:
                 #if verbose:
                 print("Leave guess_location as None if source is in slit, otherwise give guess_location in [x,y] format.")
@@ -839,7 +843,9 @@ class wirc_data(object):
             self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
 
     
-    def add_source(self, x,y, slit_pos = "slitless"):
+    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True):
+        if update_w_chi2_shift:
+            x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name)
         self.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
         wirc_data.n_sources += 1
 
@@ -854,6 +860,8 @@ class wirc_data(object):
     def mark_bad(self, reason = "A good reason"):
         self.bad_flag = True
         self.bad_reason = reason
+
+
 
 class wircpol_source(object):
     """
