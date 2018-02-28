@@ -1318,12 +1318,12 @@ def align_set_of_traces(traces_cube, ref_trace, oversampling = 10):
     oversampling = int(oversampling)
     new_cube = np.zeros(traces_cube.shape)
     #upsample, nearest neighbor
-    ref = zoom(ref_trace, oversampling, order = 0)
+    ref = zoom(ref_trace, oversampling, order = 1)
     #fig, (ax, ax2) = plt.subplots(2,4, figsize = (20,10))
     for i, j in enumerate(traces_cube):
         #print(np.max(ref), np.max(j))
         #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
-        up_spec = zoom(j, oversampling, order = 0) #upsample the spectrum
+        up_spec = zoom(j, oversampling, order = 1) #upsample the spectrum
         #corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j/np.nanmax(j))[::-1]) )#j[1,:] is the flux vector
         corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((up_spec/np.nanmax(up_spec))[::-1]) )#j[1,:] is the flux vector
         shift_size = np.nanargmax(corr) - len(ref) +1
@@ -1341,7 +1341,7 @@ def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
     new_cube = np.zeros(traces_cube.shape)
     #ref = ref_trace
     #oversampling
-    ref = zoom(ref_trace, oversampling, order = 0)
+    ref = zoom(ref_trace, oversampling, order = 1)
 
     #fig, (ax, ax2) = plt.subplots(2,4, figsize = (20,10))
     for i, j in enumerate(traces_cube):
