@@ -750,7 +750,7 @@ class wirc_data(object):
 
 
     def find_sources(self, image_fn, sky = None, threshold_sigma = 5, guess_seeing = 1, plot = False, verbose = False, brightness_sort=False, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, 
-                    use_full_frame_mask=True, force_figures = False, mode = 'pol', guess_location = None, verbose = False):
+                    use_full_frame_mask=True, force_figures = False, mode = 'pol', guess_location = None):
         
         """
         Find the number of sources in the image and create a wircpol_source objects for each one. In 'pol' mode the traces will be verified and only the good sources will be saved. 
