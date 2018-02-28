@@ -377,6 +377,55 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
 
     return locs
 
+def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, verbose = False):
+    """
+    This function grabs the upper left cutout from given x,y location of the zeroth order, then uses chi2_shift to align it
+    with a trace template, then spits out the new x, y location that will center the trace. 
+    """
+    # Load cropped and centered trace template image
+    template_fn = constants.wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
+    
+    if verbose:
+        print("Loading Template from {}".format(template_fn))
+
+    trace_template_hdulist = fits.open(template_fn)
+    trace_template = trace_template_hdulist[0].data
+    trace_template = ndimage.median_filter(trace_template,int(seeing/constants.plate_scale))
+
+    # Grab top left trace cutout
+    UL_trace = cutout_trace_thumbnails(image, [y,x], flip = False, filter_name = filter_name, sub_bar = False, mode = 'pol', verbose = False)[0] #just take the first one
+
+    try:
+        shifts = chi2_shift(UL_trace,trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
+
+        #Sometimes if it's too big the whole thing gets shifted out and it breaks things. 
+        if (np.abs(shifts[0]) < 10 and np.abs(shifts[1]) < 10):
+            x -= shifts[0]
+            y -= shifts[1]
+        
+        ## Debugging plots
+        # fig = plt.figure(figsize=(7,7))
+        # ax1 = fig.add_subplot(141)
+        # plt.imshow(cutout)
+        # ax2 = fig.add_subplot(142)
+        # plt.imshow(trace_template)
+        # ax3 = fig.add_subplot(143)
+        # cutout2 = stars_image_UL[np.floor(y_center-size-1024).astype(int):np.floor(y_center+size-1024).astype(int),np.floor(x_center-size).astype(int):np.floor(x_center+size).astype(int)]
+        # plt.imshow(cutout2,alpha=0.5,cmap='magma')
+        # ax4 = fig.add_subplot(144)
+        # plt.imshow(shift(cutout,(shifts[1],shifts[0])))
+
+        return x, y
+
+    except Exception as e:
+        if verbose:
+            print(e)
+        return None
+
+
+
+
+
 def check_traces(full_image, wo_source_list, verbose = False):
 
     '''
@@ -753,8 +802,10 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
     if mode == 'pol':
         if filter_name == 'J':
             cutout_size = 150 #Make cutout of each trace. This has to chage for J/H bands: was 80
+            lb = J_lam
         elif filter_name == 'H':
             cutout_size = 200 #was 150
+            lb = H_lam
         else:
             if verbose:
                 print('Filter name %s not recognized, assuming J' %filter_name)
