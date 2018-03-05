@@ -791,7 +791,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
     '''
     This function Extracts the thumbnails of each trace for a given image give a locations list. 
     image - the image where you want to extract the traces
-    locations - the locations in the image that you want to use as a basis for extraction
+    locations - the locations in the image that you want to use as a basis for extraction [y,x] format
     flip - An optional switch that allows you to flip all the trace thumbnails to be orientated in the same direction 
             (i.e. wavelength increasing in the same direction)
     filter_name  - the filter. This determines the cutout size.
@@ -809,7 +809,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
         else:
             if verbose:
                 print('Filter name %s not recognized, assuming J' %filter_name)
-                cutout_size = 80
+            cutout_size = 80
 
     if mode == 'spec':
         if cutout_size is None:
