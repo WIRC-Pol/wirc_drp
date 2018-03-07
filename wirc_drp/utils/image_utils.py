@@ -503,7 +503,7 @@ def check_traces(full_image, wo_source_list, verbose = False):
                 plt.subplot(nsources,5,trace_count)
                 plt.imshow(thumbn, origin='lower')
                 ax = plt.gca()
-                plt.setp(ax.spines.values(), color=framecol, linewidth=3)
+                #plt.setp(ax.spines.values(), color=framecol, linewidth=3)
                 plt.title('Source ' + str(source+1) + ' ' + quads[quad])
         trace_count += 1
         thumb0 = full_image[int(round(zeroth_loc[1]-50)):int(round(zeroth_loc[1]+50)), int(round(zeroth_loc[0]-50)):int(round(zeroth_loc[0]+50))]
@@ -511,7 +511,7 @@ def check_traces(full_image, wo_source_list, verbose = False):
             plt.subplot(nsources,5,trace_count)
             plt.imshow(thumb0, origin='lower')
             ax = plt.gca()
-            plt.setp(ax.spines.values(), color=framecol, linewidth=3)
+            #plt.setp(ax.spines.values(), color=framecol, linewidth=3)
             plt.title('Source ' + str(source+1) + ' 0th')
             print('\n')
         if all(trace_diag_ok):
@@ -792,7 +792,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
     '''
     This function Extracts the thumbnails of each trace for a given image give a locations list. 
     image - the image where you want to extract the traces
-    locations - the locations in the image that you want to use as a basis for extraction
+    locations - the locations in the image that you want to use as a basis for extraction [y,x] format
     flip - An optional switch that allows you to flip all the trace thumbnails to be orientated in the same direction 
             (i.e. wavelength increasing in the same direction)
     filter_name  - the filter. This determines the cutout size.
@@ -802,7 +802,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
 
     if mode == 'pol':
         if filter_name == 'J':
-            cutout_size = 150 #Make cutout of each trace. This has to chage for J/H bands: was 80
+            cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands: was 80, then 150, now 80 agian.
             lb = J_lam
         elif filter_name == 'H':
             cutout_size = 200 #was 150
@@ -812,6 +812,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
                 print('Filter name %s not recognized, assuming J, and use given cutout_size' %filter_name)
             #cutout_size = 80
             lb = J_lam
+
 
 
     if mode == 'spec':
