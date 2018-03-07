@@ -389,15 +389,16 @@ def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, v
         print("Loading Template from {}".format(template_fn))
 
     trace_template_hdulist = fits.open(template_fn)
-    trace_template = trace_template_hdulist[0].data
+    trace_template = trace_template_hdulist[0].data[:-1,:-1] #trim one to satisfy cutout_trace_thumbnails
     trace_template = ndimage.median_filter(trace_template,int(seeing/constants.plate_scale))
 
     # Grab top left trace cutout
-    UL_trace = cutout_trace_thumbnails(image, np.expand_dims([[y,x], slit_pos],axis=0) , flip = False, filter_name = filter_name, sub_bar = False, mode = 'pol', verbose = False)[0] #just take the first one
+    UL_trace = cutout_trace_thumbnails(image, np.expand_dims([[y,x], slit_pos],axis=0) , flip = False, filter_name = 'foo',cutout_size = int(trace_template.shape[0]/2), sub_bar = False, mode = 'pol', verbose = False)[0][0] #just take the first ones
 
     try:
-        shifts = chi2_shift(UL_trace,trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
-
+        shifts = chi2_shift(median_filter(UL_trace,3),trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
+        if verbose:
+            print("Shfits are x,y = ", shifts)
         #Sometimes if it's too big the whole thing gets shifted out and it breaks things. 
         if (np.abs(shifts[0]) < 10 and np.abs(shifts[1]) < 10):
             x -= shifts[0]
@@ -808,8 +809,10 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
             lb = H_lam
         else:
             if verbose:
-                print('Filter name %s not recognized, assuming J' %filter_name)
-                cutout_size = 80
+                print('Filter name %s not recognized, assuming J, and use given cutout_size' %filter_name)
+            #cutout_size = 80
+            lb = J_lam
+
 
     if mode == 'spec':
         if cutout_size is None:

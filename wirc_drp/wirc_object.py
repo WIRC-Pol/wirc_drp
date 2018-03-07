@@ -848,11 +848,11 @@ class wirc_data(object):
             self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
 
     
-    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True):
+    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, verbose = False):
         if update_w_chi2_shift:
-            x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos)
-        self.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
-        wirc_data.n_sources += 1
+            x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos, verbose = verbose)
+        self.source_list.append(wircpol_source([y,x],slit_pos,self.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
+        self.n_sources += 1
 
     def get_source_cutouts(self):
         """
