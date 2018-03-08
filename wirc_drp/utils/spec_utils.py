@@ -1372,7 +1372,7 @@ def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversamp
 
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], (1,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
+        new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
             
     return new_cube
 
@@ -1408,7 +1408,6 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, smooth_size
     """
 
     #spec_cube is 4 dimensions: spec_cube.shape = (num_images, 4_traces, 3[wavelength, flux, flux_error], number_of_spectral_pixel)
-
     #for each quadrant (Qp, Qm, Up, Um), scale the spectrum so that the total flux match that of the median spectrum
     med_specs = np.median(spec_cube, axis = 0)[:,1,:] #this is the 4 median spectra
     #print(med_specs.shape)
@@ -1426,12 +1425,13 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, smooth_size
         scale_factor = total_flux/np.sum(median_filter(four_specs[:,xmin:xmax],size = (1,smooth_size) ), axis = 1) #median filter to remove contributions from noisy wings
         #all four traces should be scaled equally
         #take mean from the factors measured from the four traces, and apply that mean value to the 4 traces.
-        scale_factor = np.array([np.median(scale_factor)]*4) #use median so crazy traces don't affect the scale factor, *4 here is just making it an array of 4 identical elements
-        #print(scale_factor)
+        scale_factor = np.array([np.mean(scale_factor)]*4) #use median so crazy traces don't affect the scale factor, *4 here is just making it an array of 4 identical elements
+
         
         #apply scale factor to the four_specs and four_errors, then put them into scaled_specs
         scaled_specs[i,:,1,:] = np.einsum('i,ij->ij',scale_factor,four_specs ) 
-        scaled_specs[i,:,2,:] = np.einsum('i,ij->ij',scale_factor,four_errors)  
+        scaled_specs[i,:,2,:] = np.einsum('i,ij->ij',scale_factor,four_errors)
+   
 
     # #now align the spectra in the wavelength direction by shifting: 
     #this should already be done by align set of traces
