@@ -1361,7 +1361,8 @@ def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversamp
         #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
         #smooth with median filter to remove effects from spurious pixels. 
         if smooth_size > 1:
-            smoothed_spec = median_filter(j, (0,smooth_size))
+            print(j.shape)
+            smoothed_spec = median_filter(j, (1,smooth_size))
         else:
             smoothed_spec = j
         up_spec = zoom(smoothed_spec, oversampling, order = 1) #upsample the spectrum
@@ -1371,7 +1372,7 @@ def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversamp
 
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
+        new_cube[i] = shift(traces_cube[i], (1,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
             
     return new_cube
 
