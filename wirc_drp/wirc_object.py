@@ -1353,7 +1353,7 @@ class wircspec_source(object):
     #     self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, filter_name, image_DQ = None, method = 'median', box_size = 5, sub_bar=True, cutout_size=80, flip=False, verbose=False):
+    def get_cutouts(self, image, filter_name, image_DQ = None, method = 'median', box_size = 5, sub_bar=True, cutout_size=None, flip=False, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read the DQ image and replace pixels with value != 0 by method = 'interpolate' or 'median'

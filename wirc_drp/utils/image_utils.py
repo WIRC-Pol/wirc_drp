@@ -788,7 +788,7 @@ def locationInIm(wl, location_in_fov):
 
     #Functions for spectral image
 
-def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = 80, verbose=False):
+def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = None, verbose=False):
     '''
     This function Extracts the thumbnails of each trace for a given image give a locations list. 
     image - the image where you want to extract the traces
@@ -797,22 +797,25 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
             (i.e. wavelength increasing in the same direction)
     filter_name  - the filter. This determines the cutout size.
     mode - use either 'pol' or 'spec'.  If set to spec, return cutouts at positions of input positions
-    cutout_size - instead of auto-selecting cutout size, allow this as input 
+    cutout_size - instead of auto-selecting cutout size, allow this as input. Leave as None if you want this auto-selected
     '''
+
 
     if mode == 'pol':
         if filter_name == 'J':
-            cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands: was 80, then 150, now 80 agian.
+            if cutout_size == None:
+                cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands: was 80, then 150, now 80 agian.
             lb = J_lam
         elif filter_name == 'H':
+            if cutout_size == None:
             cutout_size = 200 #was 150
             lb = H_lam
         else:
             if verbose:
                 print('Filter name %s not recognized, assuming J, and use given cutout_size' %filter_name)
-            #cutout_size = 80
+            if cutout_size == None:
+                cutout_size = 80
             lb = J_lam
-
 
 
     if mode == 'spec':
