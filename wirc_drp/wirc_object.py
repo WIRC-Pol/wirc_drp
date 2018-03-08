@@ -931,7 +931,7 @@ class wircpol_source(object):
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, sub_bar=True, verbose=False):
+    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation 
@@ -940,9 +940,11 @@ class wircpol_source(object):
         """
         locs = [int(self.pos[0]),int(self.pos[1])]
         
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar, verbose=verbose)[0])
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, 
+            cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
         try:
-            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar, verbose = verbose)[0])
+            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, 
+            cutout_size= cutout_size, sub_bar = sub_bar, verbose = verbose)[0])
         except:
             if verbose: 
                 print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
