@@ -808,7 +808,7 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
             lb = J_lam
         elif filter_name == 'H':
             if cutout_size == None:
-            cutout_size = 200 #was 150
+                cutout_size = 200 #was 150
             lb = H_lam
         else:
             if verbose:
