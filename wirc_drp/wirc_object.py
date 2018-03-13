@@ -823,7 +823,8 @@ class wirc_data(object):
                     self.source_list.append(wircpol_source([locations['spot0'][1][source],locations['spot0'][0][source]], 'slitless', source)) # assume it's outside the slit ('slitless'), and add source to list
 
             # Sort the source_list with brightest source on top
-            self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
+            if brightness_sort:
+                self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
 
     
     def add_source(self, x,y, slit_pos = "slitless"):
