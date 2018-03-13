@@ -1338,7 +1338,7 @@ def align_set_of_traces(traces_cube, ref_trace, oversampling = 10):
             
     return new_cube
 
-def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
+def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversampling = 10):
     """
     align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
     and align them with respect to the reference trace of the same length. 
@@ -1351,6 +1351,7 @@ def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
     #array for results
     new_cube = np.zeros(traces_cube.shape)
     #ref = ref_trace
+
     #oversampling
     ref = zoom(ref_trace, oversampling, order = 1)
 
@@ -1358,7 +1359,13 @@ def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
     for i, j in enumerate(traces_cube):
         #print(np.max(ref), np.max(j))
         #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
-        up_spec = zoom(j, oversampling, order = 1) #upsample the spectrum
+        #smooth with median filter to remove effects from spurious pixels. 
+        if smooth_size > 1:
+            #print(j.shape)
+            smoothed_spec = median_filter(j, (1,smooth_size))
+        else:
+            smoothed_spec = j
+        up_spec = zoom(smoothed_spec, oversampling, order = 1) #upsample the spectrum
 
         #corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((j[1,:]/np.nanmax(j[1,:]))[::-1]) )#j[1,:] is the flux vector
         corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((up_spec[1,:]/np.nanmax(up_spec[1,:]))[::-1]) )#j[1,:] is the flux vector
@@ -1369,13 +1376,14 @@ def align_spectral_cube_helper(traces_cube, ref_trace, oversampling = 10):
             
     return new_cube
 
-def align_spectral_cube(spectral_cube, oversampling = 10, ref_trace = None):
+def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_trace = 'median'):
     """
     A higher level function to run align_set_of_traces. This function takes a wirc+pol cube with dimensions
     (number of observations, 4 spectral traces, 3(wavelength, flux, flux_err), number of spectral pixels)
     align each flux array with the ref_trace (1d reference flux array), then return an aligned cube.
 
     if ref trace is not given, default to using a Qp trace from the first observation
+    If ref trace is 'median', then use the median of the set as a reference. 
     """
     #Define reference if not given,
     if ref_trace == None:
@@ -1386,11 +1394,11 @@ def align_spectral_cube(spectral_cube, oversampling = 10, ref_trace = None):
     aligned_cube = np.zeros(spectral_cube.shape) 
     #loop through 4 spectral traces
     for i in range(spectral_cube.shape[1]): #this dimension is the 4 spectral traces for wirc+pol
-        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:],  ref_trace , oversampling = oversampling)
+        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:],  ref_trace , smooth_size = smooth_size, oversampling = oversampling)
 
     return aligned_cube
 
-def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, xmin = 0, xmax = -1):
+def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, smooth_size = 5, xmin = 0, xmax = -1):
     """
     scale_and_combine_spectra takes a spectra cube from get_spec_cube_from_wirc_obj. For each trace 
     (Qp, Qm, Up, Um) in the series, scale each observation by the total observed flux, then
@@ -1400,7 +1408,6 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, xmin = 0, x
     """
 
     #spec_cube is 4 dimensions: spec_cube.shape = (num_images, 4_traces, 3[wavelength, flux, flux_error], number_of_spectral_pixel)
-
     #for each quadrant (Qp, Qm, Up, Um), scale the spectrum so that the total flux match that of the median spectrum
     med_specs = np.median(spec_cube, axis = 0)[:,1,:] #this is the 4 median spectra
     #print(med_specs.shape)
@@ -1415,15 +1422,16 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, xmin = 0, x
         #print(four_specs.shape)
         four_errors = spec_cube[i,:,2,:]
         #scaling factor
-        scale_factor = total_flux/np.sum(median_filter(four_specs[:,xmin:xmax],size = (1,5) ), axis = 1) #median filter to remove contributions from noisy wings
+        scale_factor = total_flux/np.sum(median_filter(four_specs[:,xmin:xmax],size = (1,smooth_size) ), axis = 1) #median filter to remove contributions from noisy wings
         #all four traces should be scaled equally
         #take mean from the factors measured from the four traces, and apply that mean value to the 4 traces.
-        scale_factor = np.array([np.mean(scale_factor)]*4)
-        #print(scale_factor)
+        scale_factor = np.array([np.mean(scale_factor)]*4) #use median so crazy traces don't affect the scale factor, *4 here is just making it an array of 4 identical elements
+
         
         #apply scale factor to the four_specs and four_errors, then put them into scaled_specs
         scaled_specs[i,:,1,:] = np.einsum('i,ij->ij',scale_factor,four_specs ) 
-        scaled_specs[i,:,2,:] = np.einsum('i,ij->ij',scale_factor,four_errors)  
+        scaled_specs[i,:,2,:] = np.einsum('i,ij->ij',scale_factor,four_errors)
+   
 
     # #now align the spectra in the wavelength direction by shifting: 
     #this should already be done by align set of traces

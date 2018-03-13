@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 """
 Created on Fri Feb 17 00:53:59 2017
@@ -24,6 +25,7 @@ from wirc_drp.constants import *
 from wirc_drp.masks.wircpol_masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 import copy
+from astropy.stats import sigma_clipped_stats
 
 def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
                 global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
@@ -1048,18 +1050,41 @@ def destripe_raw_image(image):
 
     return image
 
-def destripe_after_bkg_sub(image):
+def destripe_after_bkg_sub(image, sigma = 3, iters=5):
     '''
     Destripe the detector by subtracting the median of each row/column from each sector. 
     This will work best after you subtract a background sky image. 
+
+    Input parameters: 
+    image    -    A 2048x 2048 WIRC image. 
+    sigma    -    The number of sigmas to klip. The sigma that goes into the astropy sigma_clipped_stats function. 
+    iters    -    The number of times to run sigma clipping. The iters argument that goes into the astropy sigma_clipped stats fuction
+
+    Outputs: 
+    image    - A destriped detector image. 
     '''
 
     for i in range(1024):
 
-        image[1024+i,:1024] = image[1024+i,0:1024] - np.median(image[1024+i,0:1024])
-        image[:1024,i] =     image[0:1024,i]- np.median(image[0:1024,i])
-        image[1024:,1024+i] =     image[1024:,1024+i] - np.median(image[1024:,1024+i])
-        image[i,1024:] = image[i,1024:] - np.median(image[i,1024:])
+        #Upper Left
+        stats = sigma_clipped_stats(image[1024+i,0:1024],sigma=sigma,iters=iters) #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
+        # image[1024+i,:1024] = image[1024+i,0:1024] - np.median(image[1024+i,0:1024]) #Replaced in favour of the robust stats
+        image[1024+i,:1024] = image[1024+i,0:1024] - stats[1]
+
+        #Lower Left
+        stats = sigma_clipped_stats(image[:1024,i])
+        # image[:1024,i] =     image[:1024,i]- np.median(image[:1024,i])
+        image[:1024,i] =     image[:1024,i]- stats[1]
+
+        #Upper Right
+        stats = sigma_clipped_stats(image[1024:,1024+i])
+        # image[1024:,1024+i] =     image[1024:,1024+i] - np.median(image[1024:,1024+i])
+        image[1024:,1024+i] =     image[1024:,1024+i] - stats[1]
+        
+        #Lower Right
+        stats = sigma_clipped_stats(image[i,1024:])
+        # image[i,1024:] = image[i,1024:] - np.median(image[i,1024:])
+        image[i,1024:] = image[i,1024:] - stats[1]
 
     return image
 

@@ -114,17 +114,17 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         sky_image = sky_image_hdulist[0].data
         if verbose:
             print('Loading sky background '+ sky + ' ...')
-    elif sky == None:
-        if verbose:
-            print('No sky background image given. Assuming it has already been subtracted.')
-    else:
+    elif type(sky) == np.ndarray: #if array
         sky_image = sky.copy()
         if verbose:
             print('Using supplied sky background array ...')
+    else: # sky == None:
+        if verbose:
+            print('No sky background image given. Assuming it has already been subtracted.')
     # Filter sky image to remove bad pixels
-    if (im_package =='scipy') and (sky!=None):
+    if (im_package =='scipy') and (type(sky)==np.ndarray):
         sky_image_filt = ndimage.median_filter(sky_image,3) 
-    elif (im_package =='cv2') and (sky!=None):
+    elif (im_package =='cv2') and (type(sky)==np.ndarray):
         sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
    # plt.imshow(sky_image_filt)
     # plt.show()
@@ -159,7 +159,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         # science_image_filt[np.where(~fftmask)] = 0.
         # sky_image_filt[np.where(~fftmask)] = 0.
         science_image_filt[np.where(~fftmask)] = np.median(science_image_filt)
-        if (sky!=None):
+        if type(sky)==np.ndarray:
             sky_image_filt[np.where(~fftmask)] = np.median(sky_image_filt)
     #     med_sci = np.nanmedian(science_image_filt[fftmask])
     #     med_sky = np.nanmedian(sky_image_filt[fftmask])
@@ -169,7 +169,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
     #     med_sky = np.nanmedian(sky_image_filt)
         
     # Subtract sky image from science image -> Scale the sky so the medians of the two images match.
-    if sky != None:
+    if type(sky)==np.ndarray:
         stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
         if verbose:
             print('Subtracting sky image from science image ...')
@@ -365,6 +365,56 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
 
     return locs
 
+def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, verbose = False, slit_pos = 'slitless'):
+    """
+    This function grabs the upper left cutout from given x,y location of the zeroth order, then uses chi2_shift to align it
+    with a trace template, then spits out the new x, y location that will center the trace. 
+    """
+    # Load cropped and centered trace template image
+    template_fn = constants.wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
+    
+    if verbose:
+        print("Loading Template from {}".format(template_fn))
+
+    trace_template_hdulist = fits.open(template_fn)
+    trace_template = trace_template_hdulist[0].data[:-1,:-1] #trim one to satisfy cutout_trace_thumbnails
+    trace_template = ndimage.median_filter(trace_template,int(seeing/constants.plate_scale))
+
+    # Grab top left trace cutout
+    UL_trace = cutout_trace_thumbnails(image, np.expand_dims([[y,x], slit_pos],axis=0) , flip = False, filter_name = 'foo',cutout_size = int(trace_template.shape[0]/2), sub_bar = False, mode = 'pol', verbose = False)[0][0] #just take the first ones
+
+    try:
+        shifts = chi2_shift(median_filter(UL_trace,3),trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
+        if verbose:
+            print("Shfits are x,y = ", shifts)
+        #Sometimes if it's too big the whole thing gets shifted out and it breaks things. 
+        if (np.abs(shifts[0]) < 10 and np.abs(shifts[1]) < 10):
+            x -= shifts[0]
+            y -= shifts[1]
+        
+        ## Debugging plots
+        # fig = plt.figure(figsize=(7,7))
+        # ax1 = fig.add_subplot(141)
+        # plt.imshow(cutout)
+        # ax2 = fig.add_subplot(142)
+        # plt.imshow(trace_template)
+        # ax3 = fig.add_subplot(143)
+        # cutout2 = stars_image_UL[np.floor(y_center-size-1024).astype(int):np.floor(y_center+size-1024).astype(int),np.floor(x_center-size).astype(int):np.floor(x_center+size).astype(int)]
+        # plt.imshow(cutout2,alpha=0.5,cmap='magma')
+        # ax4 = fig.add_subplot(144)
+        # plt.imshow(shift(cutout,(shifts[1],shifts[0])))
+
+        return x, y
+
+    except Exception as e:
+        if verbose:
+            print(e)
+        return None
+
+
+
+
+
 def check_traces(full_image, wo_source_list, verbose = False):
 
     '''
@@ -441,7 +491,7 @@ def check_traces(full_image, wo_source_list, verbose = False):
                 plt.subplot(nsources,5,trace_count)
                 plt.imshow(thumbn, origin='lower')
                 ax = plt.gca()
-                plt.setp(ax.spines.values(), color=framecol, linewidth=3)
+                #plt.setp(ax.spines.values(), color=framecol, linewidth=3)
                 plt.title('Source ' + str(source+1) + ' ' + quads[quad])
         trace_count += 1
         thumb0 = full_image[int(round(zeroth_loc[1]-50)):int(round(zeroth_loc[1]+50)), int(round(zeroth_loc[0]-50)):int(round(zeroth_loc[0]+50))]
@@ -449,7 +499,7 @@ def check_traces(full_image, wo_source_list, verbose = False):
             plt.subplot(nsources,5,trace_count)
             plt.imshow(thumb0, origin='lower')
             ax = plt.gca()
-            plt.setp(ax.spines.values(), color=framecol, linewidth=3)
+            #plt.setp(ax.spines.values(), color=framecol, linewidth=3)
             plt.title('Source ' + str(source+1) + ' 0th')
             print('\n')
         if all(trace_diag_ok):
@@ -480,7 +530,7 @@ def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seei
     """    
 
     locations = []
-    if direct_image != None:
+    if type(direct_image) == np.ndarray:
         
         #First find sources in the slitless area        
         
@@ -726,27 +776,35 @@ def locationInIm(wl, location_in_fov):
 
     #Functions for spectral image
 
-def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = 80, verbose=False):
+def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = None, verbose=False):
     '''
     This function Extracts the thumbnails of each trace for a given image give a locations list. 
     image - the image where you want to extract the traces
-    locations - the locations in the image that you want to use as a basis for extraction
+    locations - the locations in the image that you want to use as a basis for extraction [y,x] format
     flip - An optional switch that allows you to flip all the trace thumbnails to be orientated in the same direction 
             (i.e. wavelength increasing in the same direction)
     filter_name  - the filter. This determines the cutout size.
     mode - use either 'pol' or 'spec'.  If set to spec, return cutouts at positions of input positions
-    cutout_size - instead of auto-selecting cutout size, allow this as input 
+    cutout_size - instead of auto-selecting cutout size, allow this as input. Leave as None if you want this auto-selected
     '''
+
 
     if mode == 'pol':
         if filter_name == 'J':
-            cutout_size = 150 #Make cutout of each trace. This has to chage for J/H bands: was 80
+            if cutout_size == None:
+                cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands: was 80, then 150, now 80 agian.
+            lb = J_lam
         elif filter_name == 'H':
-            cutout_size = 200 #was 150
+            if cutout_size == None:
+                cutout_size = 200 #was 150
+            lb = H_lam
         else:
             if verbose:
-                print('Filter name %s not recognized, assuming J' %filter_name)
+                print('Filter name %s not recognized, assuming J, and use given cutout_size' %filter_name)
+            if cutout_size == None:
                 cutout_size = 80
+            lb = J_lam
+
 
     if mode == 'spec':
         if cutout_size is None:

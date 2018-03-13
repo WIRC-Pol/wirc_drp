@@ -749,21 +749,24 @@ class wirc_data(object):
             #print ("ending iteration #",i)
 
 
-    def find_sources(self, image_fn, sky = None, threshold_sigma = 5, guess_seeing = 1, plot = False, verbose = False, brightness_sort=False, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, use_full_frame_mask=True, force_figures = False, mode = 'pol'):
+    def find_sources(self, image_fn, sky = None, threshold_sigma = 5, guess_seeing = 1, plot = False, verbose = False, brightness_sort=False, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, 
+                    use_full_frame_mask=True, force_figures = False, mode = 'pol', guess_location = None):
         
         """
         Find the number of sources in the image and create a wircpol_source objects for each one. In 'pol' mode the traces will be verified and only the good sources will be saved. 
 
         Args:
-            image_fn - Either the *direct image* with no mask or PG (for 'direct' mode), specpol image with only source in slit ('simple' mode), specpol image with multiple sources ('pol' mode), or grism image ('spec' mode, still not incorporated here)
+            image_fn - Either the *direct image* with no mask or PG (for 'direct' mode), specpol image with only source in slit or at known location ('simple' mode), 
+                        specpol image with multiple sources ('pol' mode), or grism image ('spec' mode, still not incorporated here)
             sky - Offset image for sky background subtraction (if not already applied)
             threshold_sigma - Sigma cutoff for trace detection
             guess_seeing - Approximate seeing during observation
-
+            guess_location - The location of the source, only work if mode is 'simple'. Format is [x,y]
         """
         
         if mode == 'direct':
-            print('Finding sources in direct image with no mask or PG ...')
+            if verbose:
+                print('Finding sources in direct image with no mask or PG ...')
 
             #Open the direct image
             direct_image = fits.open(image_fn)[0].data
@@ -786,7 +789,25 @@ class wirc_data(object):
             #     print("No direct image filename given. For now we can only find sources automatically in a direct image, so we'll assume that there's a source in the middle slit. If you wish you can add other sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) \
             #     #where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1")
         elif mode == 'simple':
-            print("Assuming just a source in slit. If you wish you can add more sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1 ")
+            # if guess_location is None:
+            #     if verbose:
+            #         print("Assuming just a source in slit. If you wish you can add more sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1 ")
+            #     self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
+            # elif len(guess_location) == 2:
+            #     x = guess_location[0]
+            #     y = guess_location[1]
+            #     if update_w_chi2_shift:
+            #         x,y = image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name)
+            #     if verbose:
+            #         print("Use the given location x,y = %.2f, %.2f"%(guess_location[0], guess_location[1]))
+            #     self.source_list.append(wircpol_source([y,x],'slitless',self.n_sources+1))
+            #revert to just slit
+            # else:
+            #     #if verbose:
+            #     print("Leave guess_location as None if source is in slit, otherwise give guess_location in [x,y] format.")
+
+            if verbose:
+                print("Assuming just a source in slit. If you wish you can add more sources as follows: \n\n > wirc_data.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1) where slit_pos is '0','1','2' or slitless. \n > wirc_data.n_sources += 1 ")
             self.source_list.append(wircpol_source([1063,1027],'1',self.n_sources+1))
             self.n_sources = 1
                 
@@ -795,7 +816,8 @@ class wirc_data(object):
             print("AUTOMATIC Identification of spec mode sources is not yet implemented. Hopefully soon.")
 
         elif mode == 'pol':
-            print('Finding sources in specpol image ...')
+            if verbose:
+                print('Finding sources in specpol image ...')
             locations = image_utils.locate_traces(image_fn, sky = sky, sigmalim = threshold_sigma, plot = plot, verbose = verbose, brightness_sort=brightness_sort, update_w_chi2_shift=update_w_chi2_shift, im_package = im_package, max_sources=max_sources, use_full_frame_mask=use_full_frame_mask, force_figures = force_figures, seeing = guess_seeing)
 
             # Number of sources
@@ -827,9 +849,11 @@ class wirc_data(object):
                 self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
 
     
-    def add_source(self, x,y, slit_pos = "slitless"):
-        self.source_list.append(wircpol_source([y,x],slit_pos,wirc_data.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
-        wirc_data.n_sources += 1
+    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, verbose = False):
+        if update_w_chi2_shift:
+            x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos, verbose = verbose)
+        self.source_list.append(wircpol_source([y,x],slit_pos,self.n_sources+1)) #where slit_pos is '0','1','2' or slitless. 
+        self.n_sources += 1
 
     def get_source_cutouts(self):
         """
@@ -842,6 +866,8 @@ class wirc_data(object):
     def mark_bad(self, reason = "A good reason"):
         self.bad_flag = True
         self.bad_reason = reason
+
+
 
 class wircpol_source(object):
     """
@@ -906,7 +932,7 @@ class wircpol_source(object):
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, sub_bar=True, verbose=False):
+    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation 
@@ -915,9 +941,11 @@ class wircpol_source(object):
         """
         locs = [int(self.pos[0]),int(self.pos[1])]
         
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar, verbose=verbose)[0])
+        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, 
+            cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
         try:
-            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, sub_bar = sub_bar, verbose = verbose)[0])
+            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, 
+            cutout_size= cutout_size, sub_bar = sub_bar, verbose = verbose)[0])
         except:
             if verbose: 
                 print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
@@ -1328,7 +1356,7 @@ class wircspec_source(object):
     #     self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, filter_name, image_DQ = None, method = 'median', box_size = 5, sub_bar=True, cutout_size=80, flip=False, verbose=False):
+    def get_cutouts(self, image, filter_name, image_DQ = None, method = 'median', box_size = 5, sub_bar=True, cutout_size=None, flip=False, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read the DQ image and replace pixels with value != 0 by method = 'interpolate' or 'median'
