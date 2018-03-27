@@ -1032,7 +1032,6 @@ class wircpol_source(object):
 
         plt.show()
 
-
     def plot_extracted_cutouts(self, **kwargs):
 
         fig = plt.figure(figsize = (12,8))
@@ -1063,14 +1062,12 @@ class wircpol_source(object):
 
         plt.show()
 
-    # @profile
     def clean_cutouts_for_cosmic_rays(self,nsig=3):
         '''
         Wrapper for the image_utils function clean_thumbnails_for_cosmicrays. Replaces the trace_image_DQs. 
         '''
 
         self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,thumbnails_dq=self.trace_images_DQ, nsig=nsig)
-
 
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 31, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False, 
         plot_optimal_extraction = False, plot_findTrace = False,
@@ -1197,6 +1194,8 @@ class wircpol_source(object):
     def compute_polarization(self, cutmin=0, cutmax=-1):
 
 
+        ## The output of the computer_polarization function is based on the initial assumptions on Q and U, which we know are wrong. 
+        ## We will keep the compute_polarization the same, but change it when putting it into the source object. 
         wlQp, q, dq, wlUp,u, du = spec_utils.compute_polarization(self.trace_spectra, cutmin=cutmin, cutmax = cutmax)
         
         pol_spectra_length = q.shape[0]
@@ -1204,13 +1203,26 @@ class wircpol_source(object):
         self.Q = np.zeros([3,pol_spectra_length])
         self.U = np.zeros([3,pol_spectra_length])
         
-        self.Q[0,:] = wlQp
-        self.Q[1,:] = q
-        self.Q[2,:] = dq
+        ##### OLD VERSION ###### 
+        # self.Q[0,:] = wlQp
+        # self.Q[1,:] = q
+        # self.Q[2,:] = dq
 
-        self.U[0,:] = wlUp
-        self.U[1,:] = u
-        self.U[2,:] = du
+        # self.U[0,:] = wlUp
+        # self.U[1,:] = u
+        # self.U[2,:] = du
+        #########################
+
+        ##### NEW VERSION #####
+        # Based on Kaew's Twilight Measurements March 2018
+        self.Q[0,:] = wlUp
+        self.Q[1,:] = -u
+        self.Q[2,:] = du
+
+        self.U[0,:] = wlQp
+        self.U[1,:] = -q
+        self.U[2,:] = dq
+        #######################
         
         self.polarization_computed = True #source attribute, later applied to header["POL_CMPD"]
 
@@ -1281,6 +1293,8 @@ class wircpol_source(object):
         Sum the polarization in each trace and measure the broad band polarization. 
         '''
         
+
+
         bb_traces = np.zeros([4,3])
         for i in range(4):
             #Do we actualy want the option of weighted mean?
@@ -1293,6 +1307,10 @@ class wircpol_source(object):
                 bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh])
                 bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2)
 
+        
+        ## The calculations of bbQ and bbU are based on the initial assumptions on Q and U, which we know are wrong. 
+        ## We'll keep the the same for now, but addjust the input to the source object properties. 
+
         bbQ = (bb_traces[0,1]-bb_traces[1,1])/(bb_traces[0,1]+bb_traces[1,1])
         #If f = A/B
         #sigma_f = f*sqrt ( (sigma_A/A)**2 + (sigma_B/B)**2 )
@@ -1302,8 +1320,17 @@ class wircpol_source(object):
 
         bbU_err = bbU*np.sqrt( (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]-bb_traces[3,1])**2 + (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]+bb_traces[3,1])**2)
 
-        self.bbQ = [bb_traces[0,0], bbQ, bbQ_err] #Return, [wavelength, flux, error]
-        self.bbU = [bb_traces[2,0], bbU, bbU_err]
+
+        ###### OLD VERSION ###### - Do not use March 27. 2018 MMB
+        # self.bbQ = [bb_traces[0,0], bbQ, bbQ_err] #Return, [wavelength, flux, error]
+        # self.bbU = [bb_traces[2,0], bbU, bbU_err]
+        #########################
+
+        ###### NEW VERSION ######
+        #Based on Kaew's twilight measurements March 27 2018
+        self.bbQ = [bb_traces[2,0], -bbU, bbU_err] #Return, [wavelength, flux, error]
+        self.bbU = [bb_traces[0,0], -bbQ, bbQ_err]
+        #########################
 
 
 class wircspec_source(object):
