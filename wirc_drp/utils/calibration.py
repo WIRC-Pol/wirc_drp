@@ -1050,7 +1050,7 @@ def destripe_raw_image(image):
 
     return image
 
-def destripe_after_bkg_sub(image, sigma = 3, iters=5):
+def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
     '''
     Destripe the detector by subtracting the median of each row/column from each sector. 
     This will work best after you subtract a background sky image. 
@@ -1059,34 +1059,55 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5):
     image    -    A 2048x 2048 WIRC image. 
     sigma    -    The number of sigmas to klip. The sigma that goes into the astropy sigma_clipped_stats function. 
     iters    -    The number of times to run sigma clipping. The iters argument that goes into the astropy sigma_clipped stats fuction
+    mode     -    The statistics to use. simple is faster, but more sensitive to outliers. Robust is slower but more robust. 
 
     Outputs: 
     image    - A destriped detector image. 
     '''
 
-    for i in range(1024):
+    if mode == 'robust':
+        for i in range(1024):
 
-        #Upper Left
-        stats = sigma_clipped_stats(image[1024+i,0:1024],sigma=sigma,iters=iters) #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
-        # image[1024+i,:1024] = image[1024+i,0:1024] - np.median(image[1024+i,0:1024]) #Replaced in favour of the robust stats
-        image[1024+i,:1024] = image[1024+i,0:1024] - stats[1]
+            #Upper Left
+            stats = sigma_clipped_stats(image[1024+i,0:1024],sigma=sigma,iters=iters) #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
+            image[1024+i,:1024] = image[1024+i,0:1024] - stats[1]
 
-        #Lower Left
-        stats = sigma_clipped_stats(image[:1024,i])
-        # image[:1024,i] =     image[:1024,i]- np.median(image[:1024,i])
-        image[:1024,i] =     image[:1024,i]- stats[1]
+            #Lower Left
+            stats = sigma_clipped_stats(image[:1024,i])
+            image[:1024,i] =     image[:1024,i]- stats[1]
 
-        #Upper Right
-        stats = sigma_clipped_stats(image[1024:,1024+i])
-        # image[1024:,1024+i] =     image[1024:,1024+i] - np.median(image[1024:,1024+i])
-        image[1024:,1024+i] =     image[1024:,1024+i] - stats[1]
-        
-        #Lower Right
-        stats = sigma_clipped_stats(image[i,1024:])
-        # image[i,1024:] = image[i,1024:] - np.median(image[i,1024:])
-        image[i,1024:] = image[i,1024:] - stats[1]
+            #Upper Right
+            stats = sigma_clipped_stats(image[1024:,1024+i])
+            image[1024:,1024+i] =     image[1024:,1024+i] - stats[1]
+            
+            #Lower Right
+            stats = sigma_clipped_stats(image[i,1024:])
+            image[i,1024:] = image[i,1024:] - stats[1]
 
-    return image
+        return image
+
+    elif mode == 'simple':
+
+        for i in range(1024):
+
+            #Upper Left
+            image[1024+i,:1024] = image[1024+i,0:1024] - np.median(image[1024+i,0:1024])
+
+            #Lower Left
+            image[:1024,i] =     image[:1024,i]- np.median(image[:1024,i])
+
+            #Upper Right
+            image[1024:,1024+i] =     image[1024:,1024+i] - np.median(image[1024:,1024+i])
+            
+            #Lower Right
+            image[i,1024:] = image[i,1024:] - np.median(image[i,1024:])
+
+        return image
+
+    else:
+        print("'mode' keyword note understood, please choose either mode='robust' or mode='simple'. Not doing any destriping.")
+        return image
+
 
     
     
