@@ -1091,16 +1091,16 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
         for i in range(1024):
 
             #Upper Left
-            image[1024+i,:1024] = image[1024+i,0:1024] - np.median(image[1024+i,0:1024])
+            image[1024+i,:1024] = image[1024+i,0:1024] - np.nanmedian(image[1024+i,0:1024])
 
             #Lower Left
-            image[:1024,i] =     image[:1024,i]- np.median(image[:1024,i])
+            image[:1024,i] =     image[:1024,i]- np.nanmedian(image[:1024,i])
 
             #Upper Right
-            image[1024:,1024+i] =     image[1024:,1024+i] - np.median(image[1024:,1024+i])
+            image[1024:,1024+i] =     image[1024:,1024+i] - np.nanmedian(image[1024:,1024+i])
             
             #Lower Right
-            image[i,1024:] = image[i,1024:] - np.median(image[i,1024:])
+            image[i,1024:] = image[i,1024:] - np.nanmedian(image[i,1024:])
 
         return image
 
