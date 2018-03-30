@@ -1137,7 +1137,7 @@ def remove_correlated_channel_noise(image,n_channels = 8, mask = None):
 
     #If a mask is provided then set mask locations to be NANs. 
     if mask is not None:
-        image_copy[mask] = np.nan
+        image_copy[np.where(mask)] = np.nan
 
     #The size of each quadrant
     quad_size = detector_size//2
