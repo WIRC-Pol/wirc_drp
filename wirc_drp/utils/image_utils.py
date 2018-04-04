@@ -777,7 +777,7 @@ def locationInIm(wl, location_in_fov):
     Used by cutout_trace_thumbnails
     """
     #Use measured values from test data
-    dwl = wl-1.25 #This compute the deviation from J band where the offsets were mesured
+    dwl = wl-1.25 #This compute the deviation from J band where the offsets were measured
     dpx = round(dwl/(wlPerPix))
 
     traceLocation = [ [ 453+location_in_fov[0]+dpx, -435 + location_in_fov[1]-dpx],\

@@ -1490,6 +1490,11 @@ def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3):
 
     return out_spectra #same dimension as spectra
 
+# def rebin_spectral_cube(input_cube, rebin_size, kernel = 'Box'):
+#     """
+#     Rebin 
+#     """
+
 #########################################################
 ################To be deprecated#########################
 #########################################################
