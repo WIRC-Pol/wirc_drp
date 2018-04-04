@@ -1465,10 +1465,12 @@ def get_spec_cube_from_wirc_obj( wirc_objs, source_num = 0):
 
 
 
-def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3):
+def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3, rebin = False):
     """
     Convolve the spectra with either Gaussian or Box kernel of the specified size, using astropy.
     Spectra can be either a 1-d array or a 2d array of spectra
+
+    If rebin == True, then return a rebinned spectra, instead of just the smoothed version. 
     """
     if smooth_size > 1: #only go through all this if smooth_size > 1
         if kernel == 'box':
@@ -1485,8 +1487,14 @@ def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3):
             out_spectra = np.zeros(spectra.shape)
             for i in range(spectra.shape[0]):
                 out_spectra[i] = convolve(spectra,smooth_ker)
+        #deal with rebinning        
+        if rebin:
+            rebinned_spec = [::smooth_size]
+        
     else:
         out_spectra = spectra
+
+
 
     return out_spectra #same dimension as spectra
 
