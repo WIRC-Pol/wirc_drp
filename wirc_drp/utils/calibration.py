@@ -1050,7 +1050,7 @@ def destripe_raw_image(image):
 
     return image
 
-def destripe_after_bkg_sub(image, sigma = 3, iters=5):
+def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
     '''
     Destripe the detector by subtracting the median of each row/column from each sector. 
     This will work best after you subtract a background sky image. 
@@ -1059,34 +1059,132 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5):
     image    -    A 2048x 2048 WIRC image. 
     sigma    -    The number of sigmas to klip. The sigma that goes into the astropy sigma_clipped_stats function. 
     iters    -    The number of times to run sigma clipping. The iters argument that goes into the astropy sigma_clipped stats fuction
+    mode     -    The statistics to use. simple is faster, but more sensitive to outliers. Robust is slower but more robust. 
 
     Outputs: 
     image    - A destriped detector image. 
     '''
 
-    for i in range(1024):
+    if mode == 'robust':
+        for i in range(1024):
 
+            #Upper Left
+            stats = sigma_clipped_stats(image[1024+i,0:1024],sigma=sigma,iters=iters) #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
+            image[1024+i,:1024] = image[1024+i,0:1024] - stats[1]
+
+            #Lower Left
+            stats = sigma_clipped_stats(image[:1024,i])
+            image[:1024,i] =     image[:1024,i]- stats[1]
+
+            #Upper Right
+            stats = sigma_clipped_stats(image[1024:,1024+i])
+            image[1024:,1024+i] =     image[1024:,1024+i] - stats[1]
+            
+            #Lower Right
+            stats = sigma_clipped_stats(image[i,1024:])
+            image[i,1024:] = image[i,1024:] - stats[1]
+
+        return image
+
+    elif mode == 'simple':
+
+        for i in range(1024):
+
+            #Upper Left
+            image[1024+i,:1024] = image[1024+i,0:1024] - np.nanmedian(image[1024+i,0:1024])
+
+            #Lower Left
+            image[:1024,i] =     image[:1024,i]- np.nanmedian(image[:1024,i])
+
+            #Upper Right
+            image[1024:,1024+i] =     image[1024:,1024+i] - np.nanmedian(image[1024:,1024+i])
+            
+            #Lower Right
+            image[i,1024:] = image[i,1024:] - np.nanmedian(image[i,1024:])
+
+        return image
+
+    else:
+        print("'mode' keyword note understood, please choose either mode='robust' or mode='simple'. Not doing any destriping.")
+        return image
+
+def remove_correlated_channel_noise(image,n_channels = 8, mask = None):
+    '''
+    This function attemps to remove detector bias drifts introduced in the readout procedue. 
+    It assumes that the same bias occurs in each read-out channel, so it medians the 8 readout channels in each quadrant
+    and then subtracts the median from each channel. 
+
+    Note, it could be that using a median here is a bad idea when there is a source. 
+    A median might also mess with things because of the edges of the detector being screwy. 
+    One way to get around this is to mask things out. 
+
+    Run this after background frame subtraction. 
+
+    ;TODO: include functionality for mask. 
+
+
+    Inputs:
+    image      -    The image to be subtracted
+    n_channels -    The number of channels per quadrant. This is 8 for the WIRC detector. 
+    mask       -    An optional mask, where anything with a "True value" will be masked out when calculating the mean bias signal. 
+
+    Outputs: 
+    image_copy    -    The bias-corrected image. 
+    '''
+
+    #Make the output image
+    image_copy = copy.deepcopy(image)
+
+    #If a mask is provided then set mask locations to be NANs. 
+    if mask is not None:
+        image_copy[np.where(mask)] = np.nan
+
+    #The size of each quadrant
+    quad_size = detector_size//2
+
+    #The width of each read out channel
+    channel_width = quad_size//n_channels
+
+    #Set up the arrays to hold the median channel data. 
+    ll_channel_median = np.zeros([n_channels,channel_width,quad_size])
+    lr_channel_median = np.zeros([n_channels,channel_width,quad_size])
+    ul_channel_median = np.zeros([n_channels,channel_width,quad_size])
+    ur_channel_median = np.zeros([n_channels,channel_width,quad_size])
+
+    for i in range(n_channels):
+        #Lower Left
+        ll_channel_median[i,:,:] = image_copy[channel_width*(i):channel_width*(i+1),0:quad_size]
+        #Lower Right
+        lr_channel_median[i,:,:] = image_copy[0:quad_size,quad_size+channel_width*(i):quad_size+channel_width*(i+1)].T
         #Upper Left
-        stats = sigma_clipped_stats(image[1024+i,0:1024],sigma=sigma,iters=iters) #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
-        # image[1024+i,:1024] = image[1024+i,0:1024] - np.median(image[1024+i,0:1024]) #Replaced in favour of the robust stats
-        image[1024+i,:1024] = image[1024+i,0:1024] - stats[1]
+        ul_channel_median[i,:,:] = image_copy[quad_size:,channel_width*(i):channel_width*(i+1)].T
+        #Upper Right
+        ur_channel_median[i,:,:] = image_copy[quad_size+channel_width*(i):quad_size+channel_width*(i+1),quad_size:]
+
+
+    #Now take the median across all channels
+    ll_channel_median = np.nanmedian(ll_channel_median,axis=0)    
+    lr_channel_median = np.nanmedian(lr_channel_median,axis=0)    
+    ul_channel_median = np.nanmedian(ul_channel_median,axis=0)    
+    ur_channel_median = np.nanmedian(ur_channel_median,axis=0)    
+    
+    #Copy the original again for the output image
+    image_copy = copy.deepcopy(image)
+
+    for i in range(n_channels):
 
         #Lower Left
-        stats = sigma_clipped_stats(image[:1024,i])
-        # image[:1024,i] =     image[:1024,i]- np.median(image[:1024,i])
-        image[:1024,i] =     image[:1024,i]- stats[1]
-
-        #Upper Right
-        stats = sigma_clipped_stats(image[1024:,1024+i])
-        # image[1024:,1024+i] =     image[1024:,1024+i] - np.median(image[1024:,1024+i])
-        image[1024:,1024+i] =     image[1024:,1024+i] - stats[1]
+        image_copy[channel_width*(i):channel_width*(i+1),0:quad_size] -= ll_channel_median
         
         #Lower Right
-        stats = sigma_clipped_stats(image[i,1024:])
-        # image[i,1024:] = image[i,1024:] - np.median(image[i,1024:])
-        image[i,1024:] = image[i,1024:] - stats[1]
+        image_copy[:quad_size,quad_size+channel_width*(i):quad_size+channel_width*(i+1)] -= lr_channel_median.T
+        
+        #Upper Left
+        image_copy[quad_size:,channel_width*(i):channel_width*(i+1)] -= ul_channel_median.T
 
-    return image
+        #Upper Right
+        image_copy[quad_size+channel_width*(i):quad_size+channel_width*(i+1),quad_size:] -= ur_channel_median
 
-    
+    return image_copy
+
     

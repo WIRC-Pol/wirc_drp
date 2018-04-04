@@ -264,59 +264,59 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         print('Found ' + str(n_sources) + ' sources')
     #source_ok = trace_checker(stars_image, source_list_pre, verbose = True)
 
-    # pix_vals_UL=[] RN: This sorting business messes with the indexing. Commenting out for now.
-    # #Do we want to sort the sources by their brightness? 
-    # if brightness_sort: 
-    #     # Now we'll calculate the pixel value at each x,y value
-    #     for i in range(np.shape(locs_UL)[1]):
-    #         pix_vals_UL.append(science_image_filt[np.floor(locs_UL[0,i]).astype('int'),np.floor(locs_UL[1,i]).astype('int')]+\
-    #             science_image_filt[np.floor(locs_UR[0,i]).astype('int'),np.floor(locs_UR[1,i]).astype('int')]+\
-    #             science_image_filt[np.floor(locs_LR[0,i]).astype('int'),np.floor(locs_LR[1,i]).astype('int')]+\
-    #             science_image_filt[np.floor(locs_LL[0,i]).astype('int'),np.floor(locs_LL[1,i]).astype('int')])
-    #     pix_vals_UL = np.array(pix_vals_UL)
-    #     pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
-    #     # Now reorder locs_UL so that it's according to pix_vals_UL
-    #     locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
-    #     locs_UR = np.array([[locs_UR[0,i],locs_UR[1,i]] for i in pix_vals_argsort]).T
-    #     locs_LL = np.array([[locs_LL[0,i],locs_LL[1,i]] for i in pix_vals_argsort]).T
-    #     locs_LR = np.array([[locs_LR[0,i],locs_LR[1,i]] for i in pix_vals_argsort]).T
-    #     locs_spot0 = np.array([[locs_spot0[0,i],locs_spot0[1,i]] for i in pix_vals_argsort]).T
+    pix_vals_UL=[] 
+    #Do we want to sort the sources by their brightness? 
+    if brightness_sort: 
+        # Now we'll calculate the pixel value at each x,y value
+        for i in range(np.shape(locs_UL)[1]):
+            pix_vals_UL.append(science_image_filt[np.floor(locs_UL[0,i]).astype('int'),np.floor(locs_UL[1,i]).astype('int')]+\
+                science_image_filt[np.floor(locs_UR[0,i]).astype('int'),np.floor(locs_UR[1,i]).astype('int')]+\
+                science_image_filt[np.floor(locs_LR[0,i]).astype('int'),np.floor(locs_LR[1,i]).astype('int')]+\
+                science_image_filt[np.floor(locs_LL[0,i]).astype('int'),np.floor(locs_LL[1,i]).astype('int')])
+        pix_vals_UL = np.array(pix_vals_UL)
+        pix_vals_argsort = np.argsort(pix_vals_UL)[::-1]
+        # Now reorder locs_UL so that it's according to pix_vals_UL
+        locs_UL = np.array([[locs_UL[0,i],locs_UL[1,i]] for i in pix_vals_argsort]).T
+        locs_UR = np.array([[locs_UR[0,i],locs_UR[1,i]] for i in pix_vals_argsort]).T
+        locs_LL = np.array([[locs_LL[0,i],locs_LL[1,i]] for i in pix_vals_argsort]).T
+        locs_LR = np.array([[locs_LR[0,i],locs_LR[1,i]] for i in pix_vals_argsort]).T
+        locs_spot0 = np.array([[locs_spot0[0,i],locs_spot0[1,i]] for i in pix_vals_argsort]).T
 
-    # # Flag suspicious traces by checking mid-diagonals. This currently only checks diagonals of UL trace. Check UL, UR, LL, and LR by running trace_checker() separately instead!
-    # trace_diag_val = []
-    # trace_diag_flag = []
+    # Flag suspicious traces by checking mid-diagonals. This currently only checks diagonals of UL trace. Check UL, UR, LL, and LR by running trace_checker() separately instead!
+    trace_diag_val = []
+    trace_diag_flag = []
     
-    # for n in range(0,locs_UL.shape[1]):
-    #     thumbn = stars_image[int(round(locs_UL[1,n]))-50:int(round(locs_UL[1,n]))+50, int(round(locs_UL[0,n]))-50:int(round(locs_UL[0,n]))+50]
-    #     diag_val = []
-    #     for diag_offset in range(-10,11):
-    #         diag = np.diagonal(np.flipud(thumbn), diag_offset).copy()
-    #         diag_val.append(np.sum(diag))
-    #     opt_diag_offset = diag_val.index(max(diag_val)) - 10
-    #     #print(opt_diag_offset)
-    #     diag0 = np.diagonal(np.flipud(thumbn), opt_diag_offset).copy()
-    #     diag_plus = np.diagonal(np.flipud(thumbn), opt_diag_offset+1).copy()
-    #     diag_minus = np.diagonal(np.flipud(thumbn), opt_diag_offset-1).copy()
-    #     full_diag = np.concatenate((diag0[20:-20], diag_plus[20:-20], diag_minus[20:-20]), axis=0)
-    #     #norm_diag = full_diag / np.max(full_diag)
-    #     trace_diag_val.append(np.median(full_diag))
-    #     td_sig = 3
-    #     td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
-    #     if (np.median(full_diag) > td_thres) & (np.median(np.flipud(thumbn[0:19,80:99]).diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(np.flipud(thumbn[80:99,0:19]).diagonal(opt_diag_offset).copy()) < td_thres):
-    #         trace_diag_flag.append(False)
-    #     else:
-    #         trace_diag_flag.append(True)
+    for n in range(0,locs_UL.shape[1]):
+        thumbn = stars_image[int(round(locs_UL[1,n]))-50:int(round(locs_UL[1,n]))+50, int(round(locs_UL[0,n]))-50:int(round(locs_UL[0,n]))+50]
+        diag_val = []
+        for diag_offset in range(-10,11):
+            diag = np.diagonal(np.flipud(thumbn), diag_offset).copy()
+            diag_val.append(np.sum(diag))
+        opt_diag_offset = diag_val.index(max(diag_val)) - 10
+        #print(opt_diag_offset)
+        diag0 = np.diagonal(np.flipud(thumbn), opt_diag_offset).copy()
+        diag_plus = np.diagonal(np.flipud(thumbn), opt_diag_offset+1).copy()
+        diag_minus = np.diagonal(np.flipud(thumbn), opt_diag_offset-1).copy()
+        full_diag = np.concatenate((diag0[20:-20], diag_plus[20:-20], diag_minus[20:-20]), axis=0)
+        #norm_diag = full_diag / np.max(full_diag)
+        trace_diag_val.append(np.median(full_diag))
+        td_sig = 3
+        td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
+        if (np.median(full_diag) > td_thres) & (np.median(np.flipud(thumbn[0:19,80:99]).diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(np.flipud(thumbn[80:99,0:19]).diagonal(opt_diag_offset).copy()) < td_thres):
+            trace_diag_flag.append(False)
+        else:
+            trace_diag_flag.append(True)
             
-    #print(trace_diag_val, '\n', trace_diag_flag)
+    print(trace_diag_val, '\n', trace_diag_flag)
 
-    #Put all the good traces at the top. RN: This sorting business messes with the indexing. Commenting out for now.
-    # args = np.argsort(trace_diag_flag)
-    # locs_UL = locs_UL[:,args][:,:max_sources]
-    # locs_UR = locs_UR[:,args][:,:max_sources]
-    # locs_LL = locs_LL[:,args][:,:max_sources]
-    # locs_LR = locs_LR[:,args][:,:max_sources]
-    # locs_spot0 = locs_spot0[:,args][:,:max_sources]
-    # trace_diag_flag = np.array(trace_diag_flag)[args][:max_sources]
+    # Put all the good traces at the top.
+    args = np.argsort(trace_diag_flag)
+    locs_UL = locs_UL[:,args][:,:max_sources]
+    locs_UR = locs_UR[:,args][:,:max_sources]
+    locs_LL = locs_LL[:,args][:,:max_sources]
+    locs_LR = locs_LR[:,args][:,:max_sources]
+    locs_spot0 = locs_spot0[:,args][:,:max_sources]
+    trace_diag_flag = np.array(trace_diag_flag)[args][:max_sources]
 
 
     # Gather all trace and 0th order locations in a dictionary
@@ -361,19 +361,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         print('LL quadrant trace locations:\n',locs['LL'].T,'\n')
 
     # Number of sources
-    #self.n_sources = len(locs['UL'][0])
-    #n_sources = len(locs['UL'][0])
-
-    # List of sources. Create source with wircpol_source([x,y],slit_pos,wirc_data.n_sources+1)
-    # for source in range(self.n_sources-1):
-    #     self.source_list.append(wircpol_source([locs['spot0'][0][source],locs['spot0'][1][source]], 'slitless', source))
-    # # Add the last source (assumed in slit) to the list
-    # self.source_list.append(wircpol_source([locs['spot0'][0][-1],locs['spot0'][1][-1]], 1, self.n_sources))
-
-    # for source in range(n_sources-1):
-    #     source_list.append(wircpol_source([locs['spot0'][0][source],locs['spot0'][1][source]], 'slitless', source))
-    # # Add the last source (assumed in slit) to the list
-    # source_list.append(wircpol_source([locs['spot0'][0][-1],locs['spot0'][1][-1]], 1, n_sources))
+    n_sources = len(locs['UL'][0])
 
     return locs
 
