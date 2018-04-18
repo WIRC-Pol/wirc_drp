@@ -374,7 +374,7 @@ def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, v
     """
     # Load cropped and centered trace template image
 
-    if trace_template == None:
+    if trace_template is None:
         template_fn = constants.wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
         
         if verbose:
