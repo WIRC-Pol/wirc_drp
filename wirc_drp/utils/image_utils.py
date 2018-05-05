@@ -1279,6 +1279,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
         else:
             p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
     else:
+        weights = np.ones(len(peaks))
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order)
 
     fit = np.polyval(p,range(np.shape(thumbnail)[1]))

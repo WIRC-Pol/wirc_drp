@@ -745,7 +745,7 @@ class wirc_data(object):
 
                 #Append it to the source_list
                 self.source_list.append(new_source)
-        
+            hdulist.close()
             #print ("ending iteration #",i)
 
 
