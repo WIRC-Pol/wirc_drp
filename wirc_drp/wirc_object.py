@@ -681,30 +681,30 @@ class wirc_data(object):
             for i in range(self.n_sources):
                 #print ("starting iteration #",i)
                 #Extract the source info from the header
-                xpos = hdulist[(2*i)+2].header["XPOS"]
-                ypos = hdulist[(2*i)+2].header["YPOS"]
-                slit_loc = hdulist[(2*i)+2].header["SLIT_LOC"]
+                xpos        = copy.deepcopy(hdulist[(2*i)+2].header["XPOS"])
+                ypos        = copy.deepcopy(hdulist[(2*i)+2].header["YPOS"])
+                slit_loc    = copy.deepcopy(hdulist[(2*i)+2].header["SLIT_LOC"])
                 
                 #if they are there)
                 
                 try:
-                    xpos_err = hdulist[(2*i)+2].header["XPOS_ERR"]
-                    ypos_err = hdulist[(2*i)+2].header["YPOS_ERR"]
+                    xpos_err = copy.deepcopy(hdulist[(2*i)+2].header["XPOS_ERR"])
+                    ypos_err = copy.deepcopy(hdulist[(2*i)+2].header["YPOS_ERR"])
                     new_source = wircpol_source([xpos,ypos,xpos_err,ypos_err],slit_loc, i)
                     
                 except KeyError:
                     new_source = wircpol_source([xpos,ypos],slit_loc, i)
                     
                 
-                new_source.trace_images = hdulist[(2*i)+2].data[0:4] #finds the i'th source image data in the hdulist, first 4 are raw images
-                new_source.trace_images_DQ = hdulist[(2*i)+2].data[4:8]
-                new_source.trace_images_extracted = hdulist[(2*i)+2].data[8:] #last 4 images are from which extraction is done. 
+                new_source.trace_images             = copy.deepcopy(hdulist[(2*i)+2].data[0:4]) #finds the i'th source image data in the hdulist, first 4 are raw images
+                new_source.trace_images_DQ          = copy.deepcopy(hdulist[(2*i)+2].data[4:8])
+                new_source.trace_images_extracted   = copy.deepcopy(hdulist[(2*i)+2].data[8:] )#last 4 images are from which extraction is done. 
                 
                 #finds the table data of the TableHDU corresponding to the i'th source
-                big_table=hdulist[(2*i)+3].data 
+                big_table = copy.deepcopy(hdulist[(2*i)+3].data )
                 
                 #finds the header of the TableHDU corresponding to the i'th source
-                prihdr=hdulist[(2*i)+3].header 
+                prihdr = copy.deepcopy(hdulist[(2*i)+3].header )
                 
                 
                 #for the column number, refers to the variable "column_list" in save_wirc_object. each variable has 4 columns for 4 traces
@@ -730,10 +730,10 @@ class wirc_data(object):
                 new_source.theta = self.table_columns_to_array(big_table,prihdr,[21,22,23])
                 
                 #adjusting source header statuses
-                new_source.lambda_calibrated = hdulist[(2*i)+2].header["WL_CBRTD"]#source attribute, later applied to header["WL_CBRTD"]
-                new_source.polarization_computed = hdulist[(2*i)+2].header["POL_CMPD"] #source attribute, later applied to header["POL_CMPD"]
-                new_source.spectra_extracted = hdulist[(2*i)+2].header["SPC_XTRD"] #source attribute, later applied to header["SPC_XTRD"]
-                new_source.thumbnails_cut_out = hdulist[(2*i)+2].header["THMB_CUT"] #source attribute, later applied to header["THMB_CUT"]
+                new_source.lambda_calibrated        = copy.deepcopy(hdulist[(2*i)+2].header["WL_CBRTD"])#source attribute, later applied to header["WL_CBRTD"]
+                new_source.polarization_computed    = copy.deepcopy(hdulist[(2*i)+2].header["POL_CMPD"]) #source attribute, later applied to header["POL_CMPD"]
+                new_source.spectra_extracted        = copy.deepcopy(hdulist[(2*i)+2].header["SPC_XTRD"]) #source attribute, later applied to header["SPC_XTRD"]
+                new_source.thumbnails_cut_out       = copy.deepcopy(hdulist[(2*i)+2].header["THMB_CUT"]) #source attribute, later applied to header["THMB_CUT"]
 
                 try:
                     new_source.spectra_widths = np.fromstring(hdulist[(2*i)+2].header["WIDTHS"][1:-1], sep = ' ')
