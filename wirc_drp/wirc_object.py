@@ -1074,7 +1074,7 @@ class wircpol_source(object):
 
     def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 31, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False, 
         plot_optimal_extraction = False, plot_findTrace = False,
-        method = 'optimal_extraction', spatial_sigma = 5, filter_bkg_size = None,
+        method = 'optimal_extraction', spatial_sigma = 5, fixed_width = None, filter_bkg_size = None,
         lamda_sigma=10, width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
         sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True,debug_DQ=False,s=1,
         spectral_smooth=10,spatial_smooth=1):
@@ -1105,7 +1105,7 @@ class wircpol_source(object):
             plot_optimal_extraction = plot_optimal_extraction , plot_findTrace = plot_findTrace, method=method, filter_bkg_size = filter_bkg_size,
             width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction, 
             sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
-            use_DQ = use_DQ, debug_DQ=debug_DQ,spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth,spatial_sigma=spatial_sigma) 
+            use_DQ = use_DQ, debug_DQ=debug_DQ,spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth,spatial_sigma=spatial_sigma, fixed_width = fixed_width) 
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
         
         if align:
