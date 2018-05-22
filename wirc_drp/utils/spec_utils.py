@@ -381,7 +381,7 @@ action
     return np.sum(data[extraction_range[0]:extraction_range[1],:], axis = 0), \
                     np.sum(variance[extraction_range[0]:extraction_range[1],:], axis = 0)   
 
-def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3):
+def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_width = None):
     """helper function for optimal_extraction and sum_across_trace extraction. This function sums
     the given rotated thumbnail in the spectral direction, find the peak (assume one trace only),
     and return the range based on the given width of the trace (from findTrace) and the given 'sigmas'.
@@ -399,8 +399,16 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3):
     vert_max = np.argmax(spatial_profile) #locate the peak in this profile
     #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
     #because the pixel width changes as we rotate the image 
-    lower = int(np.floor(vert_max - spatial_sigma*trace_width)) #is this LISP or what?
-    upper = int(np.ceil(vert_max + spatial_sigma*trace_width))
+
+    #If fixed_width is not given, use spatial_sigma
+    if fixed_width is None:
+        lower = int(np.floor(vert_max - spatial_sigma*trace_width)) #is this LISP or what?
+        upper = int(np.ceil(vert_max + spatial_sigma*trace_width))
+
+    else: #This is when a fixed width is specified
+        print("Fixed width of {} used, this is {}sigma of trace width.".format(fixed_width, fixed_width/trace_width))
+        lower = int(np.floor(vert_max - fixed_width)) 
+        upper = int(np.ceil(vert_max + fixed_width))        
 
     return [lower, upper]
 
@@ -561,7 +569,8 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
     bkg_sub_shift_size = 31, bkg_poly_order = 2, filter_bkg_size = None, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
     bad_pix_masking = 0,skimage_order=4, width_scale=1., diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', 
-    box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 5,verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
+    box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 5, fixed_width = None, verbose = True, 
+    DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
     spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None, plot_optimal_extraction = False, plot_findTrace = False):
     """
     This is the main function to perform spectral extraction on the spectral image
@@ -594,6 +603,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                                         fit the background. 
                         (iv) optimal_extraction: This is Horne 1986 optimal extraction method. 
     diag_mask:      if True, the area away from the trace will be masked out 
+
+    Note: If fixed_width is given, then spatial_sigma is overwritten
 
     skimage_order, width_scale, fitfunction, sum_method, see method above.
     mode - use either 'pol' or 'spec'
@@ -857,7 +868,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #determine the extraction range based on the width parameter
             #first, find the peak
-            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
+            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
+                spatial_sigma = spatial_sigma, fixed_width = fixed_width)
 
 
 
@@ -922,18 +934,20 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             
             if mode == 'spec':
-                ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma)
+                ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)
                 widths += [real_width]
             else:
                 #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
-                fit_im = np.zeros(thumbnail.shape) 
-                for i in range(fit_im.shape[1]):
-                    #print(trace[i])
-                    if trace[i] > 0 and trace[i] < fit_im.shape[1]:
-                        fit_im[int(trace[i]),i] = 1 
-                rotated_fit_im = frame_rotate(fit_im, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
-                vert_max = np.argmax( np.sum(rotated_fit_im, axis = 1))
-                ext_range = [int(vert_max - real_width*spatial_sigma), int(vert_max + real_width*spatial_sigma)]    
+                ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)                
+                # fit_im = np.zeros(thumbnail.shape) 
+                # for i in range(fit_im.shape[1]):
+                #     #print(trace[i])
+                #     if trace[i] > 0 and trace[i] < fit_im.shape[1]:
+                #         fit_im[int(trace[i]),i] = 1 
+                # rotated_fit_im = frame_rotate(fit_im, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+                # vert_max = np.argmax( np.sum(rotated_fit_im, axis = 1))
+
+                # ext_range = [int(vert_max - real_width*spatial_sigma), int(vert_max + real_width*spatial_sigma)]    
 
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
