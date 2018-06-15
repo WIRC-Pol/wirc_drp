@@ -791,9 +791,14 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
         if verbose:
             print("Trace width {}".format(trace_width))
-
-        weight_width = trace_width*width_scale
-
+	
+        try:
+            weight_width = trace_width*width_scale
+        except TypeError as e:
+            print('No trace detected -- setting width = 0')
+            trace_width = 0.
+            weight_width = 0.
+            pass
 
         ######################################
         ######Call spectral extraction routine
