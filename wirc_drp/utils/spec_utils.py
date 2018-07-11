@@ -566,8 +566,9 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
     return flux_opt_final, variance_opt_final
 
 # @profile
-def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, sub_background=True, shift_dir = 'diagonal',
-    bkg_sub_shift_size = 31, bkg_poly_order = 2, filter_bkg_size = None, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
+def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, 
+    sub_background='shift_and_subtract', shift_dir = 'diagonal', bkg_sub_shift_size = 31, bkg_poly_order = 2, filter_bkg_size = None, bkg_thumbnails = None, 
+    method = 'optimal_extraction', niter = 2, sig_clip = 5, 
     bad_pix_masking = 0,skimage_order=4, width_scale=1., diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', 
     box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 5, fixed_width = None, verbose = True, 
     DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
@@ -589,6 +590,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                     'shift_and_subtract' to run a background subtraction routine by shift and subtracting
                     '2D_polynomial' to run 2D polynomial fitting to subtract backgrond. If this is selected, bkg_poly_order is the order 
                     of polynomial used
+                    'bkg_image' with a background thumbnails provided
     *method:        method for spectral extraction. Choices are
                         (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
                                         is in skimage_order parameter (fast).
@@ -673,9 +675,29 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         if mode=='spec' and verbose:
             print("Extracting spectrum".format(j))
 
-        #Should we subtract the background? 
-        #for first round, we have to do shift and subtract just to find the trace
-        if sub_background != None and mode == 'pol':        
+        #############################################
+        ######Background subtraction
+        #############################################
+
+        #Deal with old case
+        if sub_background == True:
+            sub_background = 'shift_and_subtract'
+
+        #Deal with the sub_background == bkg image first.
+        #First, if background subtraction mode is set to background image but the image is not provided, print error message and
+        #default to shift and subtract
+        if sub_background == 'bkg_image':
+            if bkg_thumbnails is None:
+                print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
+                sub_background = 'shift_and_subtract' 
+             #for first round, we have to do shift and subtract just to find the trace
+
+            else:
+                bkg_raw = bkg_thumbnails[j,:,:]
+                bkg_scale_factor = np.median(thumbnail)/np.median(bkg_raw)
+                bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
+
+        elif sub_background is not None and mode == 'pol':        
             #############################################
             ######If data is in the slit mode, perform shift and subtract to remove background
             #############################################
@@ -730,7 +752,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             # bkg_sub = bkg_sub * thumb_mask
             # bkg = bkg * thumb_mask
          
-        elif sub_background != None and mode == 'spec':
+        elif sub_background is not None and mode == 'spec':
             medval = np.median(thumbnail.flatten())
             bkg = np.ones(np.shape(thumbnail))*medval
             bkg_sub = thumbnail - bkg
