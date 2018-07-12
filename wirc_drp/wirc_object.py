@@ -750,11 +750,9 @@ class wirc_data(object):
 
 
     def find_sources(self, image_fn, sky = None, threshold_sigma = 5, guess_seeing = 1, plot = False, verbose = False, brightness_sort=False, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, 
-                    use_full_frame_mask=True, force_figures = False, mode = 'pol', guess_location = None):
-        
+        use_full_frame_mask=True, force_figures = False, mode = 'pol', guess_location = None):    
         """
         Find the number of sources in the image and create a wircpol_source objects for each one. In 'pol' mode the traces will be verified and only the good sources will be saved. 
-
         Args:
             image_fn - Either the *direct image* with no mask or PG (for 'direct' mode), specpol image with only source in slit or at known location ('simple' mode), 
                         specpol image with multiple sources ('pol' mode), or grism image ('spec' mode, still not incorporated here)
@@ -1229,7 +1227,8 @@ class wircpol_source(object):
         
         self.polarization_computed = True #source attribute, later applied to header["POL_CMPD"]
 
-    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', fig_num = None, figsize=(6.4,4.8),**kwargs):
+    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', fig_num = None, figsize=(6.4,4.8),
+        xlow = None, xhigh = None, ylow=None, yhigh = None,**kwargs):
 
         #Would you like to choose the specific figure that we're using? 
         if fig_num is not None:
@@ -1253,19 +1252,27 @@ class wircpol_source(object):
             plt.draw()
 
         plt.ylabel("Flux [ADU]")
+        if ylow is not None and yhigh is not None:
+            plt.ylim([ylow,yhigh])
 
         if self.lambda_calibrated: #plot is not perfectly the same
             plt.xlabel("Wavelength [um]")
-            plt.xlim([1.17,1.32]) #wavelength display range -- Where the J-band filter has  > 80% throughput
+            if xlow is not None and xhigh is not None:
+                plt.xlim([xlow,xhigh])
+            else: 
+                plt.xlim([1.17,1.32]) #wavelength display range -- Where the J-band filter has  > 80% throughput
         else:
             plt.xlabel("Wavelength [Arbitrary Unit]")
-            plt.xlim([0,225]) #arbitrary unit wavelength display range
+            if xlow is not None and xhigh is not None:
+                plt.xlim([xlow,xhigh])
+            else: 
+                plt.xlim([0,225]) #arbitrary unit wavelength display range
         
         plt.legend()
 
-    def plot_Q_and_U(self, with_errors = False, xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, **kwargs):
+    def plot_Q_and_U(self, with_errors = False, figsize=(7,7),xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, **kwargs):
 
-        fig = plt.figure(figsize=(7,7))
+        fig = plt.figure(figsize=figsize)
 
         ax1 = fig.add_subplot(121)
         ax2 = fig.add_subplot(122)
@@ -1291,49 +1298,58 @@ class wircpol_source(object):
             ax1.set_xlabel("Wavelength [Arbitrary Units]")
             ax2.set_xlabel("Wavelength [Arbitrary Units]")
 
-    def get_broadband_polarization(self, xlow=0, xhigh=-1, weighted=False):
+    def get_broadband_polarization(self, mode ='from_spectra',xlow=0, xhigh=-1, weighted=False):
         '''
-        Sum the polarization in each trace and measure the broad band polarization. 
+        A function to measure the broadband polarization from a source. 
+
+        Modes: 
+        from_spectra        - Sum the polarization in each trace (between xlow and xhigh) and measure the broadband polarization. 
+        aperture_photometry - Use photutils to measure the aperture photometry. 
+
+
         '''
-        
+        if mode == "from_spectra":
+            bb_traces = np.zeros([4,3])
+            for i in range(4):
+                #Do we actualy want the option of weighted mean?
+                if weighted:
+                    bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) #Don't weight the wavelength
+                    bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh], weights=1/self.trace_spectra[i,2,xlow:xhigh])
+                    bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2) #This isn't the correct error formula for weighted means
+                else:
+                    bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) 
+                    bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh])
+                    bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2)
+
+            
+            ## The calculations of bbQ and bbU are based on the initial assumptions on Q and U, which we know are wrong. 
+            ## We'll keep the the same for now, but addjust the input to the source object properties. 
+
+            bbQ = (bb_traces[0,1]-bb_traces[1,1])/(bb_traces[0,1]+bb_traces[1,1])
+            #If f = A/B
+            #sigma_f = f*sqrt ( (sigma_A/A)**2 + (sigma_B/B)**2 )
+            bbQ_err = bbQ*np.sqrt( (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]-bb_traces[1,1])**2 + (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]+bb_traces[1,1])**2)
+
+            bbU = (bb_traces[2,1]-bb_traces[3,1])/(bb_traces[2,1]+bb_traces[3,1])
+
+            bbU_err = bbU*np.sqrt( (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]-bb_traces[3,1])**2 + (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]+bb_traces[3,1])**2)
 
 
-        bb_traces = np.zeros([4,3])
-        for i in range(4):
-            #Do we actualy want the option of weighted mean?
-            if weighted:
-                bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) #Don't weight the wavelength
-                bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh], weights=1/self.trace_spectra[i,2,xlow:xhigh])
-                bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2) #This isn't the correct error formula for weighted means
-            else:
-                bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) 
-                bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh])
-                bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2)
+            ###### OLD VERSION ###### - Do not use March 27. 2018 MMB
+            # self.bbQ = [bb_traces[0,0], bbQ, bbQ_err] #Return, [wavelength, flux, error]
+            # self.bbU = [bb_traces[2,0], bbU, bbU_err]
+            #########################
 
-        
-        ## The calculations of bbQ and bbU are based on the initial assumptions on Q and U, which we know are wrong. 
-        ## We'll keep the the same for now, but addjust the input to the source object properties. 
-
-        bbQ = (bb_traces[0,1]-bb_traces[1,1])/(bb_traces[0,1]+bb_traces[1,1])
-        #If f = A/B
-        #sigma_f = f*sqrt ( (sigma_A/A)**2 + (sigma_B/B)**2 )
-        bbQ_err = bbQ*np.sqrt( (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]-bb_traces[1,1])**2 + (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]+bb_traces[1,1])**2)
-
-        bbU = (bb_traces[2,1]-bb_traces[3,1])/(bb_traces[2,1]+bb_traces[3,1])
-
-        bbU_err = bbU*np.sqrt( (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]-bb_traces[3,1])**2 + (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]+bb_traces[3,1])**2)
-
-
-        ###### OLD VERSION ###### - Do not use March 27. 2018 MMB
-        # self.bbQ = [bb_traces[0,0], bbQ, bbQ_err] #Return, [wavelength, flux, error]
-        # self.bbU = [bb_traces[2,0], bbU, bbU_err]
-        #########################
-
-        ###### NEW VERSION ######
-        #Based on Kaew's twilight measurements March 27 2018
-        self.bbQ = [bb_traces[2,0], -bbU, bbU_err] #Return, [wavelength, flux, error]
-        self.bbU = [bb_traces[0,0], -bbQ, bbQ_err]
-        #########################
+            ###### NEW VERSION ######
+            #Based on Kaew's twilight measurements March 27 2018
+            self.bbQ = [bb_traces[2,0], -bbU, bbU_err] #Return, [wavelength, flux, error]
+            self.bbU = [bb_traces[0,0], -bbQ, bbQ_err]
+            #########################
+        elif mode =="aperture_photometry":
+            print("Not yet implemented")
+            
+        else:
+            print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
 
 
 class wircspec_source(object):
