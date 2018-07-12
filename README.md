@@ -17,6 +17,6 @@ many thanks to the authors.
 https://photutils.readthedocs.io/en/stable/install.html
 (please check their citation request: https://photutils.readthedocs.io/en/stable/index.html)
 
-- The OpenCV package. You can probably install it like this: ```pip install opencv-python```
+- The OpenCV package. You can probably install it like this: ```pip install opencv-python```. (This should be installed when you run setup.py)
 
-  
+- The scikit-image package: http://scikit-image.org/docs/dev/install.html (This should be installed when you run setup.py)
