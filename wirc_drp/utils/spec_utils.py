@@ -686,18 +686,21 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #Deal with the sub_background == bkg image first.
         #First, if background subtraction mode is set to background image but the image is not provided, print error message and
         #default to shift and subtract
-        if sub_background == 'bkg_image':
-            if bkg_thumbnails is None:
-                print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
-                sub_background = 'shift_and_subtract' 
+        if sub_background == 'bkg_image' and bkg_thumbnails is not None:
+            bkg_raw = bkg_thumbnails[j,:,:]
+            bkg_scale_factor = np.median(thumbnail)/np.median(bkg_raw) #median scale the background before subtraction
+            bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
+
+        # elif sub_background == 'bkg_image' and bkg_thumbnails is None:
+        #     print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
+        #     sub_background = 'shift_and_subtract' 
              #for first round, we have to do shift and subtract just to find the trace
 
-            else:
-                bkg_raw = bkg_thumbnails[j,:,:]
-                bkg_scale_factor = np.median(thumbnail)/np.median(bkg_raw)
-                bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
+        elif sub_background is not None and mode == 'pol':  
 
-        elif sub_background is not None and mode == 'pol':        
+            if sub_background == 'bkg_image' and bkg_thumbnails is None:
+                print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
+
             #############################################
             ######If data is in the slit mode, perform shift and subtract to remove background
             #############################################
