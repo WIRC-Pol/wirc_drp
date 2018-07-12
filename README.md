@@ -9,6 +9,14 @@ Download or clone the repository and then run:
 
 ## Dependencies
 
-You'll need the image registration package from:
+The WIRC_DRP relies on several outside packages:
+- The image registration package from:
 <https://github.com/keflavich/image_registration>
 many thanks to the authors.
+- The photuilts package: 
+https://photutils.readthedocs.io/en/stable/install.html
+(please check their citation request: https://photutils.readthedocs.io/en/stable/index.html)
+
+- The OpenCV package. You can probably install it like this: ```pip install opencv-python```
+
+  
