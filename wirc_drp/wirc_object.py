@@ -49,7 +49,6 @@ class wirc_data(object):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file, 
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once. 
-        ##
 
         if raw_filename is not None and wirc_object_filename is not None:
             print("Can't open both a raw file and wircpol_object, ignoring the raw file and loading the wirc_object_file ")
@@ -106,6 +105,9 @@ class wirc_data(object):
             #The data quality image
             self.DQ_image = None
 
+            #Background image
+            self.bkg_image = None
+
             #TODO Determine whether the type is spec or pol
             # self.type =
 
@@ -130,9 +132,12 @@ class wirc_data(object):
             self.source_list = []
             
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False,sub_bkg_now = True):
         '''
-        Apply dark and flat-field correction
+        Apply dark and flat-field correction. 
+        Background subtraction behavior (only when a background frame is provided)
+            If sub_bkg_now is True, then background subtraction is performed here and the subtracted image is saved. 
+            If False, background subtraction is dealt with during spectral extraction. This is preferred.
         '''
 
         #TODO Add checks to make sure the flatnames are not none
@@ -182,7 +187,9 @@ class wirc_data(object):
             else:
                 print("No flat filename found, continuing without divinding by a falt")
 
-            if self.bkg_fn is not None:
+            #background subtraction should be done at spectral extraction step to propagate error correctly
+            #set sub_bkg_now to False and this will be done when the source is created.
+            if self.bkg_fn is not None and sub_bkg_now == True: #Old case where we want to do background subtraction now
                 background_hdu = fits.open(self.bkg_fn)
                 background = background_hdu[0].data
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
@@ -883,6 +890,8 @@ class wircpol_source(object):
 
     Attributes:
         trace_images - An array of size [4,N,N], where n is the width of the box, and there is one image for each trace
+        trace_images_DQ - same thing but for data quality image
+        trace_bkg - same thing but for background image for each trace if wirc_object.bkg_fn is given
         trace_spectra - An array of size [4,3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
         pol_spectra - An array of size [3,3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
         calibrated_pol_spectra - An array of size [5,3, m], where each m-sized spectrum as a wavelength, a flux and a flux error
@@ -908,6 +917,9 @@ class wircpol_source(object):
         self.trace_images = None
         self.trace_images_extracted = None
         self.trace_images_DQ = None
+
+        #Background image
+        self.trace_bkg = None
 
         #width and angle info
         self.spectra_widths = None
@@ -935,11 +947,13 @@ class wircpol_source(object):
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
+    def get_cutouts(self, image, image_DQ, filter_name, image_bkg_fn = None, replace_bad_pixels = True, method = 'median', \
+                    box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation 
         method can be 'median' or 'interpolate'
+        image_bkg_fn is the filename of the background frame. This should be wirc_object.bkg_fn.
 
         """
         locs = [int(self.pos[0]),int(self.pos[1])]
@@ -980,7 +994,12 @@ class wircpol_source(object):
         
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
-    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, origin='lower',**kwargs):
+        if image_bkg_fn is not None:
+            bkg_im = fits.open(image_bkg_fn)[0].data #assume wirc image
+            self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_im, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, 
+                                cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
+
+    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, plot_bkg_sub = False, origin='lower',**kwargs):
         '''
         Plot the source cutouts
 
@@ -997,36 +1016,50 @@ class wircpol_source(object):
         else: #If not, then we'll make a new figure. 
             fig = plt.figure(figsize=figsize)
 
-        ax = fig.add_subplot(141)
-
+        #What to plot?
         if plot_dq:
-            plt.imshow(self.trace_images_DQ[0,:,:], origin=origin, **kwargs)
+            to_plot = self.trace_images_DQ
+        elif plot_bkg_sub:
+            to_plot = self.trace_images - self.trace_bkg
         else:
-            plt.imshow(self.trace_images[0,:,:], origin=origin, **kwargs)
-        plt.text(5,140,"Top - Left", color='w')
+            to_plot = self.trace_images
 
-        ax = fig.add_subplot(142)
-        if plot_dq:
-            plt.imshow(self.trace_images_DQ[1,:,:], origin=origin, **kwargs)
-        else:
-            plt.imshow(self.trace_images[1,:,:], origin=origin, **kwargs)
-        plt.text(5,140,"Bottom - Right", color='w')
-        ax.set_yticklabels([])
+        texts = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
+        for i in range(4):
+            ax = fig.add_subplot(1,4,i+1)
+            plt.imshow(to_plot[i,:,:]), origin = origin , **kwargs)
+            plt.text(5,140, texts[i], color = 'w')
 
-        ax = fig.add_subplot(143)
-        if plot_dq:
-            plt.imshow(self.trace_images_DQ[2,:,:], origin=origin, **kwargs)
-        else:
-            plt.imshow(self.trace_images[2,:,:], origin=origin, **kwargs)
-        plt.text(5,140,"Top - Right", color='w')
-        ax.set_yticklabels([])
+        # ax = fig.add_subplot(141)
 
-        ax = fig.add_subplot(144)
-        if plot_dq:
-            plt.imshow(self.trace_images_DQ[3,:,:], origin=origin, **kwargs)
-        else:
-            plt.imshow(self.trace_images[3,:,:], origin=origin, **kwargs)
-        plt.text(5,140,"Bottom - Left", color='w')
+        # if plot_dq:
+        #     plt.imshow(self.trace_images_DQ[0,:,:], origin=origin, **kwargs)
+        # else:
+        #     plt.imshow(self.trace_images[0,:,:], origin=origin, **kwargs)
+        # plt.text(5,140,"Top - Left", color='w')
+
+        # ax = fig.add_subplot(142)
+        # if plot_dq:
+        #     plt.imshow(self.trace_images_DQ[1,:,:], origin=origin, **kwargs)
+        # else:
+        #     plt.imshow(self.trace_images[1,:,:], origin=origin, **kwargs)
+        # plt.text(5,140,"Bottom - Right", color='w')
+        # ax.set_yticklabels([])
+
+        # ax = fig.add_subplot(143)
+        # if plot_dq:
+        #     plt.imshow(self.trace_images_DQ[2,:,:], origin=origin, **kwargs)
+        # else:
+        #     plt.imshow(self.trace_images[2,:,:], origin=origin, **kwargs)
+        # plt.text(5,140,"Top - Right", color='w')
+        # ax.set_yticklabels([])
+
+        # ax = fig.add_subplot(144)
+        # if plot_dq:
+        #     plt.imshow(self.trace_images_DQ[3,:,:], origin=origin, **kwargs)
+        # else:
+        #     plt.imshow(self.trace_images[3,:,:], origin=origin, **kwargs)
+        # plt.text(5,140,"Bottom - Left", color='w')
         ax.set_yticklabels([])
         
         fig.subplots_adjust(right=0.85)
@@ -1072,7 +1105,8 @@ class wircpol_source(object):
 
         self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,thumbnails_dq=self.trace_images_DQ, nsig=nsig)
 
-    def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 31, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False, 
+    def extract_spectra(self, sub_background = 'shift_and_subtract', bkg_sub_shift_size = 31, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False, 
+        bkg_thumbnails = None,
         plot_optimal_extraction = False, plot_findTrace = False,
         method = 'optimal_extraction', spatial_sigma = 5, fixed_width = None, filter_bkg_size = None,
         lamda_sigma=10, width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', 
@@ -1099,9 +1133,18 @@ class wircpol_source(object):
         if verbose:
             print("Performing Spectral Extraction for source {}".format(self.index))
 
+        #if background thumbnail is available
+        if sub_background == 'bkg_image'
+            try:
+                bkg_thumbnails = self.trace_bkg
+            except:
+                print('No background image in wirc object, default to shift and subtract.')
+                sub_background = 'shift_and_subtract'
+
         #call spec_extraction to actually extract spectra
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, self.slit_pos, 
             sub_background = sub_background, bkg_sub_shift_size = bkg_sub_shift_size , shift_dir = shift_dir, plot=plot, bkg_poly_order = bkg_poly_order,
+            bkg_thumbnails = bkg_thumbnails,
             plot_optimal_extraction = plot_optimal_extraction , plot_findTrace = plot_findTrace, method=method, filter_bkg_size = filter_bkg_size,
             width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction, 
             sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
