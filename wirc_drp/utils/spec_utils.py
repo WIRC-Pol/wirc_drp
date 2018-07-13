@@ -687,6 +687,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #First, if background subtraction mode is set to background image but the image is not provided, print error message and
         #default to shift and subtract
         if sub_background == 'bkg_image' and bkg_thumbnails is not None:
+            if verbose:
+                print("Background subtraction by using a provided background image.")
             bkg_raw = bkg_thumbnails[j,:,:]
             bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
             bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
@@ -697,7 +699,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
              #for first round, we have to do shift and subtract just to find the trace
 
         elif sub_background is not None and mode == 'pol':  
-
+            if verbose:
+                print("Not background image subtraction")
             if sub_background == 'bkg_image' and bkg_thumbnails is None:
                 print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
 
