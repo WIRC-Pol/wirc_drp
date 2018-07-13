@@ -688,7 +688,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #default to shift and subtract
         if sub_background == 'bkg_image' and bkg_thumbnails is not None:
             bkg_raw = bkg_thumbnails[j,:,:]
-            bkg_scale_factor = np.median(thumbnail)/np.median(bkg_raw) #median scale the background before subtraction
+            bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
             bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
 
         # elif sub_background == 'bkg_image' and bkg_thumbnails is None:
