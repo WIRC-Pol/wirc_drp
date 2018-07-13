@@ -1025,7 +1025,7 @@ class wircpol_source(object):
         texts = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
         for i in range(4):
             ax = fig.add_subplot(1,4,i+1)
-            plt.imshow(to_plot[i,:,:]), origin = origin , **kwargs)
+            plt.imshow(to_plot[i,:,:], origin = origin , **kwargs)
             plt.text(5,140, texts[i], color = 'w')
 
         # ax = fig.add_subplot(141)
