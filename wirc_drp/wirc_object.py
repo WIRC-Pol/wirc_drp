@@ -997,6 +997,21 @@ class wircpol_source(object):
             self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_im, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name, 
                                 cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
 
+            if replace_bad_pixels:
+                #check method
+                if method == 'interpolate':
+                    #iterate through the 4 thumbnails
+                    for i in range(len(self.trace_bkg)):    
+                        bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                        self.trace_bkg[i] = calibration.replace_bad_pix_with_interpolation(self.trace_bkg[i], self.trace_images_DQ[i])
+                        # except:
+                        #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+                elif method == 'median':
+                    #iterate through the 4 thumbnails
+                    for i in range(len(self.trace_bkg)):    
+                        bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                        self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)      
+
     def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, plot_bkg_sub = False, origin='lower',**kwargs):
         '''
         Plot the source cutouts
