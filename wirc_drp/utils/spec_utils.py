@@ -696,7 +696,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         if sub_background == 'bkg_image' and bkg_thumbnails is not None:
             if verbose:
                 print("Background subtraction by using a provided background image.")
-            bkg_raw = bkg_thumbnails[j,:,:]
+            bkg_raw = bkg_copy[j,:,:]
             bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
             bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
 
