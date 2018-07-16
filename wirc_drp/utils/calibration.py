@@ -202,7 +202,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
 def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
                 global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
-                output_dir = None, zeroth_order_flat_fname = None, zeroth_transmission_factor = 0.012, offsets = [4,-1], 
+                output_dir = None, zeroth_order_flat_fname = None, zeroth_transmission_factor = 0.00016, offsets = [4,-1], 
                 normal_flat_fname = None, plot = False):
 
     
@@ -255,6 +255,8 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
 
     #Open the zeroth order
     zeroth_order_flat = f.open(zeroth_order_flat_fname)[0].data
+
+
     if verbose:
         print("Subtracting zeroth order frame {} using transmission factor {} and offsets [{},{}]".format(zeroth_order_flat_fname, zeroth_transmission_factor, offsets[0],offsets[1]))
 
