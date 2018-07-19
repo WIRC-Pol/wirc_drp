@@ -639,6 +639,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     
     if DQ_thumbnails is not None:
         DQ_copy = copy.deepcopy(DQ_thumbnails)
+
+    if bkg_thumbnails is not None:
+        bkg_copy = copy.deepcopy(bkg_thumbnails)
     
     #Flip some of the traces around.
     if mode=='pol': 
@@ -651,9 +654,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             DQ_copy[2,:,:] = DQ_copy[2,:,-1::-1] #flip x #Top-right
             DQ_copy[3,:,:] = DQ_copy[3,-1::-1, :] #flip y #Bottom-left
         if bkg_thumbnails is not None:
-            bkg_thumbnails[1,:,:] = bkg_thumbnails[1,-1::-1, -1::-1] #flip y, x. Bottom-right
-            bkg_thumbnails[2,:,:] = bkg_thumbnails[2,:,-1::-1] #flip x #Top-right
-            bkg_thumbnails[3,:,:] = bkg_thumbnails[3,-1::-1, :] #flip y #Bottom-left
+            bkg_copy[1,:,:] = bkg_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+            bkg_copy[2,:,:] = bkg_copy[2,:,-1::-1] #flip x #Top-right
+            bkg_copy[3,:,:] = bkg_copy[3,-1::-1, :] #flip y #Bottom-left
 
         trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
 
@@ -693,7 +696,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         if sub_background == 'bkg_image' and bkg_thumbnails is not None:
             if verbose:
                 print("Background subtraction by using a provided background image.")
-            bkg_raw = bkg_thumbnails[j,:,:]
+            bkg_raw = bkg_copy[j,:,:]
             bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
             bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
 
