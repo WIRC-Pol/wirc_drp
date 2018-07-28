@@ -15,15 +15,18 @@ all_files = glob.glob('*.fits')
 darks = {} #empty dictionary 
 #go through and select files with BrGamma__(2.17) and J__(1.25) in 'FORE' and 'AFT'
 for i in all_files:
-	if fits.getheader(i)['FORE'] == 'BrGamma__(2.17)' and fits.getheader(i)['AFT'] == 'J__(1.25)':
-		#found a dark file, check if the exp time is new
-		exp_time = fits.getheader(i)['EXPTIME']
-		coadds = fits.getheader(i)['COADDS']
-		exp_time_str = str(coadds)+'_'+str(exp_time) 
-		if exp_time_str in darks:
-			darks[exp_time_str] += [i] #add file name to that index
-		else:
-			darks[exp_time_str] = [i] #create an index with that exposure time
+	try:
+		if fits.getheader(i)['FORE'] == 'BrGamma__(2.17)' and fits.getheader(i)['AFT'] == 'J__(1.25)':
+			#found a dark file, check if the exp time is new
+			exp_time = fits.getheader(i)['EXPTIME']
+			coadds = fits.getheader(i)['COADDS']
+			exp_time_str = str(coadds)+'_'+str(exp_time) 
+			if exp_time_str in darks:
+				darks[exp_time_str] += [i] #add file name to that index
+			else:
+				darks[exp_time_str] = [i] #create an index with that exposure time
+	except(KeyError):
+		print(i, ' has filter keywords missing. Check manually.')
 
 #print(darks)
 

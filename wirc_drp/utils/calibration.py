@@ -152,7 +152,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     #Parse the last fileanme
     if output_dir is not None:
         flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
-        flat_outname = flat_outname.rsplit('/',1)[1]
+        flat_outname = flat_outname.rsplit('/',1)[-1]
         flat_outname = output_dir+flat_outname
     else:
         flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_flat.fits"
@@ -175,7 +175,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     #Parse the last fileanme
     if output_dir is not None:
         bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
-        bp_outname = bp_outname.rsplit('/',1)[1]
+        bp_outname = bp_outname.rsplit('/',1)[-1]
         bp_outname = output_dir+bp_outname
     else:
         bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
@@ -383,7 +383,7 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     #Parse the last fileanme
     if output_dir is not None:
         flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_PG_flat.fits"
-        flat_outname = flat_outname.rsplit('/',1)[1]
+        flat_outname = flat_outname.rsplit('/',1)[-1]
         flat_outname = output_dir+flat_outname
     else:
         flat_outname = flat_list[-1].rsplit('.',1)[0]+"_master_PG_flat.fits"
@@ -406,7 +406,7 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     #Parse the last fileanme
     if output_dir is not None:
         bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
-        bp_outname = bp_outname.rsplit('/',1)[1]
+        bp_outname = bp_outname.rsplit('/',1)[-1]
         bp_outname = output_dir+bp_outname
     else:
         bp_outname = flat_list[-1].rsplit('.',1)[0]+"_bp_map.fits"
@@ -499,7 +499,7 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5, output_dir = 
     #Parse the last fileanme
     if output_dir is not None:
         dark_outname = dark_list[-1].rsplit('.',1)[0]+"_master_dark.fits"
-        dark_outname = dark_outname.rsplit("/",1)[1]
+        dark_outname = dark_outname.rsplit("/",1)[-1]
         dark_outname = output_dir+dark_outname
     else:
         dark_outname = dark_list[-1].rsplit('.',1)[0]+"_master_dark.fits"
@@ -520,10 +520,10 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5, output_dir = 
     hdu[0].header['HISTORY'] = "A pixel value of 1 indicates a hot pixel"
     hdu[0].header['HISTORY'] = "############################"
 
-    #Parse the last fileanme
+    #Parse the last filename
     if output_dir is not None:
         bp_outname = dark_list[-1].rsplit('.',1)[0]+"_hp_map.fits"
-        bp_outname = bp_outname.rsplit("/",1)[1]
+        bp_outname = bp_outname.rsplit("/",1)[-1]
         bp_outname = output_dir+bp_outname
     else:
         bp_outname = dark_list[-1].rsplit('.',1)[0]+"_hp_map.fits" #hp map is from dark, as oppose to bp map from flat
