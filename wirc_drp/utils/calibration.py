@@ -65,9 +65,10 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     #Open all files into a 3D array
     foo = np.empty((dark_shape[0],dark_shape[1],len(flat_list)))
 
-    #Open first flat file to check exposure time
+    #Open first flat file to check exposure time and filter
     first_flat_hdu = f.open(flat_list[0])
     flat_exp_time = first_flat_hdu[0].header['EXPTIME']
+
 
 
     if dark_exp_time != flat_exp_time:
@@ -250,6 +251,7 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     #Open first flat file to check exposure time
     first_flat_hdu = f.open(flat_list[0])
     flat_exp_time = first_flat_hdu[0].header['EXPTIME']
+    filter_name = first_flat_hdu[0].header['AFT']
 
     #Open the zeroth order
     zeroth_order_flat = f.open(zeroth_order_flat_fname)[0].data
@@ -358,14 +360,22 @@ def masterPGFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_b
     hdu[0].header['HISTORY'] = "############################"
 
     if plot:
+	#Different limits for H and J
+        print(filter_name)
+        if filter_name == 'H__(1.64)':
+            vmin, vmax = 1.1, 1.3
+        else:
+            vmin, vmax = 1.1, 1.17
+        print(vmin, vmax, ' are the limits')
         if normal_flat_fname == None:
             normal_flat_fname = "/scr/data/calibrations/median_flat_J.fits"
+            print("using archival normal flat")
         normal_flat = f.open(normal_flat_fname)[0].data
         fig, ax = plt.subplots(2,2,figsize = (20,20))
-        ax0 = ax[0,0].imshow(uncleaned_flat/np.nanmedian(uncleaned_flat[~bad_px])/normal_flat, origin = 'lower', vmin = 1, vmax = 1.17)
-        ax1 = ax[0,1].imshow(norm_flat/normal_flat, origin = 'lower', vmin =1, vmax = 1.17)
-        ax2 = ax[1,0].imshow(uncleaned_flat/np.nanmedian(uncleaned_flat[~bad_px])/normal_flat, origin = 'lower', vmin = 1, vmax = 1.17)
-        ax3 = ax[1,1].imshow(norm_flat/normal_flat, origin = 'lower', vmin =1, vmax = 1.17)
+        ax0 = ax[0,0].imshow(uncleaned_flat/np.nanmedian(uncleaned_flat[~bad_px])/normal_flat, origin = 'lower', vmin = vmin, vmax = vmax)
+        ax1 = ax[0,1].imshow(norm_flat/normal_flat, origin = 'lower', vmin =vmin, vmax = vmax)
+        ax2 = ax[1,0].imshow(uncleaned_flat/np.nanmedian(uncleaned_flat[~bad_px])/normal_flat, origin = 'lower', vmin = vmin, vmax = vmax)
+        ax3 = ax[1,1].imshow(norm_flat/normal_flat, origin = 'lower', vmin =vmin, vmax = vmax)
         ax[0,0].set_xlim([400,1600])
         ax[0,0].set_ylim([400,1600])
         ax[0,1].set_xlim([400,1600])
