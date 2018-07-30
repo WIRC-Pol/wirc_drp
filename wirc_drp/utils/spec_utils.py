@@ -475,18 +475,27 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
             print('Extraction range is', extraction_range)
 
         if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
+        #ZScale
+        from astropy.visualization import (ZScaleInterval, LinearStretch,
+                                   ImageNormalize)
+
             fig, ax = plt.subplots(1,3,figsize = (15,5))
-            ax[0].imshow(data - background, origin = 'lower')
+
+            norm_bkg_sub = ImageNormalize(data - background, interval = ZScaleInterval(), stretch = LinearStretch())
+            norm_var = ImageNormalize(variance_opt, interval = ZScaleInterval(), stretch = LinearStretch())
+            norm_P = ImageNormalize(P_0, interval = ZScaleInterval(), stretch = LinearStretch())
+
+            ax[0].imshow(data - background, origin = 'lower', norm = norm_bkg_sub)
             ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[0].set_title('Data - background')
-            ax[1].imshow(variance_opt, origin = 'lower')
+            ax[1].imshow(variance_opt, origin = 'lower', norm = norm_var)
 
             ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
 
             ax[1].set_title('Optimized variance')
-            ax[2].imshow(P_0, origin = 'lower',vmin=0,vmax=0.5)
+            ax[2].imshow(P_0, origin = 'lower',norm = norm_P)
             ax[2].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[2].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[2].set_title('Profile image')
@@ -1004,6 +1013,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             return None, None
         
         #Plotting
+
         if plot:
             ax = fig.add_subplot(2,ntraces,j+1)
             ax.set_title(trace_title)
