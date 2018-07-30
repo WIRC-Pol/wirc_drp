@@ -476,7 +476,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
         if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
         #ZScale
-        from astropy.visualization import (ZScaleInterval, LinearStretch,
+            from astropy.visualization import (ZScaleInterval, LinearStretch,
                                    ImageNormalize)
 
             fig, ax = plt.subplots(1,3,figsize = (15,5))
