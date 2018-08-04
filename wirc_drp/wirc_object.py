@@ -130,7 +130,7 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, median_subtract = False):
         '''
         Apply dark and flat-field correction
         '''
@@ -219,6 +219,9 @@ class wirc_data(object):
                 self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
                 self.header['BKG_FN'] = self.bkg_fn
 
+            if median_subtract:
+                bkg = np.nanmedian(self.full_image)
+                self.full_image -= bkg
 
             if destripe_raw:
                 if verbose:
@@ -313,7 +316,8 @@ class wirc_data(object):
 
             #Turn on the calibrated flag
             self.calibrated = True
-
+            if median_subtract:
+                return bkg
         else:
             print("Data already calibrated")
 
