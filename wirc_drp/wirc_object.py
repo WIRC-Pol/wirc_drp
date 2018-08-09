@@ -1,6 +1,7 @@
 import numpy as np
 from astropy.io import fits
 import matplotlib.pyplot as plt
+import matplotlib
 import warnings
 
 import warnings
@@ -493,6 +494,7 @@ class wirc_data(object):
 
         #Now for each source, create a ImageHDU, this works even if the cutouts haven't been extracted
         #Now for each source, create a TableHDU
+
         for i in range(self.n_sources):
             #print ('Starting Iteration #',i);
 
@@ -987,7 +989,7 @@ class wircpol_source(object):
 
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
-    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, origin='lower',**kwargs):
+    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, origin='lower', output_name='', show=True, **kwargs):
         '''
         Plot the source cutouts
 
@@ -996,6 +998,10 @@ class wircpol_source(object):
 
 
         '''
+
+        if not show:
+            default_back = matplotlib.get_backend()
+            plt.switch_backend('Agg')
 
         #Would you like to choose the specific figure that we're using?
         if fig_num is not None:
@@ -1040,9 +1046,18 @@ class wircpol_source(object):
         cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
         plt.colorbar(cax = cbar_ax)
 
-        plt.show()
+        if output_name != '':
+            plt.savefig(output_name, format='png')
+        if show:
+            plt.show()
+        else:
+            plt.switch_backend(default_back)
 
-    def plot_extracted_cutouts(self, **kwargs):
+    def plot_extracted_cutouts(self, output_name='', show=True, **kwargs):
+
+        if not show:
+            default_back = matplotlib.get_backend()
+            plt.switch_backend('Agg')
 
         fig = plt.figure(figsize = (12,8))
 
@@ -1070,7 +1085,12 @@ class wircpol_source(object):
         cbar_ax = fig.add_axes([0.87, 0.38, 0.03, 0.24])
         plt.colorbar(cax = cbar_ax)
 
-        plt.show()
+        if output_name != '':
+            plt.savefig(output_name, format='png')
+        if show:
+            plt.show()
+        else:
+            plt.switch_backend(default_back)
 
     def clean_cutouts_for_cosmic_rays(self,nsig=3):
         '''
@@ -1236,7 +1256,11 @@ class wircpol_source(object):
 
         self.polarization_computed = True #source attribute, later applied to header["POL_CMPD"]
 
-    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', fig_num = None, figsize=(6.4,4.8),**kwargs):
+    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', fig_num = None, figsize=(6.4,4.8), output_name='', show=True, **kwargs):
+
+        if not show:
+            default_back = matplotlib.get_backend()
+            plt.switch_backend('Agg')
 
         #Would you like to choose the specific figure that we're using?
         if fig_num is not None:
@@ -1270,7 +1294,17 @@ class wircpol_source(object):
 
         plt.legend()
 
-    def plot_Q_and_U(self, with_errors = False, xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, **kwargs):
+        if output_name != '':
+            plt.savefig(output_name, format='png')
+
+        if not show:
+            plt.switch_backend(default_back)
+
+    def plot_Q_and_U(self, with_errors = False, xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, output_name='', show=True, **kwargs):
+
+        if not show:
+            default_back = matplotlib.get_backend()
+            plt.switch_backend('Agg')
 
         fig = plt.figure(figsize=(7,7))
 
@@ -1297,6 +1331,12 @@ class wircpol_source(object):
         else:
             ax1.set_xlabel("Wavelength [Arbitrary Units]")
             ax2.set_xlabel("Wavelength [Arbitrary Units]")
+
+        if output_name != '':
+            plt.savefig(output_name, format='png')
+
+        if not show:
+            plt.switch_backend(default_back)
 
     def get_broadband_polarization(self, xlow=0, xhigh=-1, weighted=False):
         '''
