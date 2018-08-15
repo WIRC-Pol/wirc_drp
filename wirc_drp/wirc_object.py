@@ -13,7 +13,7 @@ from wirc_drp import constants
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 from astropy import time as ap_time, coordinates as coord, units as u
-
+from astropy.stats import sigma_clipped_stats
 
 
 import pdb
@@ -131,7 +131,7 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, median_subtract = False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, report_median = False):
         '''
         Apply dark and flat-field correction
         '''
@@ -183,6 +183,9 @@ class wirc_data(object):
             else:
                 print("No flat filename found, continuing without divinding by a falt")
 
+            if report_median:
+                mean, med, std = sigma_clipped_stats(self.full_image.flatten())
+
             if self.bkg_fn is not None:
                 background_hdu = fits.open(self.bkg_fn)
                 background = background_hdu[0].data
@@ -219,10 +222,6 @@ class wirc_data(object):
                 #Update the header
                 self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
                 self.header['BKG_FN'] = self.bkg_fn
-
-            if median_subtract:
-                bkg = np.nanmedian(self.full_image)
-                self.full_image -= bkg
 
             if destripe_raw:
                 if verbose:
@@ -317,8 +316,8 @@ class wirc_data(object):
 
             #Turn on the calibrated flag
             self.calibrated = True
-            if median_subtract:
-                return bkg
+            if report_median:
+                return med
         else:
             print("Data already calibrated")
 
