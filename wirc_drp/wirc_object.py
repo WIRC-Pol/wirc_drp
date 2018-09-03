@@ -131,7 +131,7 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, report_median = False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, report_median = False, report_bkg_multiplier = False):
         '''
         Apply dark and flat-field correction
         '''
@@ -318,6 +318,8 @@ class wirc_data(object):
             self.calibrated = True
             if report_median:
                 return med
+            elif report_bkg_multiplier:
+                return scale_bkg
         else:
             print("Data already calibrated")
 
