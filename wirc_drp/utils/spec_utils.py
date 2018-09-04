@@ -821,13 +821,16 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         if trace_angle[j] is None:
             raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
                                                                   fractional_fit_type=fractional_fit_type) #linear fit to the trace
-            widths += [trace_width]
+            #widths += [trace_width]
+            width_to_add = trace_width
             angles += [measured_trace_angle]
         else:
             angles += [trace_angle[j]] #use the given angle
             raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
                                                           fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
-            widths += [trace_width]
+            #widths += [trace_width]
+            width_to_add = trace_width
+            #May add this or wait for width measured from rotation. 
         
         #After findTrace is run, we can do 2D polynomial background subtraction
         if sub_background == '2D_polynomial':
@@ -944,7 +947,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
             real_width = image_utils.traceWidth_after_rotation(sub_rotated)
-            widths +=[real_width]
+            width_to_add = real_width
+            # widths +=[real_width]
 
             #determine the extraction range based on the width parameter
             #first, find the peak
@@ -979,7 +983,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #measure real_width after rotation. Now do this for polarimetric data too
             real_width = image_utils.traceWidth_after_rotation(sub_rotated)
-                
+            width_to_add = real_width                
 
             #plt.imshow(sub_rotated, origin = 'lower')
             #plt.show()
@@ -1044,6 +1048,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             print("method keyword not understood, please choose method='weightedSum', 'fit_across_trace', or method='skimage'")
             return None, None
         
+        #add the width measure here
+        widths+=[ width_to_add ]        
         #Plotting
 
         if plot:
