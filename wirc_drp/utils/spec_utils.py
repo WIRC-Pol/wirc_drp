@@ -425,7 +425,7 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_
     """
     if range is None:
         spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
-    else
+    else:
         spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
         spatial_profile[0:range[0]] = 0
         spatial_profile[range[1]:] = 0
