@@ -388,8 +388,7 @@ action
         fig, ax = plt.subplots(1,1,figsize = (5,5))
 
         norm_bkg_sub = ImageNormalize(data, interval = ZScaleInterval(), stretch = LinearStretch())
-        norm_var = ImageNormalize(variance_opt, interval = ZScaleInterval(), stretch = LinearStretch())
-        norm_P = ImageNormalize(P_0, interval = ZScaleInterval(), stretch = LinearStretch())
+
         #Plot data and extraction range
         ax[0].imshow(data , origin = 'lower', norm = norm_bkg_sub)
         ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
