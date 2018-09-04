@@ -380,32 +380,32 @@ action
     #    y_range = [83,94]
 
 
-        if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
-        #ZScale
-            from astropy.visualization import (ZScaleInterval, LinearStretch,
-                                   ImageNormalize)
+    if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
+    #ZScale
+        from astropy.visualization import (ZScaleInterval, LinearStretch,
+                               ImageNormalize)
 
-            fig, ax = plt.subplots(1,1,figsize = (5,5))
+        fig, ax = plt.subplots(1,1,figsize = (5,5))
 
-            norm_bkg_sub = ImageNormalize(data - background, interval = ZScaleInterval(), stretch = LinearStretch())
-            norm_var = ImageNormalize(variance_opt, interval = ZScaleInterval(), stretch = LinearStretch())
-            norm_P = ImageNormalize(P_0, interval = ZScaleInterval(), stretch = LinearStretch())
-            #Plot data and extraction range
-            ax[0].imshow(data , origin = 'lower', norm = norm_bkg_sub)
-            ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
-            ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
-            ax[0].set_title('Data (should be background subtracted), Simple Extraction')
+        norm_bkg_sub = ImageNormalize(data - background, interval = ZScaleInterval(), stretch = LinearStretch())
+        norm_var = ImageNormalize(variance_opt, interval = ZScaleInterval(), stretch = LinearStretch())
+        norm_P = ImageNormalize(P_0, interval = ZScaleInterval(), stretch = LinearStretch())
+        #Plot data and extraction range
+        ax[0].imshow(data , origin = 'lower', norm = norm_bkg_sub)
+        ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
+        ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
+        ax[0].set_title('Data (should be background subtracted), Simple Extraction')
 
 
-            # for i in range(extraction_range[0], extraction_range[1]):
-            #     plt.plot(P_0[i,:])
-            #     #plt.plot(median_filter(P_0[i,:], 10))
-            #     plt.ylim([-0.05,0.2])
-            #     plt.xlim([30,140])
-            #     plt.ylabel('P')
-            #     plt.xlabel('Spectral pixel')
-            # plt.title('Spectral Profile')
-            plt.show()
+        # for i in range(extraction_range[0], extraction_range[1]):
+        #     plt.plot(P_0[i,:])
+        #     #plt.plot(median_filter(P_0[i,:], 10))
+        #     plt.ylim([-0.05,0.2])
+        #     plt.xlim([30,140])
+        #     plt.ylabel('P')
+        #     plt.xlabel('Spectral pixel')
+        # plt.title('Spectral Profile')
+        plt.show()
 
     return np.sum(data[extraction_range[0]:extraction_range[1],:], axis = 0), \
                     np.sum(variance[extraction_range[0]:extraction_range[1],:], axis = 0)   
