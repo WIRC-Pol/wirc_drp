@@ -1052,7 +1052,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         
         #add the width measure here if mode != 'spec'
         if mode != 'spec': #otherwise, this is dealt with
-        widths+=[ width_to_add ]        
+            widths+=[ width_to_add ]        
         #Plotting
 
         if plot:
