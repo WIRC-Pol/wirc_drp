@@ -356,7 +356,7 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
 
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
-def sum_across_trace(data, variance, extraction_range):
+def sum_across_trace(data, variance, extraction_range, plot = False):
     """
     extract spectrum by simply summing in the spatial direction
     This also serves as a helper function for 
@@ -378,6 +378,35 @@ action
     #    plt.plot(vert_profile)
     #    plt.show()
     #    y_range = [83,94]
+
+
+        if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
+        #ZScale
+            from astropy.visualization import (ZScaleInterval, LinearStretch,
+                                   ImageNormalize)
+
+            fig, ax = plt.subplots(1,1,figsize = (5,5))
+
+            norm_bkg_sub = ImageNormalize(data - background, interval = ZScaleInterval(), stretch = LinearStretch())
+            norm_var = ImageNormalize(variance_opt, interval = ZScaleInterval(), stretch = LinearStretch())
+            norm_P = ImageNormalize(P_0, interval = ZScaleInterval(), stretch = LinearStretch())
+            #Plot data and extraction range
+            ax[0].imshow(data , origin = 'lower', norm = norm_bkg_sub)
+            ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
+            ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
+            ax[0].set_title('Data (should be background subtracted), Simple Extraction')
+
+
+            # for i in range(extraction_range[0], extraction_range[1]):
+            #     plt.plot(P_0[i,:])
+            #     #plt.plot(median_filter(P_0[i,:], 10))
+            #     plt.ylim([-0.05,0.2])
+            #     plt.xlim([30,140])
+            #     plt.ylabel('P')
+            #     plt.xlabel('Spectral pixel')
+            # plt.title('Spectral Profile')
+            plt.show()
+
     return np.sum(data[extraction_range[0]:extraction_range[1],:], axis = 0), \
                     np.sum(variance[extraction_range[0]:extraction_range[1],:], axis = 0)   
 
@@ -915,15 +944,19 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
+            real_width = image_utils.traceWidth_after_rotation(sub_rotated)
+            widths +=[real_width]
+
             #determine the extraction range based on the width parameter
             #first, find the peak
-            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
+            # ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
+            #     spatial_sigma = spatial_sigma, fixed_width = fixed_width)
+            ext_range = determine_extraction_range(sub_rotated, real_width, 
                 spatial_sigma = spatial_sigma, fixed_width = fixed_width)
 
 
-
             #call the optimal extraction method, remember it's sum_across_trace(bkg_sub_data, bkg, extraction_range, etc)
-            spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range) 
+            spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range, plot = plot_optimal_extraction) 
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
