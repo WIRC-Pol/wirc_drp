@@ -424,6 +424,8 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_
 
     """
     spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
+    #smoothed
+    spatial_profile = median_filter(spatial_profile, 3)
     vert_max = np.argmax(spatial_profile) #locate the peak in this profile
     #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
     #because the pixel width changes as we rotate the image 
@@ -1048,7 +1050,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             print("method keyword not understood, please choose method='weightedSum', 'fit_across_trace', or method='skimage'")
             return None, None
         
-        #add the width measure here
+        #add the width measure here if mode != 'spec'
+        if mode != 'spec': #otherwise, this is dealt with
         widths+=[ width_to_add ]        
         #Plotting
 
