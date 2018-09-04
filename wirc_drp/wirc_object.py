@@ -531,6 +531,7 @@ class wirc_data(object):
 
             #widths and angles of the traces
             if self.source_list[i].spectra_widths is not None:
+                print(self.source_list[i].spectra_widths)
                 source_hdu.header["WIDTHS"] = (np.array2string(self.source_list[i].spectra_widths), "Widths of spectra in unrotated image")
                 source_hdu.header["ANGLES"]=  (np.array2string(self.source_list[i].spectra_angles), "Angles of spectra in unrotated image")
 
