@@ -409,7 +409,7 @@ action
     return np.sum(data[extraction_range[0]:extraction_range[1],:], axis = 0), \
                     np.sum(variance[extraction_range[0]:extraction_range[1],:], axis = 0)   
 
-def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_width = None):
+def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_width = None, range = [100,200]):
     """helper function for optimal_extraction and sum_across_trace extraction. This function sums
     the given rotated thumbnail in the spectral direction, find the peak (assume one trace only),
     and return the range based on the given width of the trace (from findTrace) and the given 'sigmas'.
@@ -423,7 +423,13 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_
         extraction_range: a 2-element list of [peak - sigma*width, peak + sigma*width]
 
     """
-    spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
+    if range is None:
+        spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
+    else
+        spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
+        spatial_profile[0:range[0]] = 0
+        spatial_profile[range[1]:] = 0
+
     #smoothed
     spatial_profile = median_filter(spatial_profile, 3)
     vert_max = np.argmax(spatial_profile) #locate the peak in this profile
@@ -956,10 +962,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #first, find the peak
             # ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
             #     spatial_sigma = spatial_sigma, fixed_width = fixed_width)
-            ext_range = determine_extraction_range(sub_rotated, real_width, 
-                spatial_sigma = spatial_sigma, fixed_width = fixed_width)
 
-
+            ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)      
             #call the optimal extraction method, remember it's sum_across_trace(bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range, plot = plot_optimal_extraction) 
 
