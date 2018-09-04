@@ -390,10 +390,10 @@ action
         norm_bkg_sub = ImageNormalize(data, interval = ZScaleInterval(), stretch = LinearStretch())
 
         #Plot data and extraction range
-        ax[0].imshow(data , origin = 'lower', norm = norm_bkg_sub)
-        ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
-        ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
-        ax[0].set_title('Data (should be background subtracted), Simple Extraction')
+        ax.imshow(data , origin = 'lower', norm = norm_bkg_sub)
+        ax.plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
+        ax.plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
+        ax.set_title('Data (should be background subtracted), Simple Extraction')
 
 
         # for i in range(extraction_range[0], extraction_range[1]):
