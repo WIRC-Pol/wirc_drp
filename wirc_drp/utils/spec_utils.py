@@ -387,7 +387,7 @@ action
 
         fig, ax = plt.subplots(1,1,figsize = (5,5))
 
-        norm_bkg_sub = ImageNormalize(data - background, interval = ZScaleInterval(), stretch = LinearStretch())
+        norm_bkg_sub = ImageNormalize(data, interval = ZScaleInterval(), stretch = LinearStretch())
         norm_var = ImageNormalize(variance_opt, interval = ZScaleInterval(), stretch = LinearStretch())
         norm_P = ImageNormalize(P_0, interval = ZScaleInterval(), stretch = LinearStretch())
         #Plot data and extraction range
