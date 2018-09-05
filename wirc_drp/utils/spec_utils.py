@@ -2156,7 +2156,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
 
     return source_flux, source_std
 
-def align_line(spectra, approx_peak, fit_range, peak_size = 0.1):
+def align_line(spectra, approx_peak, fit_range, peak_size = 0.1, plot = False):
     """
     This function give offset in spectral pixels between given spectra by fitting the peak/trough at the given
     spectral pixel and within the fitting range. 
@@ -2183,8 +2183,14 @@ def align_line(spectra, approx_peak, fit_range, peak_size = 0.1):
 
     for i in range(spectra.shape[0]):
         to_fit = np.ma.masked_array(spectra[i], mask = mask)
-        fit_res = fitter(peak_model, np.arange(len(spectra[i])), to_fit)
+        xx = np.arange(len(spectra[i]))
+        fit_res = fitter(peak_model, xx, to_fit)
         peak_locs[i] = fit_res.mean.value
+
+        if plot:
+            plt.plot(spectra[i])
+            plt.plot(fit_res(xx))
+            plt.show()
 
     print(peak_locs)
 
