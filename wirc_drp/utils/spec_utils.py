@@ -2189,7 +2189,7 @@ def align_line(spectra, approx_peak, fit_range, peak_size = 0.1, plot = False):
         peak_locs[i] = fit_res.mean.value
 
         if plot:
-            plt.plot(spectra[i])
+            plt.plot(xx[mask], to_fit[mask])
             plt.plot(fit_res(xx))
             plt.show()
 
