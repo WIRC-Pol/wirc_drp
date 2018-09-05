@@ -1538,12 +1538,12 @@ def traceWidth(trace, location, fit_length):
 
         return res[0].stddev.value
 
-def traceWidth_after_rotation(trace, fitlength = 10, range = [100,200]):
+def traceWidth_after_rotation(trace, fitlength = 10, ext_range = [100,200]):
     collapsed = np.sum(trace, axis = 1)              #collapsing trace along x axis
 
-    if range is not None: #set things outside to zero
-        collapsed[0:range[0]] = 0
-        collapsed[range[1]:] = 0
+    if ext_range is not None: #set things outside to zero
+        collapsed[0:ext_range[0]] = 0
+        collapsed[ext_range[1]:] = 0
 
     x = range(len(collapsed))
     
