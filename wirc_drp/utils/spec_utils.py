@@ -2174,7 +2174,7 @@ def align_line(spectra, approx_peak, fit_range, peak_size = 0.1):
 
     #Define fitting models
     #Gaussian with mean at the given approximated peak, 1% amplitude, and stddev = given fitting range
-    peak_model = Gaussian1D(mean = approx_peak, amplitude = peak_size*spectra[0,approx_peak], stddev = 0.5*fit_range)
+    peak_model = models.Gaussian1D(mean = approx_peak, amplitude = peak_size*spectra[0,approx_peak], stddev = 0.5*fit_range)
     fitter = fitting.LevMarLSQFitter()
 
     #Mask out area not in fit range
