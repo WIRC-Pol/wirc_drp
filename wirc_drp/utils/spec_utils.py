@@ -2156,4 +2156,40 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
 
     return source_flux, source_std
 
+def align_line(spectra, approx_peak, fit_range, peak_size = 0.1):
+    """
+    This function give offset in spectral pixels between given spectra by fitting the peak/trough at the given
+    spectral pixel and within the fitting range. 
+    Inputs: 
+        spectra: a cube contain 2 or more spectra with dimensions (number_spectra, spectral_pixels)
+        approx_peak: The location of the peak in spectral pixel
+        fit_range: the range that the code will try to find peak in other spectra.
+        peak_size: approximate size of the peak with respect to continuum value, default 10%. 
+                    if fitting a trough, this is negative.
+    Outputs:
+        offsets: offsets in pixels for subsequent spectra with respect to the first. 
+    """
+    from astropy.modeling import models, fitting
+    peak_locs = np.zeros(spectra.shape[0])
+
+    #Define fitting models
+    #Gaussian with mean at the given approximated peak, 1% amplitude, and stddev = given fitting range
+    peak_model = Gaussian1D(mean = approx_peak, amplitude = peak_size*spectra[0,approx_peak], stddev = 0.5*fit_range)
+    fitter = fitting.LevMarLSQFitter()
+
+    #Mask out area not in fit range
+    mask = np.ones(spectra.shape[1])
+    mask[approx_peak - fit_range: approx_peak + fit_range] = 0
+
+    for i in range(spectra.shape[0]):
+        to_fit = np.ma.masked_array(spectra[i], mask = mask)
+        fit_res = fitter(np.arange(len(spectra[i])), to_fit, peak_model)
+        peak_locs[i] = fit_res.mean.value
+
+    print(peak_locs)
+
+    return peak_locs - peak_locs[0]
+
+
+
 
