@@ -107,6 +107,10 @@ class wirc_data(object):
             #The data quality image
             self.DQ_image = None
 
+            #Background image   
+            self.bkg_image = None   
+
+
             #TODO Determine whether the type is spec or pol
             # self.type =
 
@@ -131,9 +135,14 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, report_median = False, report_bkg_multiplier = False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, \
+                        report_median = False, report_bkg_multiplier = False):
         '''
         Apply dark and flat-field correction
+
+        Background subtraction behavior (only when a background frame is provided)  
+            If sub_bkg_now is True, then background subtraction is performed here and the subtracted image is saved.    
+            If False, background subtraction is dealt with during spectral extraction. This is preferred.        
         '''
 
         #TODO Add checks to make sure the flatnames are not none
@@ -186,7 +195,9 @@ class wirc_data(object):
             if report_median:
                 mean, med, std = sigma_clipped_stats(self.full_image.flatten())
 
-            if self.bkg_fn is not None:
+            #background subtraction should be done at spectral extraction step to propagate error correctly           
+            #set sub_bkg_now to False and this will be done when the source is created. 
+            if self.bkg_fn is not None and sub_bkg_now == True: #Old case where we want to do background subtraction now
                 background_hdu = fits.open(self.bkg_fn)
                 background = background_hdu[0].data
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
@@ -946,11 +957,14 @@ class wircpol_source(object):
         self.thumbnails_cut_out = False #source attribute, later applied to header["THMB_CUT"]
 
 
-    def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
+    #def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
+    def get_cutouts(self, image, image_DQ, filter_name, image_bkg_fn = None, replace_bad_pixels = True, method = 'median', \
+                    box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation
         method can be 'median' or 'interpolate'
+
 
         """
         locs = [int(self.pos[0]),int(self.pos[1])]
@@ -991,6 +1005,26 @@ class wircpol_source(object):
 
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
+        #Deal with background frame
+        if image_bkg_fn is not None:        
+            bkg_im = fits.open(image_bkg_fn)[0].data #assume wirc image 
+            self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_im, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
+                                cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
+            if replace_bad_pixels: 
+                #check method   
+                if method == 'interpolate': 
+                    #iterate through the 4 thumbnails   
+                    for i in range(len(self.trace_bkg)):        
+                        bad_pix_map = self.trace_images_DQ[i].astype(bool)  
+                        self.trace_bkg[i] = calibration.replace_bad_pix_with_interpolation(self.trace_bkg[i], self.trace_images_DQ[i])  
+                        # except:   
+                        #     print("Cannot replace bad_pixels if the DQ image doesn't exist.") 
+                elif method == 'median':    
+                    #iterate through the 4 thumbnails   
+                    for i in range(len(self.trace_bkg)):        
+                        bad_pix_map = self.trace_images_DQ[i].astype(bool)  
+                        self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)  
+
     def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, origin='lower', output_name='', show=True, **kwargs):
         '''
         Plot the source cutouts
@@ -1012,37 +1046,57 @@ class wircpol_source(object):
         else: #If not, then we'll make a new figure.
             fig = plt.figure(figsize=figsize)
 
-        ax = fig.add_subplot(141)
 
-        if plot_dq:
-            plt.imshow(self.trace_images_DQ[0,:,:], origin=origin, **kwargs)
-        else:
-            plt.imshow(self.trace_images[0,:,:], origin=origin, **kwargs)
+        #What to plot?          
+        if plot_dq:           
+            to_plot = self.trace_images_DQ           
+        elif plot_bkg_sub:  
+            to_plot = self.trace_images - self.trace_bkg    
+        else:         
+            to_plot = self.trace_images         
         plt.text(5,140,"Top - Left", color='w')
-
-        ax = fig.add_subplot(142)
-        if plot_dq:
-            plt.imshow(self.trace_images_DQ[1,:,:], origin=origin, **kwargs)
-        else:
-            plt.imshow(self.trace_images[1,:,:], origin=origin, **kwargs)
+        texts = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']        
+        for i in range(4):        
+            ax = fig.add_subplot(1,4,i+1)             
+            plt.imshow(to_plot[i,:,:], origin = origin , **kwargs)         
+            plt.text(5,140, texts[i], color = 'w')             
         plt.text(5,140,"Bottom - Right", color='w')
-        ax.set_yticklabels([])
 
-        ax = fig.add_subplot(143)
-        if plot_dq:
-            plt.imshow(self.trace_images_DQ[2,:,:], origin=origin, **kwargs)
-        else:
-            plt.imshow(self.trace_images[2,:,:], origin=origin, **kwargs)
         plt.text(5,140,"Top - Right", color='w')
+
         ax.set_yticklabels([])
 
-        ax = fig.add_subplot(144)
-        if plot_dq:
-            plt.imshow(self.trace_images_DQ[3,:,:], origin=origin, **kwargs)
-        else:
-            plt.imshow(self.trace_images[3,:,:], origin=origin, **kwargs)
-        plt.text(5,140,"Bottom - Left", color='w')
-        ax.set_yticklabels([])
+        # ax = fig.add_subplot(141)
+
+        # if plot_dq:
+        #     plt.imshow(self.trace_images_DQ[0,:,:], origin=origin, **kwargs)
+        # else:
+        #     plt.imshow(self.trace_images[0,:,:], origin=origin, **kwargs)
+        # plt.text(5,140,"Top - Left", color='w')
+
+        # ax = fig.add_subplot(142)
+        # if plot_dq:
+        #     plt.imshow(self.trace_images_DQ[1,:,:], origin=origin, **kwargs)
+        # else:
+        #     plt.imshow(self.trace_images[1,:,:], origin=origin, **kwargs)
+        # plt.text(5,140,"Bottom - Right", color='w')
+        # ax.set_yticklabels([])
+
+        # ax = fig.add_subplot(143)
+        # if plot_dq:
+        #     plt.imshow(self.trace_images_DQ[2,:,:], origin=origin, **kwargs)
+        # else:
+        #     plt.imshow(self.trace_images[2,:,:], origin=origin, **kwargs)
+        # plt.text(5,140,"Top - Right", color='w')
+        # ax.set_yticklabels([])
+
+        # ax = fig.add_subplot(144)
+        # if plot_dq:
+        #     plt.imshow(self.trace_images_DQ[3,:,:], origin=origin, **kwargs)
+        # else:
+        #     plt.imshow(self.trace_images[3,:,:], origin=origin, **kwargs)
+        # plt.text(5,140,"Bottom - Left", color='w')
+        # ax.set_yticklab gels([])
 
         fig.subplots_adjust(right=0.85)
         cbar_ax = fig.add_axes([0.90, 0.38, 0.03, 0.24])
@@ -1101,13 +1155,14 @@ class wircpol_source(object):
 
         self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,thumbnails_dq=self.trace_images_DQ, nsig=nsig)
 
-    def extract_spectra(self, sub_background = True, bkg_sub_shift_size = 31, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False,
+
+    def extract_spectra(self, sub_background = 'shift_and_subtract', bkg_sub_shift_size = 31, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False,
+        bkg_thumbnails = None,  
         plot_optimal_extraction = False, plot_findTrace = False,
         method = 'optimal_extraction', spatial_sigma = 5, fixed_width = None, filter_bkg_size = None,
         lamda_sigma=10, width_scale=1., diag_mask=False, bad_pix_masking = 0,niter = 2, sig_clip = 5, trace_angle = None, fitfunction = 'Moffat',
         sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True, use_DQ=True,debug_DQ=False,s=1,
         spectral_smooth=10,spatial_smooth=1):
-
         """
         *method:        method for spectral extraction. Choices are
         (i) skimage: this is just the profile_line method from skimage. Order for interpolation
@@ -1124,13 +1179,22 @@ class wircpol_source(object):
         If None, it uses value from fitTraces.
 
         """
-
         if verbose:
             print("Performing Spectral Extraction for source {}".format(self.index))
+
+        #if background thumbnail is available   
+        if sub_background == 'bkg_image':   
+            try:    
+                bkg_thumbnails = self.trace_bkg 
+            except: 
+                print('No background image in wirc object, default to shift and subtract.') 
+                sub_background = 'shift_and_subtract'   
+
 
         #call spec_extraction to actually extract spectra
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, self.slit_pos,
             sub_background = sub_background, bkg_sub_shift_size = bkg_sub_shift_size , shift_dir = shift_dir, plot=plot, bkg_poly_order = bkg_poly_order,
+            bkg_thumbnails = bkg_thumbnails,
             plot_optimal_extraction = plot_optimal_extraction , plot_findTrace = plot_findTrace, method=method, filter_bkg_size = filter_bkg_size,
             width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction,
             sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
@@ -1258,7 +1322,8 @@ class wircpol_source(object):
 
         self.polarization_computed = True #source attribute, later applied to header["POL_CMPD"]
 
-    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', fig_num = None, figsize=(6.4,4.8), output_name='', show=True, **kwargs):
+    def plot_trace_spectra(self, with_errors = False, filter_name="J", smooth_size = 1, smooth_ker = 'Gaussian', fig_num = None, figsize=(6.4,4.8), output_name='', show=True,\
+                xlow = None, xhigh = None, ylow=None, yhigh = None,**kwargs):
 
         if not show:
             default_back = matplotlib.get_backend()
@@ -1287,12 +1352,22 @@ class wircpol_source(object):
 
         plt.ylabel("Flux [ADU]")
 
+        if ylow is not None and yhigh is not None:  
+            plt.ylim([ylow,yhigh])
+
         if self.lambda_calibrated: #plot is not perfectly the same
             plt.xlabel("Wavelength [um]")
-            plt.xlim([1.17,1.32]) #wavelength display range -- Where the J-band filter has  > 80% throughput
+            if xlow is not None and xhigh is not None:              
+                plt.xlim([xlow,xhigh])  
+            else:   
+                plt.xlim([1.17,1.32]) #wavelength display range -- Where the J-band filter has  > 80% throughput
         else:
             plt.xlabel("Wavelength [Arbitrary Unit]")
-            plt.xlim([0,225]) #arbitrary unit wavelength display range
+            if xlow is not None and xhigh is not None:             
+                plt.xlim([xlow,xhigh])  
+            else:   
+                plt.xlim([0,225]) #arbitrary unit wavelength display range  
+    
 
         plt.legend()
 
@@ -1302,13 +1377,13 @@ class wircpol_source(object):
         if not show:
             plt.switch_backend(default_back)
 
-    def plot_Q_and_U(self, with_errors = False, xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, output_name='', show=True, **kwargs):
+    def plot_Q_and_U(self, with_errors = False, figsize=(7,7), xlow=1.15, xhigh=1.35, ylow=-0.2, yhigh=0.2, output_name='', show=True, **kwargs):
 
         if not show:
             default_back = matplotlib.get_backend()
             plt.switch_backend('Agg')
 
-        fig = plt.figure(figsize=(7,7))
+        fig = plt.figure(figsize=figsize)
 
         ax1 = fig.add_subplot(121)
         ax2 = fig.add_subplot(122)
@@ -1340,50 +1415,55 @@ class wircpol_source(object):
         if not show:
             plt.switch_backend(default_back)
 
-    def get_broadband_polarization(self, xlow=0, xhigh=-1, weighted=False):
+    def get_broadband_polarization(self, mode ='from_spectra',xlow=0, xhigh=-1, weighted=False):
         '''
-        Sum the polarization in each trace and measure the broad band polarization.
+        A function to measure the broadband polarization from a source. 
+        Modes: 
+        from_spectra        - Sum the polarization in each trace (between xlow and xhigh) and measure the broadband polarization. 
+        aperture_photometry - Use photutils to measure the aperture photometry. 
         '''
+        if mode == "from_spectra":
+            bb_traces = np.zeros([4,3])
+            for i in range(4):
+                #Do we actualy want the option of weighted mean?
+                if weighted:
+                    bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) #Don't weight the wavelength
+                    bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh], weights=1/self.trace_spectra[i,2,xlow:xhigh])
+                    bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2) #This isn't the correct error formula for weighted means
+                else:
+                    bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) 
+                    bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh])
+                    bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2)
+
+            
+            ## The calculations of bbQ and bbU are based on the initial assumptions on Q and U, which we know are wrong. 
+            ## We'll keep the the same for now, but addjust the input to the source object properties. 
+
+            bbQ = (bb_traces[0,1]-bb_traces[1,1])/(bb_traces[0,1]+bb_traces[1,1])
+            #If f = A/B
+            #sigma_f = f*sqrt ( (sigma_A/A)**2 + (sigma_B/B)**2 )
+            bbQ_err = bbQ*np.sqrt( (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]-bb_traces[1,1])**2 + (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]+bb_traces[1,1])**2)
+
+            bbU = (bb_traces[2,1]-bb_traces[3,1])/(bb_traces[2,1]+bb_traces[3,1])
+
+            bbU_err = bbU*np.sqrt( (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]-bb_traces[3,1])**2 + (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]+bb_traces[3,1])**2)
 
 
+            ###### OLD VERSION ###### - Do not use March 27. 2018 MMB
+            # self.bbQ = [bb_traces[0,0], bbQ, bbQ_err] #Return, [wavelength, flux, error]
+            # self.bbU = [bb_traces[2,0], bbU, bbU_err]
+            #########################
 
-        bb_traces = np.zeros([4,3])
-        for i in range(4):
-            #Do we actualy want the option of weighted mean?
-            if weighted:
-                bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh]) #Don't weight the wavelength
-                bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh], weights=1/self.trace_spectra[i,2,xlow:xhigh])
-                bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2) #This isn't the correct error formula for weighted means
-            else:
-                bb_traces[i,0] = np.average(self.trace_spectra[i,0,xlow:xhigh])
-                bb_traces[i,1] = np.average(self.trace_spectra[i,1,xlow:xhigh])
-                bb_traces[i,2] = np.sqrt(np.sum(self.trace_spectra[i,2,xlow:xhigh]**2)/np.size(self.trace_spectra[i,2,xlow:xhigh])**2)
-
-
-        ## The calculations of bbQ and bbU are based on the initial assumptions on Q and U, which we know are wrong.
-        ## We'll keep the the same for now, but addjust the input to the source object properties.
-
-        bbQ = (bb_traces[0,1]-bb_traces[1,1])/(bb_traces[0,1]+bb_traces[1,1])
-        #If f = A/B
-        #sigma_f = f*sqrt ( (sigma_A/A)**2 + (sigma_B/B)**2 )
-        bbQ_err = bbQ*np.sqrt( (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]-bb_traces[1,1])**2 + (bb_traces[0,2]**2 + bb_traces[1,2]**2)/(bb_traces[0,1]+bb_traces[1,1])**2)
-
-        bbU = (bb_traces[2,1]-bb_traces[3,1])/(bb_traces[2,1]+bb_traces[3,1])
-
-        bbU_err = bbU*np.sqrt( (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]-bb_traces[3,1])**2 + (bb_traces[2,2]**2 + bb_traces[3,2]**2)/(bb_traces[2,1]+bb_traces[3,1])**2)
-
-
-        ###### OLD VERSION ###### - Do not use March 27. 2018 MMB
-        # self.bbQ = [bb_traces[0,0], bbQ, bbQ_err] #Return, [wavelength, flux, error]
-        # self.bbU = [bb_traces[2,0], bbU, bbU_err]
-        #########################
-
-        ###### NEW VERSION ######
-        #Based on Kaew's twilight measurements March 27 2018
-        self.bbQ = [bb_traces[2,0], -bbU, bbU_err] #Return, [wavelength, flux, error]
-        self.bbU = [bb_traces[0,0], -bbQ, bbQ_err]
-        #########################
-
+            ###### NEW VERSION ######
+            #Based on Kaew's twilight measurements March 27 2018
+            self.bbQ = [bb_traces[2,0], -bbU, bbU_err] #Return, [wavelength, flux, error]
+            self.bbU = [bb_traces[0,0], -bbQ, bbQ_err]
+            #########################
+        elif mode =="aperture_photometry":
+            print("Not yet implemented")
+            
+        else:
+            print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
 
 class wircspec_source(object):
     """
