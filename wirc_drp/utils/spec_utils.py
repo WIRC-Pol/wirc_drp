@@ -2178,13 +2178,14 @@ def align_line(spectra, approx_peak, fit_range, peak_size = 0.1, plot = False):
     fitter = fitting.LevMarLSQFitter()
 
     #Mask out area not in fit range
-    mask = np.ones(spectra.shape[1])
-    mask[approx_peak - fit_range: approx_peak + fit_range] = 0
+    # mask = np.ones(spectra.shape[1])
+    # mask[approx_peak - fit_range: approx_peak + fit_range] = 0
+    mask = np.s_[approx_peak - fit_range: approx_peak + fit_range]
 
     for i in range(spectra.shape[0]):
-        to_fit = np.ma.masked_array(spectra[i], mask = mask)
+        to_fit = spectra[i]
         xx = np.arange(len(spectra[i]))
-        fit_res = fitter(peak_model, xx, to_fit)
+        fit_res = fitter(peak_model, xx[mask], to_fit[mask])
         peak_locs[i] = fit_res.mean.value
 
         if plot:
