@@ -938,6 +938,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
             thumbnails_to_extract.append(bkg_sub) #add background subtracted image
+            
         elif method == 'sum_across_trace':
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
@@ -960,10 +961,10 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #determine the extraction range based on the width parameter
             #first, find the peak
-            # ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
-            #     spatial_sigma = spatial_sigma, fixed_width = fixed_width)
+            ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
+                spatial_sigma = spatial_sigma, fixed_width = fixed_width)
 
-            ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)      
+            # ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)      
             #call the optimal extraction method, remember it's sum_across_trace(bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range, plot = plot_optimal_extraction) 
 
