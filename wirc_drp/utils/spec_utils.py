@@ -2183,7 +2183,7 @@ def align_line(spectra, approx_peak, fit_range, peak_size = 0.1):
 
     for i in range(spectra.shape[0]):
         to_fit = np.ma.masked_array(spectra[i], mask = mask)
-        fit_res = fitter(np.arange(len(spectra[i])), to_fit, peak_model)
+        fit_res = fitter(peak_model, np.arange(len(spectra[i])), to_fit)
         peak_locs[i] = fit_res.mean.value
 
     print(peak_locs)
