@@ -1583,6 +1583,10 @@ def clean_thumbnails_for_cosmicrays(thumbnails, thumbnails_dq=None, nsig=3):
 
     return thumbnails, thumbnails_dq
 
+# def inject_source(spectrum, q, u, angle, psf):
+#     """
+#     Inject a fake source into WIRC+Pol data. 
+#     """
 
 
 

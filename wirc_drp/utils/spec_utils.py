@@ -366,14 +366,14 @@ action
         variance: 2D numpy array of the variance of the data
         extraction_range: a list of [y_begin, y_end], assuming that y is the spatial direction. 
                 (TO BE IMPLEMENTED:
-                If y_range == None, sum the trace in the spectral direction to get a total profile, fit a gaussian 
+                If y_range is None, sum the trace in the spectral direction to get a total profile, fit a gaussian 
                 and use the result as a limit.) 
     Output:
         flux
         flux_var
         
     """
-    #if y_range == None:
+    #if y_range is None:
     #    vert_profile = np.sum(data, axis = 1)
     #    plt.plot(vert_profile)
     #    plt.show()
@@ -800,7 +800,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             
          
             #if median filter background
-            if filter_bkg_size != None:
+            if filter_bkg_size is not None:
                 bkg = median_filter(bkg, filter_bkg_size)
 
             bkg_sub = thumbnail - bkg
@@ -918,7 +918,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         elif method == 'fit_across_trace':
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle == None:
+            if trace_angle is None:
                 rotate_spec_angle = measured_trace_angle #use the measured angle
             else:
                 rotate_spec_angle = trace_angle[j] #use the given value
@@ -943,7 +943,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle == None: #if the trace angle is not given, use the measured angle
+            if trace_angle is None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
                 rotate_spec_angle = trace_angle[j] 
@@ -976,7 +976,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle[j] == None: #if the trace angle is not given, use the measured angle
+            if trace_angle[j] is None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
                 rotate_spec_angle = trace_angle[j] 
@@ -1487,7 +1487,7 @@ def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_t
     If ref trace is 'median', then use the median of the set as a reference. 
     """
     #Define reference if not given,
-    if ref_trace == None:
+    if ref_trace is None:
         ref_trace = spectral_cube[0,0,1,:] #This is first observation, first trace (Qp), flux, and the whole vector
     elif ref_trace == 'median':
         ref_trace = np.nanmedian(spectral_cube[:,0,1,:], axis = 0)
