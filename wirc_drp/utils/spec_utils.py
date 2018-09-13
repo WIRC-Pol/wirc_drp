@@ -1542,6 +1542,8 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, smooth_size
     if return_scaled_cube:
         return scaled_specs
     else:
+        #first scale the uncertainty by sqrt of number of spectra
+        scaled_specs[:, :, 2,:] = scaled_specs[:, :, 2,:]/np.sqrt(scaled_specs.shape[0])
         return np.median(scaled_specs, axis = 0)
 
 
