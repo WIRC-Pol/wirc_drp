@@ -1475,11 +1475,6 @@ def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversamp
         #print(shift_size)
         new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
 
-        plt.plot(new_cube[i,1,:],'b')
-        plt.plot(traces_cube[i,1,:], 'b', alpha = 0.5)
-        plt.plot(new_cube[i,2,:]**2, 'r')
-        plt.plot(traces_cube[i,2,:]**2, 'r', alpha = 0.5)
-
         plt.show()
             
     return new_cube
