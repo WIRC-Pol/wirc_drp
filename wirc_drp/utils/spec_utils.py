@@ -1474,6 +1474,9 @@ def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversamp
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
         new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
+
+        plt.plot(new_cube[i,1,:]/new_cube[i,2,:])
+        plt.show()
             
     return new_cube
 
