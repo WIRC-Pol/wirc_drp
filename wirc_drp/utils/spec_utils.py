@@ -409,7 +409,7 @@ action
     return np.sum(data[extraction_range[0]:extraction_range[1],:], axis = 0), \
                     np.sum(variance[extraction_range[0]:extraction_range[1],:], axis = 0)   
 
-def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_width = None, ext_range = [100,200]):
+def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_width = None, ext_range = None):
     """helper function for optimal_extraction and sum_across_trace extraction. This function sums
     the given rotated thumbnail in the spectral direction, find the peak (assume one trace only),
     and return the range based on the given width of the trace (from findTrace) and the given 'sigmas'.
