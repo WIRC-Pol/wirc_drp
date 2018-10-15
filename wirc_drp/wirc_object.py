@@ -1025,7 +1025,7 @@ class wircpol_source(object):
                         bad_pix_map = self.trace_images_DQ[i].astype(bool)  
                         self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)  
 
-    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, origin='lower', output_name='', show=True, **kwargs):
+    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, plot_bkg_sub = False, origin='lower', output_name='', show=True, **kwargs):
         '''
         Plot the source cutouts
 
