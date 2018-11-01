@@ -636,6 +636,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                     '2D_polynomial' to run 2D polynomial fitting to subtract backgrond. If this is selected, bkg_poly_order is the order 
                     of polynomial used
                     'bkg_image' with a background thumbnails provided
+                    'bkg_image_and_shift' use background image first, then shift and subtract to clean residual
     *method:        method for spectral extraction. Choices are
                         (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
                                         is in skimage_order parameter (fast).
@@ -745,6 +746,42 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
             bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
 
+        elif sub_background == 'bkg_image_and_shift' and bkg_thumbnails is not None:
+            if verbose:
+                print("Background subtraction by using a provided background image then shift and subtract.")
+            bkg_raw = bkg_copy[j,:,:]
+            bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
+            bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
+
+            #Now shift and subtract as well
+            if slit_num != 'slitless' or shift_dir == 'horizontal':
+                bkg_stack = np.dstack((shift( bkg_sub, [0,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),
+                                        shift( bkg_sub, [0,bkg_sub_shift_size ], order = 0,mode = 'nearest' )))
+
+                second_bkg = np.nanmean(bkg_stack, axis=2)
+
+                #if median filter background
+                #bkg = median_filter(bkg, 3)
+
+            elif shift_dir == 'vertical':
+                bkg_stack = np.dstack((shift( bkg_sub, [-bkg_sub_shift_size,0 ], order = 0,mode = 'nearest'),
+                                        shift( bkg_sub, [bkg_sub_shift_size ,0], order = 0,mode = 'nearest')))
+                second_bkg = np.nanmean(bkg_stack, axis=2)
+
+            elif shift_dir =='diagonal': #for slitless data, shift in diagonal
+                bkg_stack = np.dstack((shift( bkg_sub, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
+                            shift( bkg_sub, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
+                second_bkg = np.nanmean(bkg_stack, axis=2)
+            
+         
+            #if median filter background
+            if filter_bkg_size is not None:
+                bkg = median_filter(bkg, filter_bkg_size)
+
+            #subtract the shifted background to remove residual.
+            bkg_sub = bkg_sub - second_bkg
+            bkg = bkg + second_bkg
+
         # elif sub_background == 'bkg_image' and bkg_thumbnails is None:
         #     print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
         #     sub_background = 'shift_and_subtract' 
@@ -753,7 +790,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         elif sub_background is not None and mode == 'pol':  
             if verbose:
                 print("Not background image subtraction")
-            if sub_background == 'bkg_image' and bkg_thumbnails is None:
+            if (sub_background == 'bkg_image' or 'bkg_image_and_shift') and bkg_thumbnails is None:
                 print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
 
             #############################################
