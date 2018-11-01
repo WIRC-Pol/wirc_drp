@@ -776,11 +776,11 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
          
             #if median filter background
             if filter_bkg_size is not None:
-                bkg = median_filter(bkg, filter_bkg_size)
+                second_bkg = median_filter(second_bkg, filter_bkg_size)
 
             #subtract the shifted background to remove residual.
             bkg_sub = bkg_sub - second_bkg
-            bkg = bkg + second_bkg
+            bkg = bkg_raw*bkg_scale_factor+ second_bkg
 
         # elif sub_background == 'bkg_image' and bkg_thumbnails is None:
         #     print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
