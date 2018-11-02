@@ -790,7 +790,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         elif sub_background is not None and mode == 'pol':  
             if verbose:
                 print("Not background image subtraction")
-            if (sub_background == 'bkg_image' or sub_background == 'bkg_image_and_shift') and (bkg_thumbnails is None)
+            if (sub_background == 'bkg_image' or sub_background == 'bkg_image_and_shift') and (bkg_thumbnails is None):
                 print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
 
             #############################################
