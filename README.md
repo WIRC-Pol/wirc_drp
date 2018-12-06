@@ -1,6 +1,13 @@
-# wirc_drp - The WIRC+POL
+# wirc_drp - The WIRC+Pol Data Reduction Pipeline
 
-Object oriented data reduction pipeline for the WIRC+POL instrument at Palomar Observatory
+## This software is work in progress and major changes may happen to the code and we provide no guarantee 
+## that newer version will have backward compatibility.
+
+## Please contact authors if you plan to use it. 
+
+## Start with the Tutorial Jupyter notebook in wirc_drp/Tutorial to familiarize yourself with the DRP functionalities. 
+
+This is the object oriented data reduction pipeline for the WIRC+Pol instrument at Palomar Observatory.
 
 ## Installation
 
