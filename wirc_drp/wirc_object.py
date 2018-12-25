@@ -136,7 +136,8 @@ class wirc_data(object):
 
 
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, \
-                        report_median = False, report_bkg_multiplier = False):
+                        report_median = False, report_bkg_multiplier = False,
+median_subtract = False):
         '''
         Apply dark and flat-field correction
 
@@ -234,6 +235,8 @@ class wirc_data(object):
                 self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
                 self.header['BKG_FN'] = self.bkg_fn
 
+            if median_subtract and report_median:
+                self.full_image -= med
             if destripe_raw:
                 if verbose:
                     print("Destriping the detector image")
