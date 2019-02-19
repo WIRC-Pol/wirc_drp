@@ -10,7 +10,7 @@ during and/or after an observing run.
 To run the auto reduction loop, call python auto_reduction.py, followed by the date
 of the observation and optional the object name. 
 
-To start: python auto_reduction.py yyyymmdd object_name sky_ref first_file
+To start: python auto_reduction.py yyyymmdd object_name sky_ref first_file x_coord y_coord
 
 auto souce finding will be implemented
 
@@ -20,22 +20,26 @@ import wirc_drp.wirc_object as wo
 import matplotlib.pyplot as plt 
 import numpy as np 
 
+import matplotlib
+matplotlib.use('Qt4Agg')
+
 import sys, os, glob, gc, time
 
 if __name__ == "__main__":
 	#First, define a base directory. This is specific to hcig1 for the moment. 
-	base_dir = "/hcig1-nas/wircpol/data/"
+	base_dir = "/Users/kaew/work/wircpol/trials/auto_reduction/data/data_stage/"
+	base_cal = "/Users/kaew/work/wircpol/trials/auto_reduction/data/temp_cals/"
 	#base_dir = '.'
 	os.chdir(base_dir)
 
 
-	if len(sys.argv) == 5: #argument given
+	if len(sys.argv) == 7: #argument given
 		date = sys.argv[1]
 		object_name = sys.argv[2]
 		sky_ref = sys.argv[3] #frame number of the sky reference image for sky subtraction for automatic source finder
 		first_file= sys.argv[4]
-		#x_coord = sys.argv[3]
-		#y_coord = sys.argv[4]
+		x_coord = sys.argv[5]
+		y_coord = sys.argv[6]
 		#if len(sys.argv) > 2: 
 		#	obj_name = sys.argv[2] #set object name
 
@@ -44,8 +48,8 @@ if __name__ == "__main__":
 		object_name = input('Object name: ')
 		sky_ref = input('image name of sky reference (e.g. 0012): ')
 		first_file = input('image name of first science frame (e.g. 0013)" ')
-		#x_coord = input('X coordinate: ')
-		#y_coord = input('Y coordinate: ')
+		x_coord = input('X coordinate: ')
+		y_coord = input('Y coordinate: ')
 
 	#check if this date exists
 	if os.path.isdir(date):
@@ -77,13 +81,17 @@ if __name__ == "__main__":
 	#now the actual loop
 	while True:
 		all_files = sorted(glob.glob('image????.fits')) #get all files in the directory
-		all_files = all_files[int(first_file) - 5:] #cut down on prior files, assuming we start from 0001, with some margin
+		# all_files = all_files[int(first_file) :] #cut down on prior files, assuming we start from 0001, with some margin
 
+		print(all_files)
+		time.sleep(1)
 		for file_name in all_files:
+			#print("First file is", first_file)
 			if int(file_name[-9:-5]) < int(first_file): #before first file
-				print(file_name)
+				pass
+				#print(file_name, first_file)
 			else: #after first file, do something
-				print('Processing %s'%file_name)
+				#print('Processing %s'%file_name)
 				#get exposure time and filter
 				header = fits.getheader(file_name)
 				exp_time = header['EXPTIME']
@@ -95,12 +103,12 @@ if __name__ == "__main__":
 				if filter_name not in ['J', 'H']:
 					filter_name = input('Invalid filter name (%s) from header, type J or H'%s)
 				#grab calibration files from the archive.
-				flat_fn = base_dir+"calibrations/median_flat_%s.fits"%filter_name
-				bp_fn = base_dir+"calibrations/bad_pix_map.fits"
-				dark_fn = base_dir+"calibrations/archive_dark_%.1fs.fits"%exp_time
+				flat_fn = base_cal+"cleaned_PG_flat_%s.fits"%filter_name
+				bp_fn =   base_cal+"bad_pix_map.fits"
+				dark_fn = base_cal+"archive_dark_%.1fs.fits"%exp_time
 				#load in data as wirc object, and calibrate
 				data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)
-				data.calibrate(mask_bad_pixels = False)
+				data.calibrate(mask_bad_pixels = False, verbose = False)
 
 				#after calibration, get thumbnails and extract spectra!
 
@@ -111,7 +119,7 @@ if __name__ == "__main__":
 				#get cutouts
 				data.source_list[0].get_cutouts(data.full_image, data.filter_name, True) 
 				#extract spectra
-				data.source_list[0].extract_spectra(plot=False, sub_background = True, bkg_sub_shift_size = 45, method = 'optimal_extraction')
+				data.source_list[0].extract_spectra(plot=False, sub_background = True, bkg_sub_shift_size = 45, method = 'optimal_extraction', verbose = False)
 				data.source_list[0].rough_lambda_calibration(method=2)
 
 				#plot them on the axis, first the calibrated images
@@ -151,15 +159,18 @@ if __name__ == "__main__":
 
 				#save extraction results
 
-				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits', full_image = True)
+				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
+				first_file = int(file_name[-9:-5])+1
 
+
+				#DELETE file to not blow up memory usage
+				del data 
 				gc.collect()
-			plt.tight_layout()
-			plt.pause(0.00001)
+			# plt.tight_layout()
+				plt.pause(0.0001)
 		#at the end of the for loop, set first_file to the last file, and start again
-
-		first_file = int(i[-9:-5])
-	time.sleep(1)
+			
+	time.sleep(5)
 #There's no end in sight!
 
 
