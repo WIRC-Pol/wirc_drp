@@ -74,7 +74,7 @@ if __name__ == "__main__":
 	plt.ion()
 	#plt.tight_layout()
 	fig, ax = plt.subplots(3 ,4, figsize = (10,10)) #this is to be updated for every image
-	fig2, ax2 = plt.subplots(1, 4, figsize = (12,3)) #this is accumulated
+	# fig2, ax2 = plt.subplots(1, 4, figsize = (12,3)) #this is accumulated
 	"""This is the live output plot, it will show for 4 traces, the raw cutouts, the rotated and background subtracted
 	cutouts, the extracted spectrum, and the calculated q, u.
 	"""
@@ -152,14 +152,18 @@ if __name__ == "__main__":
 				ax[2,1].legend()
 
 				#also plot in the collective plot. 
-				ax2[0].plot(data.source_list[0].trace_spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
-				ax2[0].plot(data.source_list[0].trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
-				ax2[1].plot(data.source_list[0].trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
-				ax2[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
+				# ax2[0].plot(data.source_list[0].trace_spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
+				# ax2[0].plot(data.source_list[0].trace_spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
+				# ax2[1].plot(data.source_list[0].trace_spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
+				# ax2[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
-				#save extraction results
+				#save extraction results, write to a temporary file first
+				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted_tmp.fits')#, full_image = True)
+				#then change the name to a proper one. 
+				os.rename(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted_tmp.fits', \
+					base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')
 
-				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
+				#reset first file to the current file. 
 				first_file = int(file_name[-9:-5])+1
 
 
