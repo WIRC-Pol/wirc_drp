@@ -154,6 +154,10 @@ if __name__ == "__main__":
 	all_u_err   = []
 	all_q_pos	= [] #UL, LR, UR, or LL
 	all_u_pos	= [] #UL, LR, UR, or LL
+	all_p 		= []
+	all_theta	= []
+	all_p_err   = []
+	all_theta_err   = []
 
 	number_in_holding = 0
 	HWP_angles = np.array([])
@@ -162,8 +166,8 @@ if __name__ == "__main__":
 	#The plots
 	fig, ax = plt.subplots(3,2, figsize = (12, 20))
 
-	ax[0,0].set_ylabel('Flux', fontsize = 18)
-	ax[0,1].set_ylabel('Flux', fontsize = 18)
+	ax[0,0].set_ylabel('Flux (ADU)', fontsize = 18)
+	ax[0,1].set_ylabel('Flux (ADU)', fontsize = 18)
 
 
 	ax[1,0].set_ylabel('q (%)', fontsize = 18)
@@ -178,7 +182,7 @@ if __name__ == "__main__":
 
 	#blank cube for alignment
 	align_cube = []
-
+	first_time = True
 	#now the actual loop
 	while True:
 		all_files = sorted(glob.glob('*_auto_extracted.fits')) #get all files in the directory
@@ -224,11 +228,14 @@ if __name__ == "__main__":
 					HWP = HWP + 90
 
 				#First of all, plot the spectra
-				ax[0, 0].plot(spectra[0,1,:], 'b', label = '%s (Qp)'%trace_labels[0])
-				ax[0, 0].plot(spectra[1,1,:], 'r', label = '%s (Qm)'%trace_labels[1])
-				ax[0, 1].plot(spectra[2,1,:], 'b', label = '%s (Up)'%trace_labels[2])
-				ax[0, 1].plot(spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
-
+				ax[0, 0].plot( spectra[0,1,:], 'b', label = '%s'%trace_labels[0])
+				ax[0, 0].plot( spectra[1,1,:], 'r', label = '%s'%trace_labels[1])
+				ax[0, 1].plot( spectra[2,1,:], 'b', label = '%s'%trace_labels[2])
+				ax[0, 1].plot( spectra[3,1,:], 'r', label = '%s'%trace_labels[3])
+				if first_time:
+					ax[0, 0].legend(loc = 'lower center', frameon = False, fontsize = 12)
+					ax[0, 1].legend(loc = 'lower center', frameon = False, fontsize = 12)
+					first_time = False
 				#Determine which pair this belongs to:
 
 				if (HWP//22.5)%2 == 0: #This is for HWP = 0, 45, etc ("Q")
@@ -253,7 +260,7 @@ if __name__ == "__main__":
 						ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])))
 					else: #Different angle, call compute q, u to get q and u
 						#Note that for each pair of images at different HWP angle, we get 
-						ax[0,HWP_ind].set_title('Computing q/u from HWP angles %.1f and %.1f'%(HWP,HWP_in_holding[HWP_ind]))
+						ax[0,HWP_ind].set_title('Computing q, u from HWP angles %.1f and %.1f'%(HWP,HWP_in_holding[HWP_ind]))
 						spec1 = spectra
 						spec2 = holding[HWP_ind][0] #Take the 0th, i.e. first element in the holding list. 
 						HWP2 = HWP_in_holding[HWP_ind] #same with the HWP angle. 
@@ -283,6 +290,13 @@ if __name__ == "__main__":
 						u_med = np.median(np.array(all_u), axis = 0)
 						q_std = np.std(np.array(all_q), axis = 0)/np.sqrt(len(all_q))
 						u_std = np.std(np.array(all_u), axis = 0)/np.sqrt(len(all_u))
+						#LIVE SNR
+						#HARD CODED AREA: FIX THIS
+						q_med_med = np.median(q_med[60:130])
+						u_med_med = np.median(u_med[60:130])
+						q_std_med = np.median(q_std[60:130])
+						u_std_med = np.median(u_std[60:130])					
+
 
 						# #remove old line and plot a new one
 						try: 
@@ -293,10 +307,60 @@ if __name__ == "__main__":
 						med_q_line =  ax[1,0].errorbar(range(len(q_med)), q_med*100, yerr = 100*q_std, alpha = 1, color = 'k')
 						med_u_line =  ax[1,1].errorbar(range(len(u_med)), u_med*100, yerr = 100*u_std, alpha = 1, color = 'k')
 
+						ax[1,0].set_title('Median q = %.2f $\pm$ %.2f %%  SNR = %.2f'%(100*q_med_med, 100*q_std_med, q_med_med/q_std_med))
+						ax[1,1].set_title('Median u = %.2f $\pm$ %.2f %%  SNR = %.2f'%(100*u_med_med, 100*u_std_med, u_med_med/u_std_med))
+
+
 
 						#plot limits
 						ax[1,0].set_ylim([-5,5])
 						ax[1,1].set_ylim([-5,5])
+
+						#Now compute degree and angle of polarization
+						p = np.sqrt(q**2 + u**2)
+						theta = 0.5*np.arctan2(u,q)
+						#uncertainties
+						p_err = 1/p*np.sqrt( (q*q_err)**2 + (u*u_err)**2)
+						theta_err = (2/p**2) * np.sqrt((q*u_err)**2 + (u*q_err)**2)
+
+						#add to the list
+						all_p += [p[0], p[1]]
+						all_theta += [theta[0], theta[1]]
+						all_p_err += [[p_err[0], p_err[1]]]
+						all_theta_err += [theta_err[0], theta_err[1]]
+						#Plot p and theta
+						for ind in range(2):
+							ax[2,0].errorbar(range(len(p[ind])),     100*p[ind], yerr = 100*p_err[ind], alpha = 0.2 )
+							ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], alpha = 0.2 )
+							
+
+
+						#compute current median q and u
+						p_med = np.median(np.array(all_p), axis = 0)
+						theta_med = np.median(np.array(all_theta), axis = 0)
+						p_std = np.std(np.array(all_p), axis = 0)/np.sqrt(len(all_p))
+						theta_std = np.std(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
+
+						#Mark the area where p < 3dp
+						poor_snr = np.where( p_med < 3*p_std)
+
+						# #remove old line and plot a new one
+						try: 
+							med_p_line.remove()
+							med_p_bad.remove()
+							med_theta_line.remove()
+						except:
+							pass
+						med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
+						med_theta_line =  ax[2,1].errorbar(range(len(theta_med)), np.degrees(theta_med), yerr = np.degrees(theta_std), alpha = 1, color = 'k')
+						med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med)))
+						med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std)))
+						#This is part of p where p < 3 sigma_p, so probably zero polarization
+						med_p_bad 	   =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
+						#plot limits
+						ax[2,0].set_ylim([-5,5])
+						ax[2,1].set_ylim([med_med_theta - 3*med_std_theta, med_med_theta + 3*med_std_theta])
+
 
 				# all_spec_cube.append(data.source_list[0].trace_spectra)
 				# HWP_angles.append(data.header['HWP_ANG'])
@@ -304,7 +368,7 @@ if __name__ == "__main__":
 				# print(HWP_angles)
 
 
-				trace_labels = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
+				# trace_labels = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
 
 				# fig.suptitle('%s %s %s'%(date, object_name, file_name))
 				# for i,j in enumerate(data.source_list[0].trace_images):
