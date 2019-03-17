@@ -68,18 +68,19 @@ def compute_qu(spec1, spec2, HWP1, HWP2):
 
 if __name__ == "__main__":
 	#First, define a base directory. This is specific to hcig1 for the moment. 
-	base_dir = "/Users/kaew/work/wircpol/trials/auto_reduction/data/data_stage/"
-	base_cal = "/Users/kaew/work/wircpol/trials/auto_reduction/data/temp_cals/"
+	base_dir = "/scr/data/auto_reduction/"
+	base_cal = '/scr/data/calibrations/20190317/'
 	#base_dir = '.'
 	os.chdir(base_dir)
 
 
-	if len(sys.argv) == 6: #argument given
+	if len(sys.argv) == 7: #argument given
 		date = sys.argv[1]
 		object_name = sys.argv[2]
 		sky_ref = sys.argv[3] #frame number of the sky reference image for sky subtraction for automatic source finder
 		first_file= sys.argv[4]
-		exp_time = sys.argv[5]
+		last_file = sys.argv[5]
+		exp_time = sys.argv[6]
 		# y_coord = sys.argv[6]
 		#if len(sys.argv) > 2: 
 		#	obj_name = sys.argv[2] #set object name
@@ -88,7 +89,8 @@ if __name__ == "__main__":
 		date = input('Type in date in yyyymmdd format: ')
 		object_name = input('Object name: ')
 		sky_ref = input('image name of sky reference (e.g. 0012): ')
-		first_file = input('image name of first science frame (e.g. 0013)" ')
+		first_file = input('image name of first science frame (e.g. 0013): ')
+		last_file = input('image nam of last science frame (e.g. 0015): ')
 		exp_time = input('Exposure time: ')
 		# y_coord = input('Y coordinate: ')
 
@@ -193,7 +195,7 @@ if __name__ == "__main__":
 			#print("First file is", first_file)
 			fn_string = file_name.split('_auto_extracted.fits')[0]
 			# print(fn_string)
-			if int(fn_string[-4:]) < int(first_file): #before first file
+			if int(fn_string[-4:]) < int(first_file) or int(fn_string[-4:]) > int(last_file): #before first file
 				pass
 				#print(file_name, first_file)
 			else: #after first file, do something
@@ -313,8 +315,10 @@ if __name__ == "__main__":
 
 
 						#plot limits
-						ax[1,0].set_ylim([-5,5])
-						ax[1,1].set_ylim([-5,5])
+						ax[1,0].set_ylim([-3,3])
+						ax[1,1].set_ylim([-3,3])
+						ax[1,0].set_xlim([80,210])
+						ax[1,1].set_xlim([80,210])
 
 						#Now compute degree and angle of polarization
 						p = np.sqrt(q**2 + u**2)
@@ -352,14 +356,16 @@ if __name__ == "__main__":
 						except:
 							pass
 						med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
-						med_theta_line =  ax[2,1].errorbar(range(len(theta_med)), np.degrees(theta_med), yerr = np.degrees(theta_std), alpha = 1, color = 'k')
+						#med_theta_line =  ax[2,1].errorbar(range(len(theta_med)), np.degrees(theta_med), yerr = np.degrees(theta_std), alpha = 1, color = 'k')
 						med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med)))
 						med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std)))
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
-						med_p_bad 	   =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
+						med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
-						ax[2,0].set_ylim([-5,5])
-						ax[2,1].set_ylim([med_med_theta - 3*med_std_theta, med_med_theta + 3*med_std_theta])
+						ax[2,0].set_ylim([0,3])
+						ax[2,1].set_ylim([0,180])
+						ax[2,0].set_xlim([80,210])
+						ax[2,1].set_xlim([80,210])
 
 
 				# all_spec_cube.append(data.source_list[0].trace_spectra)

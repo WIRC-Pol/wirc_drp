@@ -26,20 +26,24 @@ matplotlib.use('Qt4Agg')
 import sys, os, glob, gc, time
 
 if __name__ == "__main__":
-	#First, define a base directory. This is specific to hcig1 for the moment. 
-	base_dir = "/Users/kaew/work/wircpol/trials/auto_reduction/data/data_stage/"
-	base_cal = "/Users/kaew/work/wircpol/trials/auto_reduction/data/temp_cals/"
-	#base_dir = '.'
+	prefix = 'image'
+	#First, define a base directory. 
+	#base_dir = "/Users/kaew/work/wircpol/trials/auto_reduction/data/data_stage/"
+	#base_cal = "/Users/kaew/work/wircpol/trials/auto_reduction/data/temp_cals/"
+	base_dir = '/scr/data/'
+	out_dir =  '/scr/data/auto_reduction/'
+	base_cal = '/scr/data/calibrations/20190317/'
 	os.chdir(base_dir)
 
 
-	if len(sys.argv) == 7: #argument given
+	if len(sys.argv) == 8: #argument given
 		date = sys.argv[1]
 		object_name = sys.argv[2]
 		sky_ref = sys.argv[3] #frame number of the sky reference image for sky subtraction for automatic source finder
 		first_file= sys.argv[4]
-		x_coord = sys.argv[5]
-		y_coord = sys.argv[6]
+		last_file = sys.argv[5]
+		x_coord = sys.argv[6]
+		y_coord = sys.argv[7]
 		#if len(sys.argv) > 2: 
 		#	obj_name = sys.argv[2] #set object name
 
@@ -80,14 +84,14 @@ if __name__ == "__main__":
 	"""
 	#now the actual loop
 	while True:
-		all_files = sorted(glob.glob('image????.fits')) #get all files in the directory
+		all_files = sorted(glob.glob('%s????.fits'%prefix)) #get all files in the directory
 		# all_files = all_files[int(first_file) :] #cut down on prior files, assuming we start from 0001, with some margin
 
 		print(all_files)
 		time.sleep(1)
 		for file_name in all_files:
 			#print("First file is", first_file)
-			if int(file_name[-9:-5]) < int(first_file): #before first file
+			if int(file_name[-9:-5]) < int(first_file) or int(file_name[-9:-5])>int(last_file): #before first file
 				pass
 				#print(file_name, first_file)
 			else: #after first file, do something
@@ -96,16 +100,21 @@ if __name__ == "__main__":
 				header = fits.getheader(file_name)
 				exp_time = header['EXPTIME']
 				#check if a reduced directory exists
-				if ~os.path.isdir(base_dir+date+'/'+object_name+'_%.1fs_auto'%exp_time):
-					os.system("mkdir "+base_dir+date+'/'+object_name+'_%.1fs_auto'%exp_time)
+				print(os.path.isdir(out_dir+date+'/'+object_name+'_%.1fs_auto'%exp_time))
+				if ~os.path.isdir(out_dir+date+'/'+object_name+'_%.1fs_auto'%exp_time):
+					os.system("mkdir "+out_dir+date+'/'+object_name+'_%.1fs_auto'%exp_time)
 
 				filter_name = header['AFT'][0] #just the name, J or H
 				if filter_name not in ['J', 'H']:
 					filter_name = input('Invalid filter name (%s) from header, type J or H'%s)
 				#grab calibration files from the archive.
-				flat_fn = base_cal+"cleaned_PG_flat_%s.fits"%filter_name
-				bp_fn =   base_cal+"bad_pix_map.fits"
-				dark_fn = base_cal+"archive_dark_%.1fs.fits"%exp_time
+				#flat_fn = base_cal+"cleaned_PG_flat_%s.fits"%filter_name
+				#bp_fn =   base_cal+"bad_pix_map.fits"
+				#dark_fn = base_cal+"archive_dark_%.1fs.fits"%exp_time
+				flat_fn = base_cal+"image0233_master_PG_flat.fits"
+				bp_fn =   base_cal+"image0143_bp_map.fits"
+				#dark_fn = base_cal+"image0021_master_dark.fits" #1s
+				dark_fn = base_cal+"image0063_master_dark.fits" #15s
 				#load in data as wirc object, and calibrate
 				data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)
 				data.calibrate(mask_bad_pixels = False, verbose = False)
@@ -117,7 +126,7 @@ if __name__ == "__main__":
 				data.n_sources += 1
 
 				#get cutouts
-				data.source_list[0].get_cutouts(data.full_image, data.filter_name, True) 
+				data.source_list[0].get_cutouts(data.full_image, data.filter_name, True, cutout_size = 150) 
 				#extract spectra
 				data.source_list[0].extract_spectra(plot=False, sub_background = True, bkg_sub_shift_size = 45, method = 'optimal_extraction', verbose = False)
 				data.source_list[0].rough_lambda_calibration(method=2)
@@ -158,10 +167,10 @@ if __name__ == "__main__":
 				# ax2[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
 				#save extraction results, write to a temporary file first
-				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted_tmp.fits')#, full_image = True)
+				data.save_wirc_object(out_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted_tmp.fits')#, full_image = True)
 				#then change the name to a proper one. 
-				os.rename(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted_tmp.fits', \
-					base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')
+				os.rename(out_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted_tmp.fits', \
+					out_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')
 
 				#reset first file to the current file. 
 				first_file = int(file_name[-9:-5])+1
