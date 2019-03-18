@@ -30,8 +30,9 @@ import sys, os, glob, gc, time
 def compute_qu(spec1, spec2, HWP1, HWP2):
 	#stack spectra
 	# if spec1.shape != spec2.shape:
-	if (HWP1 - HWP2)%45 != 0:
-		print("Error, halfwave plate angles are not orthogonal.")
+	if ((round(HWP1,2) - round(HWP2,2))%45) >0.01: #add some tolerance
+		print(np.abs((HWP1 - HWP2)%45))
+		print("Error, halfwave plate angles (%f, %f) are not orthogonal."%(HWP1,HWP2))
 		return None
 	else:
 		spec_cube = np.stack([spec1, spec2]) #This has to be the same shape
@@ -166,21 +167,23 @@ if __name__ == "__main__":
 
 	trace_labels = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
 	#The plots
-	fig, ax = plt.subplots(3,2, figsize = (12, 20))
+	fig, ax = plt.subplots(3,2, figsize = (8, 10))
 
-	ax[0,0].set_ylabel('Flux (ADU)', fontsize = 18)
-	ax[0,1].set_ylabel('Flux (ADU)', fontsize = 18)
+	ax[0,0].set_ylabel('Flux (ADU)', fontsize = 12)
+	ax[0,1].set_ylabel('Flux (ADU)', fontsize = 12)
 
 
-	ax[1,0].set_ylabel('q (%)', fontsize = 18)
-	ax[1,1].set_ylabel('u (%)', fontsize = 18)
-	ax[1,0].set_xlabel('Spectral pixel', fontsize = 18)
-	ax[1,1].set_xlabel('Spectral pixel', fontsize = 18)
+	ax[1,0].set_ylabel('q (%)', fontsize = 12)
+	ax[1,1].set_ylabel('u (%)', fontsize = 12)
+	ax[1,0].set_xlabel('Spectral pixel', fontsize = 12)
+	ax[1,1].set_xlabel('Spectral pixel', fontsize = 12)
 
-	ax[2,0].set_ylabel('p (%)', fontsize = 18)
-	ax[2,1].set_ylabel(r'$\theta$ (deg)', fontsize = 18)
-	ax[2,0].set_xlabel('Spectral pixel', fontsize = 18)
-	ax[2,1].set_xlabel('Spectral pixel', fontsize = 18)
+	ax[2,0].set_ylabel('p (%)', fontsize = 12)
+	ax[2,1].set_ylabel(r'$\theta$ (deg)', fontsize = 12)
+	ax[2,0].set_xlabel('Spectral pixel', fontsize = 12)
+	ax[2,1].set_xlabel('Spectral pixel', fontsize = 12)
+
+	plt.tight_layout()
 
 	#blank cube for alignment
 	align_cube = []
@@ -277,11 +280,13 @@ if __name__ == "__main__":
 						all_q_pos += [q_position[0], q_position[1]]
 						all_u_pos += [u_position[0], u_position[1]]
 						print(np.array(all_q).shape)
-
+						colors = ['r','y','b','c']
 						#Plot q and u into the collective plot!
 						for ind in range(2):
-							ax[1,0].errorbar(range(len(q[ind])), 100*q[ind], yerr = 100*q_err[ind], alpha = 0.2 )
-							ax[1,1].errorbar(range(len(u[ind])), 100*u[ind], yerr = 100*u_err[ind], alpha = 0.2 )
+							ax[1,0].errorbar(range(len(q[ind])), 100*q[ind], yerr = 100*q_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+							ax[1,1].errorbar(range(len(u[ind])), 100*u[ind], yerr = 100*u_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+							ax[1,0].axvline(0)
+							ax[1,1].axvline(0)
 							# ax[1,0].plot(range(len(q[ind])),  100*q_err[ind], alpha = 0.5 )
 							# ax[1,1].plot(range(len(u[ind])),  100*u_err[ind], alpha = 0.5 )
 
@@ -294,10 +299,10 @@ if __name__ == "__main__":
 						u_std = np.std(np.array(all_u), axis = 0)/np.sqrt(len(all_u))
 						#LIVE SNR
 						#HARD CODED AREA: FIX THIS
-						q_med_med = np.median(q_med[60:130])
-						u_med_med = np.median(u_med[60:130])
-						q_std_med = np.median(q_std[60:130])
-						u_std_med = np.median(u_std[60:130])					
+						q_med_med = np.median(q_med[120:180])
+						u_med_med = np.median(u_med[120:180])
+						q_std_med = np.median(q_std[120:180])
+						u_std_med = np.median(u_std[120:180])					
 
 
 						# #remove old line and plot a new one
@@ -315,8 +320,8 @@ if __name__ == "__main__":
 
 
 						#plot limits
-						ax[1,0].set_ylim([-3,3])
-						ax[1,1].set_ylim([-3,3])
+						ax[1,0].set_ylim([-1,1])
+						ax[1,1].set_ylim([-1,1])
 						ax[1,0].set_xlim([80,210])
 						ax[1,1].set_xlim([80,210])
 
@@ -333,9 +338,10 @@ if __name__ == "__main__":
 						all_p_err += [[p_err[0], p_err[1]]]
 						all_theta_err += [theta_err[0], theta_err[1]]
 						#Plot p and theta
+						
 						for ind in range(2):
-							ax[2,0].errorbar(range(len(p[ind])),     100*p[ind], yerr = 100*p_err[ind], alpha = 0.2 )
-							ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], alpha = 0.2 )
+							ax[2,0].errorbar(range(len(p[ind])),     100*p[ind], yerr = 100*p_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+							ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
 							
 
 
@@ -362,7 +368,7 @@ if __name__ == "__main__":
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
 						med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
-						ax[2,0].set_ylim([0,3])
+						ax[2,0].set_ylim([0,1])
 						ax[2,1].set_ylim([0,180])
 						ax[2,0].set_xlim([80,210])
 						ax[2,1].set_xlim([80,210])

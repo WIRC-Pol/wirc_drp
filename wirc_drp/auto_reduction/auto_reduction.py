@@ -114,7 +114,8 @@ if __name__ == "__main__":
 				flat_fn = base_cal+"image0233_master_PG_flat.fits"
 				bp_fn =   base_cal+"image0143_bp_map.fits"
 				#dark_fn = base_cal+"image0021_master_dark.fits" #1s
-				dark_fn = base_cal+"image0063_master_dark.fits" #15s
+				dark_fn = base_cal+"image0093_master_dark.fits" #5s
+				#dark_fn = base_cal+"image0063_master_dark.fits" #15s
 				#load in data as wirc object, and calibrate
 				data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)
 				data.calibrate(mask_bad_pixels = False, verbose = False)
@@ -128,7 +129,8 @@ if __name__ == "__main__":
 				#get cutouts
 				data.source_list[0].get_cutouts(data.full_image, data.filter_name, True, cutout_size = 150) 
 				#extract spectra
-				data.source_list[0].extract_spectra(plot=False, sub_background = True, bkg_sub_shift_size = 45, method = 'optimal_extraction', verbose = False)
+				data.source_list[0].extract_spectra(plot=False, sub_background = True, bkg_sub_shift_size = 45, \
+							method = 'optimal_extraction', bad_pix_masking = 1, verbose = False)
 				data.source_list[0].rough_lambda_calibration(method=2)
 
 				#plot them on the axis, first the calibrated images
