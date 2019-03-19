@@ -285,10 +285,14 @@ if __name__ == "__main__":
 						all_u_pos += [u_position[0], u_position[1]]
 
 						#Double differencing
-						dd_all_q     += [ (q[0]+q[1])/2 ]
-						dd_all_u     += [ (u[0]+u[1])/2 ]
-						dd_all_q_err += [ (q_err[0] + q_err[1])/2/np.sqrt(2)]
-						dd_all_u_err += [ (u_err[0] + u_err[1])/2/np.sqrt(2)]
+						q_dd = (q[0]+q[1])/2 
+						u_dd = (u[0]+u[1])/2 
+						q_err_dd = (q_err[0] + q_err[1])/2/np.sqrt(2)
+						u_err_dd = (u_err[0] + u_err[1])/2/np.sqrt(2)
+						dd_all_q     += [ q_dd ]
+						dd_all_u     += [ u_dd ]
+						dd_all_q_err += [ q_err_dd ]
+						dd_all_u_err += [ u_err_dd ]
 
 
 						print(np.array(all_q).shape)
@@ -297,12 +301,19 @@ if __name__ == "__main__":
 						np.save(redux_dir+'%s_%s_qu_double_diff.npy'%(object_name, last_file), np.array([dd_all_q, dd_all_u, dd_all_q_err, dd_all_u_err]))
 
 						colors = ['r','y','b','c']
-						#Plot q and u into the collective plot!
-						for ind in range(2):
-							ax[1,0].errorbar(range(len(q[ind])), 100*q[ind], yerr = 100*q_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
-							ax[1,1].errorbar(range(len(u[ind])), 100*u[ind], yerr = 100*u_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
-							ax[1,0].axvline(0)
-							ax[1,1].axvline(0)
+						#Plot q and u into the collective plot! This one is single differencing version
+						# for ind in range(2):
+						# 	ax[1,0].errorbar(range(len(q[ind])), 100*q[ind], yerr = 100*q_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+						# 	ax[1,1].errorbar(range(len(u[ind])), 100*u[ind], yerr = 100*u_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+						# 	ax[1,0].axvline(0)
+						# 	ax[1,1].axvline(0)
+
+						#Plot double differencing values
+						ax[1,0].errorbar(range(len(q_dd)), 100*q_dd, yerr = 100*q_err_dd, alpha = 0.2 )
+						ax[1,1].errorbar(range(len(u_dd)), 100*u_dd, yerr = 100*u_err_dd, alpha = 0.2 )
+						ax[1,0].axvline(0)
+						ax[1,1].axvline(0)
+
 							# ax[1,0].plot(range(len(q[ind])),  100*q_err[ind], alpha = 0.5 )
 							# ax[1,1].plot(range(len(u[ind])),  100*u_err[ind], alpha = 0.5 )
 
@@ -313,12 +324,17 @@ if __name__ == "__main__":
 						u_med = np.median(np.array(all_u), axis = 0)
 						q_std = np.std(np.array(all_q), axis = 0)/np.sqrt(len(all_q))
 						u_std = np.std(np.array(all_u), axis = 0)/np.sqrt(len(all_u))
+						#double difference
+						q_med_dd = np.median(np.array(all_q_dd), axis = 0)
+						u_med_dd = np.median(np.array(all_u_dd), axis = 0)
+						q_std_dd = np.std(np.array(all_q_dd), axis = 0)/np.sqrt(len(all_q_dd))
+						u_std_dd = np.std(np.array(all_u_dd), axis = 0)/np.sqrt(len(all_u_dd))
 						#LIVE SNR
 						#HARD CODED AREA: FIX THIS
-						q_med_med = np.median(q_med[120:180])
-						u_med_med = np.median(u_med[120:180])
-						q_std_med = np.median(q_std[120:180])
-						u_std_med = np.median(u_std[120:180])					
+						q_med_med = np.median(q_med_dd[120:180])
+						u_med_med = np.median(u_med_dd[120:180])
+						q_std_med = np.median(q_std_dd[120:180])
+						u_std_med = np.median(u_std_dd[120:180])					
 
 
 						# #remove old line and plot a new one
@@ -327,8 +343,10 @@ if __name__ == "__main__":
 							med_u_line.remove()
 						except:
 							pass
-						med_q_line =  ax[1,0].errorbar(range(len(q_med)), q_med*100, yerr = 100*q_std, alpha = 1, color = 'k')
-						med_u_line =  ax[1,1].errorbar(range(len(u_med)), u_med*100, yerr = 100*u_std, alpha = 1, color = 'k')
+						# med_q_line =  ax[1,0].errorbar(range(len(q_med)), q_med*100, yerr = 100*q_std, alpha = 1, color = 'k')
+						# med_u_line =  ax[1,1].errorbar(range(len(u_med)), u_med*100, yerr = 100*u_std, alpha = 1, color = 'k')
+						med_q_line =  ax[1,0].errorbar(range(len(q_med_dd)), q_med_dd*100, yerr = 100*q_std_dd, alpha = 1, color = 'k')
+						med_u_line =  ax[1,1].errorbar(range(len(u_med_dd)), u_med_dd*100, yerr = 100*u_std_dd, alpha = 1, color = 'k')
 
 						ax[1,0].set_title('Median q = %.2f $\pm$ %.2f %%  SNR = %.2f'%(100*q_med_med, 100*q_std_med, q_med_med/q_std_med))
 						ax[1,1].set_title('Median u = %.2f $\pm$ %.2f %%  SNR = %.2f'%(100*u_med_med, 100*u_std_med, u_med_med/u_std_med))
@@ -348,24 +366,47 @@ if __name__ == "__main__":
 						p_err = 1/p*np.sqrt( (q*q_err)**2 + (u*u_err)**2)
 						theta_err = (2/p**2) * np.sqrt((q*u_err)**2 + (u*q_err)**2)
 
+						#Double differencing
+						p_dd = np.sqrt(q_dd**2 + u_dd**2)
+						theta_dd = 0.5*np.arctan2(u_dd,q_dd)
+						#uncertainties
+						p_err_dd = 1/p_dd*np.sqrt( (q_dd*q_err_dd)**2 + (u_dd*u_err_dd)**2)
+						theta_err_dd = (2/p_dd**2) * np.sqrt((q_dd*u_err_dd)**2 + (u_dd*q_err_dd)**2)
+
 						#add to the list
 						all_p += [p[0], p[1]]
 						all_theta += [theta[0], theta[1]]
 						all_p_err += [[p_err[0], p_err[1]]]
 						all_theta_err += [theta_err[0], theta_err[1]]
+
+						#add to the list
+						all_p_dd += [p_dd]
+						all_theta_dd += [theta_dd]
+						all_p_err_dd += [p_err_dd]
+						all_theta_err_dd += [theta_err_dd]
 						#Plot p and theta
 						
-						for ind in range(2):
-							ax[2,0].errorbar(range(len(p[ind])),     100*p[ind], yerr = 100*p_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
-							ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+						# for ind in range(2):
+						# 	ax[2,0].errorbar(range(len(p[ind])),     100*p[ind], yerr = 100*p_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+						# 	ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+
+						#Plot double differenced
+						ax[2,0].errorbar(range(len(p_dd)),     100*p_dd, yerr = 100*p_err_dd, alpha = 0.2 )
+						ax[2,1].errorbar(range(len(theta_dd)), 100*theta_dd, yerr = 100*theta_err_dd, alpha = 0.2 )
 							
 
 
-						#compute current median q and u
+						#compute current median p and theta
 						p_med = np.median(np.array(all_p), axis = 0)
 						theta_med = np.median(np.array(all_theta), axis = 0)
 						p_std = np.std(np.array(all_p), axis = 0)/np.sqrt(len(all_p))
 						theta_std = np.std(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
+
+						#compute current median p and theta, double diff
+						p_med_dd = np.median(np.array(all_p_dd), axis = 0)
+						theta_med_dd = np.median(np.array(all_theta_dd), axis = 0)
+						p_std_dd = np.std(np.array(all_p_dd), axis = 0)/np.sqrt(len(all_p_dd))
+						theta_std_dd = np.std(np.array(all_theta_dd), axis = 0)/np.sqrt(len(all_theta_dd))
 
 						#Mark the area where p < 3dp
 						poor_snr = np.where( p_med < 3*p_std)
