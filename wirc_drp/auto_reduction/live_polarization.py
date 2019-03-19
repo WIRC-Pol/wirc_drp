@@ -395,8 +395,8 @@ if __name__ == "__main__":
 						# 	ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
 
 						#Plot double differenced
-						ax[2,0].errorbar(range(len(p_dd)),     100*p_dd, yerr = 100*p_err_dd, alpha = 0.2 )
-						ax[2,1].errorbar(range(len(theta_dd)), 100*theta_dd, yerr = 100*theta_err_dd, alpha = 0.2 )
+						ax[2,0].errorbar(range(len(p_dd)),     100*p_dd, yerr = 100*p_err_dd, alpha = 0.01 )
+						ax[2,1].errorbar(range(len(theta_dd)), 100*theta_dd, yerr = 100*theta_err_dd, alpha = 0.01 )
 							
 
 
@@ -405,6 +405,19 @@ if __name__ == "__main__":
 						theta_med = np.median(np.array(all_theta), axis = 0)
 						p_std = np.std(np.array(all_p), axis = 0)/np.sqrt(len(all_p))
 						theta_std = np.std(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
+
+						#Vectorial calculation of p and theta
+
+						current_pol_vec = np.stack([np.array(dd_all_q), np.array(dd_all_u)])
+
+						mean_pol = np.mean(current_pol_vec, axis = 1)
+						std_pol = np.std(current_pol_vec, axis = 1)/np.sqrt(current_pol_vec.shape[1])
+
+						mean_p = np.sum(mean_pol**2)
+						std_p = 1/mean_p *np.sqrt( np.sum((mean_pol*std_pol)**2))
+
+						mean_theta = 0.5*np.arctan2(mean_pol[1],mean_pol[0])
+						std_theta = (2/mean_p**2) * np.sqrt((mean_pol[0]*std_pol[1])**2 + (mean_pol[1]*std_pol[0])**2)
 
 						#compute current median p and theta, double diff
 						p_med_dd = np.median(np.array(dd_all_p), axis = 0)
@@ -425,9 +438,16 @@ if __name__ == "__main__":
 						# med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
 						med_p_line     =  ax[2,0].errorbar(range(len(p_med_dd)), p_med_dd*100, yerr = 100*p_std_dd, alpha = 1, color = 'k')
 
-						med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd), yerr = np.degrees(theta_std_dd), alpha = 1, color = 'k')
+						med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd), yerr = np.degrees(theta_std_dd), alpha = 0.8, color = 'k')
 						med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med_dd)))
 						med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std_dd)))
+
+						#Nem's p and theta
+						med_vec_p_line     =  ax[2,0].errorbar(range(len(mean_p)), mean_p*100, yerr = 100*std_p, alpha = 1, color = 'k')
+
+						med_vec_theta_line =  ax[2,1].errorbar(range(len(mean_theta)), np.degrees(mean_theta), yerr = np.degrees(std_theta), alpha = 1, color = 'k')
+						med_vec_med_theta = np.degrees(np.median(np.nan_to_num(mean_theta)))
+						med_vec_std_theta = np.degrees(np.median(np.nan_to_num(std_theta)))
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
 						med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
