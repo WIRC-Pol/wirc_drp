@@ -293,8 +293,8 @@ if __name__ == "__main__":
 
 						print(np.array(all_q).shape)
 						#Save measured q and u into a file. 
-						np.save(redux_dir+'%s_%d_%d_qu.npy'%(object_name, first_file, last_file), np.array([all_q, all_u, all_q_err, all_u_err, all_q_pos, all_u_pos]))
-						np.save(redux_dir+'%s_%d_$d_qu_double_diff.npy'%(object_name, first_file, last_file), np.array([dd_all_q, dd_all_u, dd_all_q_err, dd_all_u_err]))
+						np.save(redux_dir+'%s_%s_%s_qu.npy'%(object_name, first_file, last_file), np.array([all_q, all_u, all_q_err, all_u_err, all_q_pos, all_u_pos]))
+						np.save(redux_dir+'%s_%s_%s_qu_double_diff.npy'%(object_name, first_file, last_file), np.array([dd_all_q, dd_all_u, dd_all_q_err, dd_all_u_err]))
 
 						colors = ['r','y','b','c']
 						#Plot q and u into the collective plot!
