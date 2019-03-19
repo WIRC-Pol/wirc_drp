@@ -1094,12 +1094,10 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
 
     mn_quad = np.median([quad1,quad2,quad3,quad4],axis=0)
 
-    clean_imm = copy.deepcopy(imm)
+    clean_imm = copy.deepcopy(image)
 
     if mode == 'robust':
         for i in range(1024):
-
-
 
             #Upper Left
             to_sub = sigma_clipped_stats(mn_quad[:,i],sigma=sigma,iters=iters)[1] #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
@@ -1109,7 +1107,7 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
             clean_imm[-i,:1024] -= to_sub
             clean_imm[i,1024:]  -= to_sub
 
-        return image
+        return clean_imm
 
     elif mode == 'simple':
 
