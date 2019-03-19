@@ -155,6 +155,10 @@ if __name__ == "__main__":
 	all_u 		= []
 	all_q_err   = []
 	all_u_err   = []
+	dd_all_q 		= []
+	dd_all_u 		= []
+	dd_all_q_err   = []
+	dd_all_u_err   = []
 	all_q_pos	= [] #UL, LR, UR, or LL
 	all_u_pos	= [] #UL, LR, UR, or LL
 	all_p 		= []
@@ -279,7 +283,19 @@ if __name__ == "__main__":
 						all_u_err += [u_err[0], u_err[1]]
 						all_q_pos += [q_position[0], q_position[1]]
 						all_u_pos += [u_position[0], u_position[1]]
+
+						#Double differencing
+						dd_all_q     += [np.average(q[0], q[1])]
+						dd_all_u     += [np.average(u[0], u[1])]
+						dd_all_q_err += [np.average(q_err[0], q_err[1])/np.sqrt(2)]
+						dd_all_u_err += [np.average(u_err[0], u_err[1])/np.sqrt(2)]
+
+
 						print(np.array(all_q).shape)
+						#Save measured q and u into a file. 
+						np.save(redux_dir+'%s_qu.npy', np.array([all_q, all_u, all_q_err, all_u_err, all_q_pos, all_u_pos]))
+						np.save(redux_dir+'%s_qu_double_diff.npy', np.array([dd_all_q, dd_all_u, dd_all_q_err, dd_all_u_err]))
+
 						colors = ['r','y','b','c']
 						#Plot q and u into the collective plot!
 						for ind in range(2):
