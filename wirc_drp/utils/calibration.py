@@ -1096,9 +1096,6 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
 
     clean_imm = copy.deepcopy(imm)
 
-    for i in range(1024):
-
-
     if mode == 'robust':
         for i in range(1024):
 
