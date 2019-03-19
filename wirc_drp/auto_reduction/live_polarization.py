@@ -331,8 +331,8 @@ if __name__ == "__main__":
 						#double difference
 						q_med_dd = np.median(np.array(dd_all_q), axis = 0)
 						u_med_dd = np.median(np.array(dd_all_u), axis = 0)
-						q_std_dd = np.std(np.array(dd_all_q), axis = 0)/np.sqrt(len(all_q_dd))
-						u_std_dd = np.std(np.array(dd_all_u), axis = 0)/np.sqrt(len(all_u_dd))
+						q_std_dd = np.std(np.array(dd_all_q), axis = 0)/np.sqrt(len(dd_all_q))
+						u_std_dd = np.std(np.array(dd_all_u), axis = 0)/np.sqrt(len(dd_all_u))
 						#LIVE SNR
 						#HARD CODED AREA: FIX THIS
 						q_med_med = np.median(q_med_dd[120:180])
