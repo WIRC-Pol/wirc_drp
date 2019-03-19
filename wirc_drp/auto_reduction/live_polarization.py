@@ -285,10 +285,10 @@ if __name__ == "__main__":
 						all_u_pos += [u_position[0], u_position[1]]
 
 						#Double differencing
-						dd_all_q     += [np.average(q[0], q[1])]
-						dd_all_u     += [np.average(u[0], u[1])]
-						dd_all_q_err += [np.average(q_err[0], q_err[1])/np.sqrt(2)]
-						dd_all_u_err += [np.average(u_err[0], u_err[1])/np.sqrt(2)]
+						dd_all_q     += [np.average([q[0], q[1]])]
+						dd_all_u     += [np.average([u[0], u[1]])]
+						dd_all_q_err += [np.average([q_err[0], q_err[1]])/np.sqrt(2)]
+						dd_all_u_err += [np.average([u_err[0], u_err[1]])/np.sqrt(2)]
 
 
 						print(np.array(all_q).shape)
