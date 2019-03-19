@@ -165,6 +165,10 @@ if __name__ == "__main__":
 	all_theta	= []
 	all_p_err   = []
 	all_theta_err   = []
+	dd_all_p 		= []
+	dd_all_theta	= []
+	dd_all_p_err   = []
+	dd_all_theta_err   = []
 
 	number_in_holding = 0
 	HWP_angles = np.array([])
@@ -325,10 +329,10 @@ if __name__ == "__main__":
 						q_std = np.std(np.array(all_q), axis = 0)/np.sqrt(len(all_q))
 						u_std = np.std(np.array(all_u), axis = 0)/np.sqrt(len(all_u))
 						#double difference
-						q_med_dd = np.median(np.array(all_q_dd), axis = 0)
-						u_med_dd = np.median(np.array(all_u_dd), axis = 0)
-						q_std_dd = np.std(np.array(all_q_dd), axis = 0)/np.sqrt(len(all_q_dd))
-						u_std_dd = np.std(np.array(all_u_dd), axis = 0)/np.sqrt(len(all_u_dd))
+						q_med_dd = np.median(np.array(dd_all_q), axis = 0)
+						u_med_dd = np.median(np.array(dd_all_u), axis = 0)
+						q_std_dd = np.std(np.array(dd_all_q), axis = 0)/np.sqrt(len(all_q_dd))
+						u_std_dd = np.std(np.array(dd_all_u), axis = 0)/np.sqrt(len(all_u_dd))
 						#LIVE SNR
 						#HARD CODED AREA: FIX THIS
 						q_med_med = np.median(q_med_dd[120:180])
@@ -380,10 +384,10 @@ if __name__ == "__main__":
 						all_theta_err += [theta_err[0], theta_err[1]]
 
 						#add to the list
-						all_p_dd += [p_dd]
-						all_theta_dd += [theta_dd]
-						all_p_err_dd += [p_err_dd]
-						all_theta_err_dd += [theta_err_dd]
+						dd_all_p += [p_dd]
+						dd_all_theta += [theta_dd]
+						dd_all_p_err += [p_err_dd]
+						dd_all_theta_err += [theta_err_dd]
 						#Plot p and theta
 						
 						# for ind in range(2):
@@ -403,10 +407,10 @@ if __name__ == "__main__":
 						theta_std = np.std(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
 
 						#compute current median p and theta, double diff
-						p_med_dd = np.median(np.array(all_p_dd), axis = 0)
-						theta_med_dd = np.median(np.array(all_theta_dd), axis = 0)
-						p_std_dd = np.std(np.array(all_p_dd), axis = 0)/np.sqrt(len(all_p_dd))
-						theta_std_dd = np.std(np.array(all_theta_dd), axis = 0)/np.sqrt(len(all_theta_dd))
+						p_med_dd = np.median(np.array(dd_all_p), axis = 0)
+						theta_med_dd = np.median(np.array(dd_all_theta), axis = 0)
+						p_std_dd = np.std(np.array(dd_all_p), axis = 0)/np.sqrt(len(dd_all_p))
+						theta_std_dd = np.std(np.array(dd_all_theta), axis = 0)/np.sqrt(len(dd_all_theta))
 
 						#Mark the area where p < 3dp
 						poor_snr = np.where( p_med < 3*p_std)
@@ -418,10 +422,12 @@ if __name__ == "__main__":
 							med_theta_line.remove()
 						except:
 							pass
-						med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
-						#med_theta_line =  ax[2,1].errorbar(range(len(theta_med)), np.degrees(theta_med), yerr = np.degrees(theta_std), alpha = 1, color = 'k')
-						med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med)))
-						med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std)))
+						# med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
+						med_p_line     =  ax[2,0].errorbar(range(len(p_med_dd)), p_med_dd*100, yerr = 100*p_std_dd, alpha = 1, color = 'k')
+
+						med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd), yerr = np.degrees(theta_std_dd), alpha = 1, color = 'k')
+						med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med_dd)))
+						med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std_dd)))
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
 						med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
