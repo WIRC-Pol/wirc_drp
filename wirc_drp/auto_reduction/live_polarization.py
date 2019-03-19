@@ -451,7 +451,7 @@ if __name__ == "__main__":
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
 						med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
-						ax[2,0].set_ylim([0,1])
+						ax[2,0].set_ylim([-0.5,1])
 						ax[2,1].set_ylim([0,180])
 						ax[2,0].set_xlim([80,210])
 						ax[2,1].set_xlim([80,210])
