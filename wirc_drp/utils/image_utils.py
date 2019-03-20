@@ -1596,7 +1596,7 @@ def smooth_cutouts(thumbnails,method='gaussian',width=3):
         filter_type = gauss
     elif method == 'median':
         filter_type = median_filter
-    elif:
+    else:
         print('Only "gaussian" and "median" thumbnail smoothing are implemented')
         print('Returning')
         return        
@@ -1606,7 +1606,7 @@ def smooth_cutouts(thumbnails,method='gaussian',width=3):
             thumbnails[i] = filter_type(thumbnails[i],width)
     elif len(thumbnails.shape) == 2:
         thumbnails = filter_type(thumbnails,width)
-    elif:
+    else:
         print("Your thumbnails shape is weird and needs to be checked. It should either me [n_images,x,y] or just x,y")
 
     return
