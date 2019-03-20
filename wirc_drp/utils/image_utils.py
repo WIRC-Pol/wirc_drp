@@ -33,6 +33,8 @@ from wirc_drp import constants
 from photutils import RectangularAperture, aperture_photometry,make_source_mask
 from astropy.stats import sigma_clipped_stats
 
+import ccdproc
+
 import cv2
 # import pyfftw
 # from numba import jit
