@@ -1151,7 +1151,7 @@ class wircpol_source(object):
         else:
             plt.switch_backend(default_back)
 
-    def clean_cutouts_for_cosmic_rays(self,nsig=3, method='lacosmic'):
+    def clean_cutouts_for_cosmic_rays(self,nsig=10, method='lacosmic'):
         '''
         Wrapper for the image_utils function clean_thumbnails_for_cosmicrays. Replaces the trace_image_DQs.
         '''

@@ -1589,7 +1589,7 @@ def clean_thumbnails_for_cosmicrays(thumbnails, method='lacosmic',thumbnails_dq=
         # A downside to this method is that it doesn't update the DQ frame. 
         
         for i in range(4):
-            thumbnails[i,:,:] = ccdproc.cosmicray_lacosmic(thumbnails[i,:,:], sigclip=5)
+            thumbnails[i,:,:] = ccdproc.cosmicray_lacosmic(thumbnails[i,:,:], sigclip=nsig)[0]
         return thumbnails, thumbnails_dq
 
 
