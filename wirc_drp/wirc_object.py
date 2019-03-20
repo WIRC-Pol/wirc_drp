@@ -1472,7 +1472,7 @@ class wircpol_source(object):
         '''
         A function to smooth the thumbnails
         '''
-        self.trace_images = image_utils.smooth_cutouts(self.trace_images,method=method,width=width)
+        image_utils.smooth_cutouts(self.trace_images,method=method,width=width)
 
 
 class wircspec_source(object):
