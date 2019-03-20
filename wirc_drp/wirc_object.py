@@ -1468,6 +1468,13 @@ class wircpol_source(object):
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
 
+    def smooth_cutouts(self,method='gaussian',width=3):
+    '''
+    A function to smooth the thumbnails
+    '''
+        self.trace_images = image_utils.smooth_cutouts(trace_images,method=method,width=width)
+        
+
 class wircspec_source(object):
     """
     A point-source in a a wircspec_data image
@@ -1673,3 +1680,6 @@ class wircspec_source(object):
 
         plt.legend()
         plt.show()
+
+   
+

@@ -1583,10 +1583,33 @@ def clean_thumbnails_for_cosmicrays(thumbnails, thumbnails_dq=None, nsig=3):
 
     return thumbnails, thumbnails_dq
 
-# def inject_source(spectrum, q, u, angle, psf):
-#     """
-#     Inject a fake source into WIRC+Pol data. 
-#     """
+
+def smooth_cutouts(thumbnails,method='gaussian',width=3):
+    '''
+    A function to smooth the thumbnails
+    '''
+    if method != "gaussian" and method != "median":
+        print('Only "gaussian" thumbnail smoothing is implemented')
+        return
+
+    if method == "gaussian":
+        filter_type = gauss
+    elif method == 'median':
+        filter_type = median_filter
+    elif:
+        print('Only "gaussian" and "median" thumbnail smoothing are implemented')
+        print('Returning')
+        return        
+
+    if len(thumbnails.shape) == 3:
+        for i in range(thumbnails.shape[0]):
+            thumbnails[i] = filter_type(thumbnails[i],width)
+    elif len(thumbnails.shape) == 2:
+        thumbnails = filter_type(thumbnails,width)
+    elif:
+        print("Your thumbnails shape is weird and needs to be checked. It should either me [n_images,x,y] or just x,y")
+
+    return
 
 
 
