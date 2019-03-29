@@ -1151,12 +1151,13 @@ class wircpol_source(object):
         else:
             plt.switch_backend(default_back)
 
-    def clean_cutouts_for_cosmic_rays(self,nsig=3):
+    def clean_cutouts_for_cosmic_rays(self,nsig=10, method='lacosmic'):
         '''
         Wrapper for the image_utils function clean_thumbnails_for_cosmicrays. Replaces the trace_image_DQs.
         '''
 
-        self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,thumbnails_dq=self.trace_images_DQ, nsig=nsig)
+        self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,
+            thumbnails_dq=self.trace_images_DQ, nsig=nsig, method=method)
 
 
     def extract_spectra(self, sub_background = 'shift_and_subtract', bkg_sub_shift_size = 31, shift_dir = 'diagonal', bkg_poly_order = 2, plot=False,
@@ -1468,6 +1469,13 @@ class wircpol_source(object):
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
 
+    def smooth_cutouts(self,method='gaussian',width=3):
+        '''
+        A function to smooth the thumbnails
+        '''
+        image_utils.smooth_cutouts(self.trace_images,method=method,width=width)
+
+
 class wircspec_source(object):
     """
     A point-source in a a wircspec_data image
@@ -1673,3 +1681,6 @@ class wircspec_source(object):
 
         plt.legend()
         plt.show()
+
+   
+

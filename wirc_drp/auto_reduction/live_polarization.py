@@ -38,11 +38,12 @@ def compute_qu(spec1, spec2, HWP1, HWP2):
 		spec_cube = np.stack([spec1, spec2]) #This has to be the same shape
 		#align and scale cubes
 		aligned_cube = su.align_spectral_cube(spec_cube)
-		scaled_cube = su.scale_and_combine_spectra(aligned_cube, return_scaled_cube = True)
+		#scaled_cube = su.scale_and_combine_spectra(aligned_cube, return_scaled_cube = True)
+		scaled_cube = aligned_cube
 
 		#polarization vector and uncertainty. This is (spec1-spec2)/(spec1+spec2)
 		pol_vec = (scaled_cube[0,:,1,:] - scaled_cube[1,:,1,:])/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])
-		pol_err = (2/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])**2) * np.sqrt(  (scaled_cube[0,:,1,:]* scaled_cube[1,:,2,:])**2 + (scaled_cube[0,:,2,:]* scaled_cube[1,:,1,:])**2)
+		pol_err = (2/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])**2) * np.sqrt(  (scaled_cube[0,:,1,:]*scaled_cube[1,:,2,:])**2 + (scaled_cube[0,:,2,:]* scaled_cube[1,:,1,:])**2)
 
 		#now determine which is which
 		sampling_angles_0 = np.array([135, 45, 0, 90]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
@@ -301,12 +302,12 @@ if __name__ == "__main__":
 
 						print(np.array(all_q).shape)
 						#Save measured q and u into a file. 
-						np.save(redux_dir+'%s_%s_qu.npy'%(object_name,  last_file), np.array([all_q, all_u, all_q_err, all_u_err, all_q_pos, all_u_pos]))
-						np.save(redux_dir+'%s_%s_qu_double_diff.npy'%(object_name, last_file), np.array([dd_all_q, dd_all_u, dd_all_q_err, dd_all_u_err]))
+						#np.save(redux_dir+'%s_%s_qu.npy'%(object_name,  last_file), np.array([all_q, all_u, all_q_err, all_u_err, all_q_pos, all_u_pos]))
+						#np.save(redux_dir+'%s_%s_qu_double_diff.npy'%(object_name, last_file), np.array([dd_all_q, dd_all_u, dd_all_q_err, dd_all_u_err]))
 
 						colors = ['r','y','b','c']
-						#Plot q and u into the collective plot! This one is single differencing version
-						# for ind in range(2):
+						# Plot q and u into the collective plot! This one is single differencing version
+						#for ind in range(2):
 						# 	ax[1,0].errorbar(range(len(q[ind])), 100*q[ind], yerr = 100*q_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
 						# 	ax[1,1].errorbar(range(len(u[ind])), 100*u[ind], yerr = 100*u_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
 						# 	ax[1,0].axvline(0)
@@ -358,10 +359,10 @@ if __name__ == "__main__":
 
 
 						#plot limits
-						ax[1,0].set_ylim([-1,1])
-						ax[1,1].set_ylim([-1,1])
-						ax[1,0].set_xlim([80,210])
-						ax[1,1].set_xlim([80,210])
+						ax[1,0].set_ylim([-5,5])
+						ax[1,1].set_ylim([-5,5])
+						ax[1,0].set_xlim([50,150])
+						ax[1,1].set_xlim([50,150])
 
 						#Now compute degree and angle of polarization
 						p = np.sqrt(q**2 + u**2)
@@ -395,8 +396,9 @@ if __name__ == "__main__":
 						# 	ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
 
 						#Plot double differenced
-						ax[2,0].errorbar(range(len(p_dd)),     100*p_dd, yerr = 100*p_err_dd, alpha = 0.01 )
-						ax[2,1].errorbar(range(len(theta_dd)), 100*theta_dd, yerr = 100*theta_err_dd, alpha = 0.01 )
+						HWPcol = ['cyan', 'green']
+						ax[2,0].errorbar(range(len(p_dd)),     100*p_dd, yerr = 100*p_err_dd, color = HWPcol[HWP_ind],alpha = 0.1 )
+						ax[2,1].errorbar(range(len(theta_dd)), 100*theta_dd, yerr = 100*theta_err_dd, color = HWPcol[HWP_ind],alpha = 0.1 )
 							
 
 
@@ -406,15 +408,17 @@ if __name__ == "__main__":
 						p_std = np.std(np.array(all_p), axis = 0)/np.sqrt(len(all_p))
 						theta_std = np.std(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
 
+
 						#Vectorial calculation of p and theta
-
+                        #print(current_pol_vec.shape)
 						current_pol_vec = np.stack([np.array(dd_all_q), np.array(dd_all_u)])
-
+						print('pol vector shape is ',current_pol_vec.shape)
 						mean_pol = np.mean(current_pol_vec, axis = 1)
+						print('mean_pol shape is ',mean_pol.shape)
 						std_pol = np.std(current_pol_vec, axis = 1)/np.sqrt(current_pol_vec.shape[1])
 
-						mean_p = np.sum(mean_pol**2)
-						std_p = 1/mean_p *np.sqrt( np.sum((mean_pol*std_pol)**2))
+						mean_p = np.sqrt(mean_pol[0]**2 + mean_pol[1]**2 )
+						std_p = 1/mean_p *np.sqrt( np.sum(mean_pol*std_pol, axis = 0)**2)
 
 						mean_theta = 0.5*np.arctan2(mean_pol[1],mean_pol[0])
 						std_theta = (2/mean_p**2) * np.sqrt((mean_pol[0]*std_pol[1])**2 + (mean_pol[1]*std_pol[0])**2)
@@ -431,30 +435,48 @@ if __name__ == "__main__":
 						# #remove old line and plot a new one
 						try: 
 							med_p_line.remove()
-							med_p_bad.remove()
+							#med_p_bad.remove()
 							med_theta_line.remove()
+							med_vec_p_line.remove()
+							#(med_vec_p_line.pop(0)).remove()
+							(med_vec_theta_line.pop(0)).remove()	
 						except:
+							print('poop1')
 							pass
-						# med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
-						med_p_line     =  ax[2,0].errorbar(range(len(p_med_dd)), p_med_dd*100, yerr = 100*p_std_dd, alpha = 1, color = 'k')
 
-						med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd), yerr = np.degrees(theta_std_dd), alpha = 0.8, color = 'k')
+						#try:
+					
+						#except:
+						#	print('poop2')
+						#	pass
+						# med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
+						med_p_line     =  ax[2,0].errorbar(range(len(p_med_dd)), (p_med_dd)*100, yerr = 100*p_std_dd, ls = '--', alpha = 0.8, color = 'k')
+
+						med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd)+90, yerr = np.degrees(theta_std_dd),ls= '--', alpha = 0.8, color = 'k')
 						med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med_dd)))
 						med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std_dd)))
 
 						#Nem's p and theta
 						med_vec_p_line     =  ax[2,0].errorbar(range(len(mean_p)), mean_p*100, yerr = 100*std_p, alpha = 1, color = 'k')
+						#med_vec_p_line = ax[2,0].plot(range(len(mean_p)), mean_p*100, alpha = 1, color = 'k')
 
-						med_vec_theta_line =  ax[2,1].errorbar(range(len(mean_theta)), np.degrees(mean_theta), yerr = np.degrees(std_theta), alpha = 1, color = 'k')
+						#med_vec_theta_line =  ax[2,1].errorbar(range(len(mean_theta)), np.degrees(mean_theta), yerr = np.degrees(std_theta), alpha = 1, color = 'k')
+						med_vec_theta_line = ax[2,1].plot(range(len(mean_theta)), np.degrees(mean_theta),  alpha = 1, color = 'k')
+
 						med_vec_med_theta = np.degrees(np.median(np.nan_to_num(mean_theta)))
 						med_vec_std_theta = np.degrees(np.median(np.nan_to_num(std_theta)))
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
-						med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
+						#med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
-						ax[2,0].set_ylim([-0.5,1])
-						ax[2,1].set_ylim([0,180])
-						ax[2,0].set_xlim([80,210])
-						ax[2,1].set_xlim([80,210])
+						ax[2,0].set_ylim([0,7])
+						ax[2,1].set_ylim([20,50])
+						ax[2,0].set_xlim([50,150])
+						ax[2,1].set_xlim([50,150])
+						ax[2,0].axhline(6.46*0.85)
+						#ax[2,0].axhline(2.88*0.85)
+						ax[2,1].axhline(24)
+
+						
 
 
 				# all_spec_cube.append(data.source_list[0].trace_spectra)

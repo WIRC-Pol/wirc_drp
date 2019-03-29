@@ -15,6 +15,7 @@ from astropy.stats import sigma_clip
 from scipy.stats import mode
 from scipy.ndimage import median_filter, shift, rotate
 from scipy import interpolate
+import copy
 import cv2
 import os
 import warnings
@@ -1073,6 +1074,9 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
     Destripe the detector by subtracting the median of each row/column from each sector.
     This will work best after you subtract a background sky image.
 
+    #Robust method updated March 19, 2019
+    #Simple is likely out of date. 
+
     Input parameters:
     image    -    A 2048x 2048 WIRC image.
     sigma    -    The number of sigmas to klip. The sigma that goes into the astropy sigma_clipped_stats function.
@@ -1083,26 +1087,27 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
     image    - A destriped detector image.
     '''
 
+    quad1 = image[:1024,:1024]
+    quad2 = np.rot90(image[1024:,:1024], k=3, axes=(0, 1))
+    quad3 = np.rot90(image[1024:,1024:], k=2, axes=(0, 1))
+    quad4 = np.rot90(image[:1024,1024:], k=1, axes=(0, 1))
+
+    mn_quad = np.median([quad1,quad2,quad3,quad4],axis=0)
+
+    clean_imm = copy.deepcopy(image)
+
     if mode == 'robust':
         for i in range(1024):
 
             #Upper Left
-            stats = sigma_clipped_stats(image[1024+i,0:1024],sigma=sigma,iters=iters) #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
-            image[1024+i,:1024] = image[1024+i,0:1024] - stats[1]
+            to_sub = sigma_clipped_stats(mn_quad[:,i],sigma=sigma,iters=iters)[1] #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
 
-            #Lower Left
-            stats = sigma_clipped_stats(image[:1024,i])
-            image[:1024,i] =     image[:1024,i]- stats[1]
+            clean_imm[:1024,i]  -= to_sub
+            clean_imm[1024:,-i] -= to_sub
+            clean_imm[-i,:1024] -= to_sub
+            clean_imm[i,1024:]  -= to_sub
 
-            #Upper Right
-            stats = sigma_clipped_stats(image[1024:,1024+i])
-            image[1024:,1024+i] =     image[1024:,1024+i] - stats[1]
-
-            #Lower Right
-            stats = sigma_clipped_stats(image[i,1024:])
-            image[i,1024:] = image[i,1024:] - stats[1]
-
-        return image
+        return clean_imm
 
     elif mode == 'simple':
 
