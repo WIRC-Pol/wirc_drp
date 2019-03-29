@@ -764,7 +764,7 @@ def pointFinder(image, seeing_pix, threshold):
     cutouts = find_objects(labeled) #get cutouts of area with objects    
     return cutouts
 
-def locationInIm(wl, location_in_fov):
+def locationInIm(wl, location_in_fov, filter_name = 'J'):
     """compute for a source at the location_in_fov (y,x) in pixel scale, where
     4 traces would land in the actual detector.
     Outputs: A list of [x,y] location for [Q1, Q2, U1, U2], rounded
@@ -772,7 +772,11 @@ def locationInIm(wl, location_in_fov):
     Used by cutout_trace_thumbnails
     """
     #Use measured values from test data
-    dwl = wl-1.25 #This compute the deviation from J band where the offsets were measured
+    if filter_name == 'J':
+        l0 = 1.2483
+    elif filter_name = 'H':
+        l0 = 1.6313
+    dwl = wl-l0 #This compute the deviation from J band where the offsets were measured
     dpx = round(dwl/(wlPerPix))
 
     traceLocation = [ [ 453+location_in_fov[0]+dpx, -435 + location_in_fov[1]-dpx],\
