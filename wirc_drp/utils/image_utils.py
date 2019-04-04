@@ -776,7 +776,7 @@ def locationInIm(wl, location_in_fov, filter_name = 'J'):
     #Use measured values from test data
     if filter_name == 'J':
         l0 = 1.2483
-    elif filter_name = 'H':
+    elif filter_name == 'H':
         l0 = 1.6313
     dwl = wl-l0 #This compute the deviation from J band where the offsets were measured
     dpx = round(dwl/(wlPerPix))
