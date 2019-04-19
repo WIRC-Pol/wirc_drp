@@ -526,6 +526,7 @@ if __name__ == "__main__":
 			# plt.tight_layout()
 				plt.pause(0.0001)
 		#at the end of the for loop, set first_file to the last file, and start again
+		plt.savefig("/scr/wircpol/WIRC-Pol-Website/flask/app/static/quick_look_img.png",bbox_inches="tight")
 			
 	time.sleep(5)
 #There's no end in sight!
