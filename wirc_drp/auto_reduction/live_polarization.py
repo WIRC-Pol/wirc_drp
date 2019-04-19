@@ -70,7 +70,7 @@ def compute_qu(spec1, spec2, HWP1, HWP2):
 
 if __name__ == "__main__":
 	#First, define a base directory. This is specific to hcig1 for the moment. 
-	base_dir = "/scr/data/auto_reduction/"
+	base_dir = "/scr/data/quicklook/auto_reduction/"
 	base_cal = '/scr/data/calibrations/20190317/'
 	#base_dir = '.'
 	os.chdir(base_dir)
@@ -515,7 +515,7 @@ if __name__ == "__main__":
 				# ax[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
 				#save extraction results
-
+				plt.savefig("/scr/wircpol/WIRC-Pol-Website/flask/app/static/img/quick_look_img.png",bbox_inches="tight")
 				# data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
 				first_file = int(fn_string[-4:])+1
 
@@ -526,7 +526,6 @@ if __name__ == "__main__":
 			# plt.tight_layout()
 				plt.pause(0.0001)
 		#at the end of the for loop, set first_file to the last file, and start again
-		plt.savefig("/scr/wircpol/WIRC-Pol-Website/flask/app/static/quick_look_img.png",bbox_inches="tight")
 			
 	time.sleep(5)
 #There's no end in sight!
