@@ -31,7 +31,7 @@ if __name__ == "__main__":
 	#base_dir = "/Users/kaew/work/wircpol/trials/auto_reduction/data/data_stage/"
 	#base_cal = "/Users/kaew/work/wircpol/trials/auto_reduction/data/temp_cals/"
 	base_dir = '/scr/data/'
-	out_dir =  '/scr/data/auto_reduction/'
+	out_dir =  '/scr/data/quicklook/auto_reduction/'
 	base_cal = '/scr/data/calibrations/20190317/'
 	os.chdir(base_dir)
 
