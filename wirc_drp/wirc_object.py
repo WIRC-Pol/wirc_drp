@@ -1493,8 +1493,8 @@ class wircpol_source(object):
                 mask = make_source_mask(this_trace_image, snr=3, npixels=200, dilate_size=5)
                 bb_flux.append(np.sum(this_trace_image[mask]))
 
-            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_fblux[3]), None] #Return, [wavelength, flux, error]
-            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_fblux[1]), None]
+            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
+            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
             
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
