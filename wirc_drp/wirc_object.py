@@ -1481,6 +1481,22 @@ class wircpol_source(object):
         elif mode =="aperture_photometry":
             print("Not yet implemented")
             
+            from astropy.stats import sigma_clipped_stats
+            from photutils import make_source_mask
+
+            
+            bb_flux = []
+            #First estimate the background
+            for i in range(4):
+                _, median, _ = sigma_clipped_stats(self.trace_images[i,:,:], sigma=3.0)
+                this_trace_image = self.trace_images[i,:,:] - median
+                mask = make_source_mask(this_trace_image, snr=3, npixels=5, dilate_size=5)
+                mask_data = np.sum(mask.multiply(data))
+                bb_flux.append(mask_data)
+
+            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_fblux[3]), None] #Return, [wavelength, flux, error]
+            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_fblux[1]), None]
+            
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
 
