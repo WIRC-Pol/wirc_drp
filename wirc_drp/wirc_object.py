@@ -1479,7 +1479,7 @@ class wircpol_source(object):
             self.bbU = [bb_traces[0,0], -bbQ, bbQ_err]
             #########################
         elif mode =="aperture_photometry":
-            print("Not yet implemented")
+            # print("Not yet implemented")
             
             from astropy.stats import sigma_clipped_stats
             from photutils import make_source_mask
