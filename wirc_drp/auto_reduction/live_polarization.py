@@ -38,8 +38,8 @@ def compute_qu(spec1, spec2, HWP1, HWP2):
 		spec_cube = np.stack([spec1, spec2]) #This has to be the same shape
 		#align and scale cubes
 		aligned_cube = su.align_spectral_cube(spec_cube)
-		#scaled_cube = su.scale_and_combine_spectra(aligned_cube, return_scaled_cube = True)
-		scaled_cube = aligned_cube
+		scaled_cube = su.scale_and_combine_spectra(aligned_cube, return_scaled_cube = True)
+		#scaled_cube = aligned_cube
 
 		#polarization vector and uncertainty. This is (spec1-spec2)/(spec1+spec2)
 		pol_vec = (scaled_cube[0,:,1,:] - scaled_cube[1,:,1,:])/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])
@@ -70,7 +70,7 @@ def compute_qu(spec1, spec2, HWP1, HWP2):
 
 if __name__ == "__main__":
 	#First, define a base directory. This is specific to hcig1 for the moment. 
-	base_dir = "/scr/data/auto_reduction/"
+	base_dir = "/scr/data/quicklook/auto_reduction/"
 	base_cal = '/scr/data/calibrations/20190317/'
 	#base_dir = '.'
 	os.chdir(base_dir)
@@ -325,21 +325,21 @@ if __name__ == "__main__":
 
 
 						#compute current median q and u
-						q_med = np.median(np.array(all_q), axis = 0)
-						u_med = np.median(np.array(all_u), axis = 0)
-						q_std = np.std(np.array(all_q), axis = 0)/np.sqrt(len(all_q))
-						u_std = np.std(np.array(all_u), axis = 0)/np.sqrt(len(all_u))
+						q_med = np.nanmedian(np.array(all_q), axis = 0)
+						u_med = np.nanmedian(np.array(all_u), axis = 0)
+						q_std = np.nanstd(np.array(all_q), axis = 0)/np.sqrt(len(all_q))
+						u_std = np.nanstd(np.array(all_u), axis = 0)/np.sqrt(len(all_u))
 						#double difference
-						q_med_dd = np.median(np.array(dd_all_q), axis = 0)
-						u_med_dd = np.median(np.array(dd_all_u), axis = 0)
-						q_std_dd = np.std(np.array(dd_all_q), axis = 0)/np.sqrt(len(dd_all_q))
-						u_std_dd = np.std(np.array(dd_all_u), axis = 0)/np.sqrt(len(dd_all_u))
+						q_med_dd = np.nanmedian(np.array(dd_all_q), axis = 0)
+						u_med_dd = np.nanmedian(np.array(dd_all_u), axis = 0)
+						q_std_dd = np.nanstd(np.array(dd_all_q), axis = 0)/np.sqrt(len(dd_all_q))
+						u_std_dd = np.nanstd(np.array(dd_all_u), axis = 0)/np.sqrt(len(dd_all_u))
 						#LIVE SNR
 						#HARD CODED AREA: FIX THIS
-						q_med_med = np.median(q_med_dd[120:180])
-						u_med_med = np.median(u_med_dd[120:180])
-						q_std_med = np.median(q_std_dd[120:180])
-						u_std_med = np.median(u_std_dd[120:180])					
+						q_med_med = np.nanmedian(q_med_dd[120:180])
+						u_med_med = np.nanmedian(u_med_dd[120:180])
+						q_std_med = np.nanmedian(q_std_dd[120:180])
+						u_std_med = np.nanmedian(u_std_dd[120:180])					
 
 
 						# #remove old line and plot a new one
@@ -360,7 +360,7 @@ if __name__ == "__main__":
 
 						#plot limits
 						ax[1,0].set_ylim([-5,5])
-						ax[1,1].set_ylim([-5,5])
+						ax[1,1].set_ylim([-9,3])
 						ax[1,0].set_xlim([50,150])
 						ax[1,1].set_xlim([50,150])
 
@@ -403,10 +403,10 @@ if __name__ == "__main__":
 
 
 						#compute current median p and theta
-						p_med = np.median(np.array(all_p), axis = 0)
-						theta_med = np.median(np.array(all_theta), axis = 0)
-						p_std = np.std(np.array(all_p), axis = 0)/np.sqrt(len(all_p))
-						theta_std = np.std(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
+						p_med = np.nanmedian(np.array(all_p), axis = 0)
+						theta_med = np.nanmedian(np.array(all_theta), axis = 0)
+						p_std = np.nanstd(np.array(all_p), axis = 0)/np.sqrt(len(all_p))
+						theta_std = np.nanstd(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
 
 
 						#Vectorial calculation of p and theta
@@ -424,8 +424,8 @@ if __name__ == "__main__":
 						std_theta = (2/mean_p**2) * np.sqrt((mean_pol[0]*std_pol[1])**2 + (mean_pol[1]*std_pol[0])**2)
 
 						#compute current median p and theta, double diff
-						p_med_dd = np.median(np.array(dd_all_p), axis = 0)
-						theta_med_dd = np.median(np.array(dd_all_theta), axis = 0)
+						p_med_dd = np.nanmedian(np.array(dd_all_p), axis = 0)
+						theta_med_dd = np.nanmedian(np.array(dd_all_theta), axis = 0)
 						p_std_dd = np.std(np.array(dd_all_p), axis = 0)/np.sqrt(len(dd_all_p))
 						theta_std_dd = np.std(np.array(dd_all_theta), axis = 0)/np.sqrt(len(dd_all_theta))
 
@@ -468,13 +468,13 @@ if __name__ == "__main__":
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
 						#med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
-						ax[2,0].set_ylim([0,7])
-						ax[2,1].set_ylim([20,50])
+						ax[2,0].set_ylim([2,7])
+						ax[2,1].set_ylim([-20,50])
 						ax[2,0].set_xlim([50,150])
 						ax[2,1].set_xlim([50,150])
-						ax[2,0].axhline(6.46*0.85)
+						ax[2,0].axhline(6.46)
 						#ax[2,0].axhline(2.88*0.85)
-						ax[2,1].axhline(24)
+						ax[2,1].axhline(69)
 
 						
 
