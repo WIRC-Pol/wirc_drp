@@ -136,14 +136,15 @@ class wirc_data(object):
 
 
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, \
-                        report_median = False, report_bkg_multiplier = False,
-median_subtract = False):
+                        report_median = False, report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False):
         '''
         Apply dark and flat-field correction
 
         Background subtraction behavior (only when a background frame is provided)  
-            If sub_bkg_now is True, then background subtraction is performed here and the subtracted image is saved.    
-            If False, background subtraction is dealt with during spectral extraction. This is preferred.        
+            If sub_bkg_now is True, then background subtraction is performed here and the subtracted image is saved. 
+            If bkg_by_quadrants, then a scaling factor is applied to each quadrant separately
+            If False, background subtraction is dealt with during spectral extraction. This is preferred (says Kaew) <- this has yet to be shown (says Max)        
+
         '''
 
         #TODO Add checks to make sure the flatnames are not none
@@ -226,10 +227,24 @@ median_subtract = False):
                 else: #if the background is already reduced
                     pass #do nothing, it's already good!
 
-                scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
+                ### If this flag is set, you estimate the scaling by the median of each quadrant, not the whole image. 
+                if bkg_by_quadrants:
+                    [1063,1027]
+                    scale_bkg1 = np.nanmedian(self.full_image[:1063,:1027])/np.nanmedian(background[:1063,:1027])
+                    scale_bkg2 = np.nanmedian(self.full_image[:1063,1027:])/np.nanmedian(background[:1063,1027:])
+                    scale_bkg3 = np.nanmedian(self.full_image[1063:,:1027])/np.nanmedian(background[1063:,:1027])
+                    scale_bkg4 = np.nanmedian(self.full_image[1063:,1027:])/np.nanmedian(background[1063:,1027:])
 
-                #Subtract the background
-                self.full_image -= scale_bkg*background
+                    self.full_image[:1063,:1027] -= scale_bkg1*background[:1063,:1027]
+                    self.full_image[:1063,1027:] -= scale_bkg2*background[:1063,1027:]
+                    self.full_image[1063:,:1027] -= scale_bkg3*background[1063:,:1027]
+                    self.full_image[1063:,1027:] -= scale_bkg4*background[1063:,1027:]
+
+                else:
+                    scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
+
+                    #Subtract the background
+                    self.full_image -= scale_bkg*background
 
                 #Update the header
                 self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
@@ -1464,7 +1479,22 @@ class wircpol_source(object):
             self.bbU = [bb_traces[0,0], -bbQ, bbQ_err]
             #########################
         elif mode =="aperture_photometry":
-            print("Not yet implemented")
+            # print("Not yet implemented")
+            
+            from astropy.stats import sigma_clipped_stats
+            from photutils import make_source_mask
+
+            
+            bb_flux = []
+            #First estimate the background
+            for i in range(4):
+                _, median, _ = sigma_clipped_stats(self.trace_images[i,:,:], sigma=3.0)
+                this_trace_image = self.trace_images[i,:,:] - median
+                mask = make_source_mask(this_trace_image, snr=3, npixels=200, dilate_size=5)
+                bb_flux.append(np.sum(this_trace_image[mask]))
+
+            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
+            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
             
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")

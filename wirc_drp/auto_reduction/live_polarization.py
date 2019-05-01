@@ -515,7 +515,7 @@ if __name__ == "__main__":
 				# ax[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
 				#save extraction results
-
+				plt.savefig("/scr/wircpol/WIRC-Pol-Website/flask/app/static/img/quick_look_img.png",bbox_inches="tight")
 				# data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
 				first_file = int(fn_string[-4:])+1
 
