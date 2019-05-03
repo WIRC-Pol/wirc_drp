@@ -10,7 +10,7 @@ during and/or after an observing run.
 To run the auto reduction loop, call python auto_reduction.py, followed by the date
 of the observation and optional the object name. 
 
-To start: python auto_reduction.py yyyymmdd object_name sky_ref first_file x_coord y_coord
+To start: python auto_reduction.py yyyymmdd object_name sky_ref first_file last_file x_coord y_coord
 
 auto souce finding will be implemented
 
@@ -26,12 +26,12 @@ matplotlib.use('Qt4Agg')
 import sys, os, glob, gc, time
 
 if __name__ == "__main__":
-	prefix = 'image'
+	prefix = 'wirc'
 	#First, define a base directory. 
 	#base_dir = "/Users/kaew/work/wircpol/trials/auto_reduction/data/data_stage/"
 	#base_cal = "/Users/kaew/work/wircpol/trials/auto_reduction/data/temp_cals/"
 	base_dir = '/scr/data/'
-	out_dir =  '/scr/data/auto_reduction/'
+	out_dir =  '/scr/data/quicklook/auto_reduction/'
 	base_cal = '/scr/data/calibrations/20190317/'
 	os.chdir(base_dir)
 
@@ -91,7 +91,9 @@ if __name__ == "__main__":
 		time.sleep(1)
 		for file_name in all_files:
 			#print("First file is", first_file)
+			print(int(file_name[-9:-5]))
 			if int(file_name[-9:-5]) < int(first_file) or int(file_name[-9:-5])>int(last_file): #before first file
+				print('Not processing this')
 				pass
 				#print(file_name, first_file)
 			else: #after first file, do something
@@ -111,26 +113,36 @@ if __name__ == "__main__":
 				#flat_fn = base_cal+"cleaned_PG_flat_%s.fits"%filter_name
 				#bp_fn =   base_cal+"bad_pix_map.fits"
 				#dark_fn = base_cal+"archive_dark_%.1fs.fits"%exp_time
-				flat_fn = base_cal+"image0233_master_PG_flat.fits"
+				#flat_fn = base_cal+"image0233_master_PG_flat.fits"
+				flat_fn = base_cal+"image0143_master_flat.fits"
 				bp_fn =   base_cal+"image0143_bp_map.fits"
 				#dark_fn = base_cal+"image0021_master_dark.fits" #1s
 				dark_fn = base_cal+"image0093_master_dark.fits" #5s
 				#dark_fn = base_cal+"image0063_master_dark.fits" #15s
+				dark_fn = base_cal+"image0123_master_dark.fits" #30s
 				#load in data as wirc object, and calibrate
-				data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)
-				data.calibrate(mask_bad_pixels = False, verbose = False)
+				if sky_ref != '0000':
+					data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn, \
+						 bkg_fn = base_dir+date+'/wirc%s.fits'%(sky_ref.zfill(4)))
+					data.calibrate(mask_bad_pixels = False, verbose = False, sub_bkg_now = True)
+				else:
+					data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)#,\
+						#bkg_fn = base_dir+date+'/wirc1468.fits')
+					data.calibrate(mask_bad_pixels = False, verbose = False, sub_bkg_now = False)
 
 				#after calibration, get thumbnails and extract spectra!
 
 				#add source at the given location x,y 
-				data.source_list.append(wo.wircpol_source([int(y_coord),int(x_coord)], 'slitless', data.n_sources + 1))
-				data.n_sources += 1
-
+				#data.source_list.append(wo.wircpol_source([int(y_coord),int(x_coord)], 'slitless', data.n_sources + 1))
+				#data.n_sources += 1
+				data.add_source(int(x_coord), int(y_coord),update_w_chi2_shift = True)
 				#get cutouts
-				data.source_list[0].get_cutouts(data.full_image, data.filter_name, True, cutout_size = 150) 
+				data.source_list[0].get_cutouts(data.full_image, data.DQ_image, data.filter_name, replace_bad_pixels = True, cutout_size = 100) 
 				#extract spectra
-				data.source_list[0].extract_spectra(plot=False, sub_background = True, bkg_sub_shift_size = 45, \
-							method = 'optimal_extraction', bad_pix_masking = 1, verbose = False)
+				data.source_list[0].extract_spectra(plot=False, bkg_sub_shift_size = 45, \
+							method = 'optimal_extraction', bad_pix_masking = 1, verbose = False,
+							sub_background = 'shift_and_subtract')#, filter_bkg_size = 3)#,
+							#trace_angle = [-44.14527593, -45.97122308, -44.49100767, -44.72468746])
 				data.source_list[0].rough_lambda_calibration(method=2)
 
 				#plot them on the axis, first the calibrated images
