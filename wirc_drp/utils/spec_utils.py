@@ -1554,7 +1554,7 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, smooth_size
     total_flux = np.sum(med_specs[:,xmin:xmax], axis = 1) #4 total median fluxes, in the range specified by xmin, xmax
     #print(total_flux.shape)
 
-    scaled_specs = np.copy(spec_cube)
+    scaled_specs = np.zeros(spec_cube.shape)
 
     #for each observation, normalize
     for i in range(spec_cube.shape[0]):
@@ -1562,9 +1562,11 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, smooth_size
         #print(four_specs.shape)
         four_errors = spec_cube[i,:,2,:]
         #scaling factor
+        # scale_factor = total_flux/np.sum(four_specs[:,xmin:xmax], axis = 1) 
         scale_factor = total_flux/np.sum(median_filter(four_specs[:,xmin:xmax],size = (1,smooth_size) ), axis = 1) #median filter to remove contributions from noisy wings
         #all four traces should be scaled equally
         #take mean from the factors measured from the four traces, and apply that mean value to the 4 traces.
+        # print(scale_factor)
         scale_factor = np.array([np.mean(scale_factor)]*4) #use median so crazy traces don't affect the scale factor, *4 here is just making it an array of 4 identical elements
 
         
