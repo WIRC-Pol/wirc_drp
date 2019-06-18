@@ -610,6 +610,93 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
     return flux_opt_final, variance_opt_final
 
+def background_subtraction(thumbnails, sub_background_method = 'median', 
+                            bkg_thumbnails = None,
+                            bkg_sub_shift_size = 31, shift_dir = 'diagonal'):
+    """
+    This function deals with background subtraction for WIRC+Pol data. 
+
+    Input:
+        thumbnails: a set of 4 thumbnails for one source in one WIRC+Pol data file 
+        sub_background_method: how to background subtract. Currently, we have 3 options
+            - "median": use a simple median of each of the 4 thumbnails to subtract.
+            - "shift": shift and subtract thumbnails. This add more noise to the image, and now provided just for posterity.
+                       This is useful to remove some patterns in the image if there's no background image. 
+            - "image": this is the best method currently. It only works if a background image is provided. It scales the 
+                        background image to match its median to the median of the thumbnail, then subtract it. 
+                        This is recommended for data taken in a ABAB pattern, but also works with background images taken 
+                        before or after (or during) an observing sequence. If "bkg_thumbnails" is not provided, switch to "median".  
+        bkg_thumbnails: This is the 4-thumbnails of the background image if the method above is "image"
+        bkg_sub_shift_size: the size of the shift (in pixel) for method == 'shift'
+        shift_dir: the direction of the shift for method == 'shift'
+    """
+    #First, make sure that the bkg image is provided if we want to do background subtraction. If not, switch to "median".
+    if sub_background_method == "image" and bkg_thumbnails is None:
+        sub_background_method = "median"
+        print("Background image not provided. Switch to median")
+    #Or if bkg_thumbnails have wrong dimension...
+    if sub_background_method == "image" and bkg_thumbnails.shape != thumbnails.shape:
+        print("Thumbnails and background dimensions don't match:", thumbnails.shape, 'v.s.', bkg_thumbnails.shape)
+        print("Switch to median")
+        sub_background_method = "median"
+
+    #Now deal with median background subtraction. 
+    if sub_background_method == "median":
+        bkg_sub = (thumbnails.T - np.median(thumbnails, axis = (1,2))).T
+        bkg = thumbnails - bkg_sub #easier this way
+
+    #For image subtraction, scale the provided background thumbnails
+    elif sub_background_method == "image":
+        # bkg_sub = np.zeros(thumbnails.shape)
+        # bkg = np.zeros(thumbnails.shape)
+        # for i in range(len(thumbnails)):
+        factors =  np.median(thumbnails, axis = (1,2))/np.median(bkg_thumbnails, axis = (1,2))
+        #apply factors to match medians of the bkg_thumbnails to those of source thumbnails
+        bkg = (bkg_thumbnails.T * factors).T
+        bkg_sub = thumbnails - bkg
+
+    elif sub_background_method == "shift"
+        # print("Warning, this method will be deprecated.")
+        bkg = np.zeros(thumbnails.shape)
+        bkg_sub = np.zeros(thumbnails.shape)
+        #loop through the thumbnails
+        for i,thumbnail in enumerate(thumbnails):
+            if  shift_dir == 'horizontal':
+                bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),
+                                        shift( thumbnail, [0,bkg_sub_shift_size ], order = 0,mode = 'nearest' )))
+
+                bkg[i] = np.nanmean(bkg_stack, axis=2)
+                bkg_sub[i] = thumbnail - bkg[i]
+
+                #if median filter background
+                #bkg = median_filter(bkg, 3)
+
+            elif shift_dir == 'vertical':
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ], order = 0,mode = 'nearest'),
+                                        shift( thumbnail, [bkg_sub_shift_size ,0], order = 0,mode = 'nearest')))
+                bkg[i] = np.nanmean(bkg_stack, axis=2)
+                bkg_sub[i] = thumbnail - bkg[i]
+
+            elif shift_dir =='diagonal': #for slitless data, shift in diagonal
+                bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
+                            shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
+                bkg[i] = np.nanmean(bkg_stack, axis=2)
+                bkg_sub[i] = thumbnail - bkg[i]
+
+            else:
+                print("shift_dir has to be 'horizontal', 'vertical', or 'diagonal'")
+
+    else:
+        print("'%s' method does not exist. Use 'median' instead.")
+        bkg_sub = (thumbnails.T - np.median(thumbnails, axis = (1,2))).T
+        bkg = thumbnails - bkg_sub #easier this way
+
+    return bkg_sub, bkg
+
+
+
+
+
 # @profile
 def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output_name = None, 
     sub_background='shift_and_subtract', shift_dir = 'diagonal', bkg_sub_shift_size = 31, bkg_poly_order = 2, filter_bkg_size = None, bkg_thumbnails = None, 
