@@ -1181,7 +1181,7 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
     return cutout - bkg, bkg
 
 # @profile
-def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mask=False,mode='pol',fractional_fit_type = None):
+def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_mask=False,mode='pol',fractional_fit_type = None):
     """
     mode='pol' or 'spec'
     
@@ -1292,7 +1292,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
 
     #now the angle
     #second to last element of p is the linear order.
-#    print(p[-2])
+   # print(p[-2])
     angle = np.degrees(np.arctan(p[-2]))
 
     #Now for the trace width, mask irrelevent area to prevent traceWidth trying to fit weird places in the image
@@ -1304,7 +1304,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = True, diag_mas
 
 
     if plot:
-        to_plot = np.where(weights == 0, 0, 1)
+        # to_plot = np.where(weights == 0, 0, 1)
         #print('Plotting')
         #plt.plot(peaks_spline*to_plot)
         plt.imshow(thumbnail, origin = 'lower')
@@ -1351,7 +1351,6 @@ def trace_location_along_x(thumbnail, angle, template_width = 70, plot = 0):
         plt.show()
 
     return np.nanargmax(corr) - int(length/2) +1 #the x center of the trace
-
 
 
 
@@ -1502,7 +1501,6 @@ def mask_and_2d_fit_bkg(thumbnail, index, polynomial_order = 2, plot=False, xlow
     #Return and image of the same size as thumbnail, only containing the measured background level
     return thumbnail*0.+bkg_est
 
-
 def traceWidth(trace, location, fit_length):
     """
     traceWidth fits a Gaussian across the trace (in the spatial direction) at the given location 
@@ -1540,17 +1538,15 @@ def traceWidth(trace, location, fit_length):
         poly = models.Polynomial1D(2)  
         f = fitting.LevMarLSQFitter()
 
-        res = f(gauss+poly, x, flux)
+        # res = f(gauss+poly, x, flux)
+        res = f(gauss, x, flux)
 
-        return res[0].stddev.value
+        # return res[0].stddev.value
+        return res.stddev.value
 
-def traceWidth_after_rotation(trace, fitlength = 10, ext_range = None):
+
+def traceWidth_after_rotation(trace, fitlength = 10):
     collapsed = np.sum(trace, axis = 1)              #collapsing trace along x axis
-
-    if ext_range is not None: #set things outside to zero
-        collapsed[0:ext_range[0]] = 0
-        collapsed[ext_range[1]:] = 0
-
     x = range(len(collapsed))
     
     gauss = models.Gaussian1D(mean = np.argmax(collapsed), stddev = 3, amplitude = np.max(collapsed))

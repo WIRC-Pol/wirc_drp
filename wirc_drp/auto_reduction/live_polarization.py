@@ -15,6 +15,7 @@ This script looks for data reduced by auto_reduction.py and compute
 import astropy.io.fits as fits
 import wirc_drp.wirc_object as wo 
 from wirc_drp.utils import spec_utils as su
+from wirc_drp.utils.source_utils import compute_qu
 import matplotlib.pyplot as plt 
 import numpy as np 
 
@@ -26,54 +27,10 @@ import sys, os, glob, gc, time
 
 # q, u, q_err, u_err, q_position, u_position = compute_qu(spec1, spec2, HWP1, HWP2)
 #helper function to compute q and u given two spectra cubes
-def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
-	#stack spectra
-	# if spec1.shape != spec2.shape:
-	print(spec1.shape)
-	if ((round(HWP1,2) - round(HWP2,2))%45) >0.01: #add some tolerance
-		print(np.abs((HWP1 - HWP2)%45))
-		print("Error, halfwave plate angles (%f, %f) are not orthogonal."%(HWP1,HWP2))
-		return None
-	else:
-		spec_cube = np.stack([spec1, spec2]) #This has to be the same shape
-		print(spec_cube.shape)
-		#align and scale cubes
-		if run_alignment:
-			aligned_cube = su.align_spectral_cube(spec_cube)
-			scaled_cube = su.scale_and_combine_spectra(aligned_cube, return_scaled_cube = True)
-			scaled_cube = aligned_cube
-		else:
-			scaled_cube = spec_cube
 
-		#polarization vector and uncertainty. This is (spec1-spec2)/(spec1+spec2)
-		pol_vec = (scaled_cube[0,:,1,:] - scaled_cube[1,:,1,:])/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])
-		pol_err = (2/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])**2) * np.sqrt(  (scaled_cube[0,:,1,:]*scaled_cube[1,:,2,:])**2 + (scaled_cube[0,:,2,:]* scaled_cube[1,:,1,:])**2)
-
-		#now determine which is which
-		sampling_angles_0 = np.array([135, 45, 0, 90]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
-		sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
-		sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
-		signs = np.sign(sampling_angles_2 - sampling_angles_1) # 0 - 45 is +q, 22.5 - 67.5 is +u
-
-		#q's are those with sampling_angles_1 = 0 or 90 and sampling_angles_2 = 90 or 0
-		q_ind = np.where(np.logical_or(sampling_angles_1 == 0, sampling_angles_1 == 90))
-		u_ind = np.where(np.logical_or(sampling_angles_1 == 45, sampling_angles_1 == 135))
-
-		print(HWP1, HWP2, sampling_angles_1, sampling_angles_2, q_ind, u_ind)
-		# print(signs)
-		# print(signs[list(q_ind[0])])
-		# print('q shape is ',pol_vec[q_ind[0]].shape)
-		q_sign = signs[q_ind[0]]
-		u_sign = signs[u_ind[0]]
-		q =  pol_vec[q_ind[0]]*q_sign[:,None] 
-		u =  pol_vec[u_ind[0]]*u_sign[:,None] 
-		q_err =  pol_err[list(q_ind[0])] 
-		u_err =  pol_err[list(u_ind[0])] 
-		# print(q.shape, q_err.shape)
-		return q, u, q_err, u_err, q_ind[0], u_ind[0]
 
 if __name__ == "__main__":
-	#First, define a base directory. This is specific to hcig1 for the moment. 
+	#First, define a base directory. This is specific to riri for the moment. 
 	base_dir = "/scr/data/quicklook/auto_reduction/"
 	base_cal = '/scr/data/calibrations/20190317/'
 	#base_dir = '.'

@@ -45,7 +45,7 @@ class wirc_data(object):
 
     """
 
-    def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True,
+    def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True, 
         dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, verbose = True):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file,
@@ -63,7 +63,8 @@ class wirc_data(object):
             self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image)
 
         elif raw_filename is not None:
-            print("Creating a new wirc_data object from file {}".format(raw_filename))
+            if verbose:
+                print("Creating a new wirc_data object from file {}".format(raw_filename))
             self.raw_filename = raw_filename
 
             with fits.open(raw_filename) as hdu:
@@ -86,7 +87,8 @@ class wirc_data(object):
                 print("Returning.\n")
                 # break
             else:
-                print("Found a {}-band filter in the header of file {}".format(filter_name,raw_filename))
+                if verbose:
+                    print("Found a {}-band filter in the header of file {}".format(filter_name,raw_filename))
             self.filter_name = filter_name
 
             self.calibrated = False
@@ -135,8 +137,7 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, \
-                        report_median = False, report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False, report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False):
         '''
         Apply dark and flat-field correction
 
@@ -146,7 +147,6 @@ class wirc_data(object):
             If False, background subtraction is dealt with during spectral extraction. This is preferred (says Kaew) <- this has yet to be shown (says Max)        
 
         '''
-
         #TODO Add checks to make sure the flatnames are not none
 
         if not self.calibrated:
@@ -156,7 +156,8 @@ class wirc_data(object):
                 master_dark_hdu = fits.open(self.dark_fn)
                 master_dark = master_dark_hdu[0].data
                 dark_shape = np.shape(master_dark)
-                print(("Subtracting {} from the image".format(self.dark_fn)))
+                if verbose:
+                    print(("Subtracting {} from the image".format(self.dark_fn)))
                 dark_exp_time = master_dark_hdu[0].header['EXPTIME'] * master_dark_hdu[0].header['COADDS']
                 total_exp_time = self.header["EXPTIME"]*self.header["COADDS"]
                 #Checking Dark Exposure times and scaling if need be
@@ -473,7 +474,7 @@ class wirc_data(object):
 
 
 
-    def save_wirc_object(self, wirc_object_filename, overwrite = True, save_full_image = True):
+    def save_wirc_object(self, wirc_object_filename, overwrite = True, save_full_image = True, verbose=True):
         #Save the object to a fits file
 
         # vers = version.get_version()
@@ -560,7 +561,7 @@ class wirc_data(object):
 
             #widths and angles of the traces
             if self.source_list[i].spectra_widths is not None:
-                print(self.source_list[i].spectra_widths)
+                # print(self.source_list[i].spectra_widths)
                 source_hdu.header["WIDTHS"] = (np.array2string(self.source_list[i].spectra_widths), "Widths of spectra in unrotated image")
                 source_hdu.header["ANGLES"]=  (np.array2string(self.source_list[i].spectra_angles), "Angles of spectra in unrotated image")
 
@@ -630,7 +631,8 @@ class wirc_data(object):
 
 
         #Saving a wirc_object (hdulist)
-        print("Saving a wirc_object to {}".format(wirc_object_filename));
+        if verbose:
+            print("Saving a wirc_object to {}".format(wirc_object_filename));
         hdulist.writeto(wirc_object_filename, overwrite=overwrite)
 
 
@@ -1003,7 +1005,6 @@ class wircpol_source(object):
         #         bad_pix_map = self.trace_images_DQ[i] != 0
         #         self.trace_images[i] = calibration.replace_bad_pix_with_interpolation(self.trace_images[i], self.trace_images_DQ[i])
 
-
         if replace_bad_pixels:
             #check method
             if method == 'interpolate':
@@ -1043,7 +1044,38 @@ class wircpol_source(object):
                         bad_pix_map = self.trace_images_DQ[i].astype(bool)  
                         self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)  
 
-    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8), plot_dq = False, plot_bkg_sub = False, origin='lower', output_name='', show=True, **kwargs):
+    def get_bkg_cutouts(self,bkg_image,filter_name,replace_bad_pixels = True, method = 'median', 
+        box_size = 5,cutout_size = None,sub_bar=True, verbose=False):
+        """
+        Cutout thumbnails from a background image in self.bkg_image and put them into self.trace_bkg
+        if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation
+        method can be 'median' or 'interpolate'
+        """
+
+        locs = [int(self.pos[0]),int(self.pos[1])]
+
+        self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(self.bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,
+            filter_name = filter_name, cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
+
+
+        if replace_bad_pixels:
+            #check method
+            if method == 'interpolate':
+                #iterate through the 4 thumbnails
+                for i in range(len(self.trace_bkg)):
+                    bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                    self.trace_bkg[i] = calibration.replace_bad_pix_with_interpolation(self.trace_bkg[i], self.trace_images_DQ[i])
+                    # except:
+                    #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+            elif method == 'median':
+                #iterate through the 4 thumbnails
+                for i in range(len(self.trace_bkg)):
+                    bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                    self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)
+                # except:
+                #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+
+    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8),plot_dq = False, plot_bkg_sub = False, origin='lower', output_name='', show=True, **kwargs):
         '''
         Plot the source cutouts
 
@@ -1064,7 +1096,6 @@ class wircpol_source(object):
         else: #If not, then we'll make a new figure.
             fig = plt.figure(figsize=figsize)
 
-
         #What to plot?          
         if plot_dq:           
             to_plot = self.trace_images_DQ           
@@ -1072,17 +1103,13 @@ class wircpol_source(object):
             to_plot = self.trace_images - self.trace_bkg    
         else:         
             to_plot = self.trace_images         
-        plt.text(5,140,"Top - Left", color='w')
+        
         texts = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']        
         for i in range(4):        
             ax = fig.add_subplot(1,4,i+1)             
             plt.imshow(to_plot[i,:,:], origin = origin , **kwargs)         
             plt.text(5,140, texts[i], color = 'w')             
-        plt.text(5,140,"Bottom - Right", color='w')
-
-        plt.text(5,140,"Top - Right", color='w')
-
-        ax.set_yticklabels([])
+            ax.set_yticklabels([])
 
         # ax = fig.add_subplot(141)
 
