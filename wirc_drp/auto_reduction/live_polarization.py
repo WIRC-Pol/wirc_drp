@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Mon Feb 18, 19
 
@@ -30,12 +29,14 @@ import sys, os, glob, gc, time
 def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
 	#stack spectra
 	# if spec1.shape != spec2.shape:
+	print(spec1.shape)
 	if ((round(HWP1,2) - round(HWP2,2))%45) >0.01: #add some tolerance
 		print(np.abs((HWP1 - HWP2)%45))
 		print("Error, halfwave plate angles (%f, %f) are not orthogonal."%(HWP1,HWP2))
 		return None
 	else:
 		spec_cube = np.stack([spec1, spec2]) #This has to be the same shape
+		print(spec_cube.shape)
 		#align and scale cubes
 		if run_alignment:
 			aligned_cube = su.align_spectral_cube(spec_cube)
@@ -339,10 +340,10 @@ if __name__ == "__main__":
 						u_std_dd = np.nanstd(np.array(dd_all_u), axis = 0)/np.sqrt(len(dd_all_u))
 						#LIVE SNR
 						#HARD CODED AREA: FIX THIS
-						q_med_med = np.nanmedian(q_med_dd[120:180])
-						u_med_med = np.nanmedian(u_med_dd[120:180])
-						q_std_med = np.nanmedian(q_std_dd[120:180])
-						u_std_med = np.nanmedian(u_std_dd[120:180])					
+						q_med_med = np.nanmedian(q_med_dd[70:130])
+						u_med_med = np.nanmedian(u_med_dd[70:130])
+						q_std_med = np.nanmedian(q_std_dd[70:130])
+						u_std_med = np.nanmedian(u_std_dd[70:130])					
 
 
 						# #remove old line and plot a new one
@@ -437,9 +438,9 @@ if __name__ == "__main__":
 
 						# #remove old line and plot a new one
 						try: 
-							med_p_line.remove()
+							#med_p_line.remove()
 							#med_p_bad.remove()
-							med_theta_line.remove()
+							#med_theta_line.remove()
 							med_vec_p_line.remove()
 							#(med_vec_p_line.pop(0)).remove()
 							(med_vec_theta_line.pop(0)).remove()	
@@ -453,9 +454,9 @@ if __name__ == "__main__":
 						#	print('poop2')
 						#	pass
 						# med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
-						med_p_line     =  ax[2,0].errorbar(range(len(p_med_dd)), (p_med_dd)*100, yerr = 100*p_std_dd, ls = '--', alpha = 0.8, color = 'k')
+						#med_p_line     =  ax[2,0].errorbar(range(len(p_med_dd)), (p_med_dd)*100, yerr = 100*p_std_dd, ls = '--', alpha = 0.8, color = 'k')
 
-						med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd)+90, yerr = np.degrees(theta_std_dd),ls= '--', alpha = 0.8, color = 'k')
+						#med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd)+90, yerr = np.degrees(theta_std_dd),ls= '--', alpha = 0.8, color = 'k')
 						med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med_dd)))
 						med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std_dd)))
 
@@ -471,13 +472,13 @@ if __name__ == "__main__":
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
 						#med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
-						ax[2,0].set_ylim([2,7])
+						ax[2,0].set_ylim([0,5])
 						ax[2,1].set_ylim([-20,50])
 						ax[2,0].set_xlim([50,150])
 						ax[2,1].set_xlim([50,150])
-						ax[2,0].axhline(6.46)
+						#ax[2,0].axhline(6.46)
 						#ax[2,0].axhline(2.88*0.85)
-						ax[2,1].axhline(69)
+						#ax[2,1].axhline(69)
 
 						
 

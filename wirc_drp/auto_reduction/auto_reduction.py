@@ -26,7 +26,7 @@ matplotlib.use('Qt4Agg')
 import sys, os, glob, gc, time
 
 if __name__ == "__main__":
-	prefix = 'wirc'
+	prefix = 'image'
 	#First, define a base directory. 
 	#base_dir = "/Users/kaew/work/wircpol/trials/auto_reduction/data/data_stage/"
 	#base_cal = "/Users/kaew/work/wircpol/trials/auto_reduction/data/temp_cals/"
@@ -117,13 +117,13 @@ if __name__ == "__main__":
 				flat_fn = base_cal+"image0143_master_flat.fits"
 				bp_fn =   base_cal+"image0143_bp_map.fits"
 				#dark_fn = base_cal+"image0021_master_dark.fits" #1s
-				dark_fn = base_cal+"image0093_master_dark.fits" #5s
+				#dark_fn = base_cal+"image0093_master_dark.fits" #5s
 				#dark_fn = base_cal+"image0063_master_dark.fits" #15s
 				dark_fn = base_cal+"image0123_master_dark.fits" #30s
 				#load in data as wirc object, and calibrate
 				if sky_ref != '0000':
 					data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn, \
-						 bkg_fn = base_dir+date+'/wirc%s.fits'%(sky_ref.zfill(4)))
+						 bkg_fn = base_dir+date+'/%s%s.fits'%(prefix,sky_ref.zfill(4)))
 					data.calibrate(mask_bad_pixels = False, verbose = False, sub_bkg_now = True)
 				else:
 					data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)#,\
@@ -139,10 +139,10 @@ if __name__ == "__main__":
 				#get cutouts
 				data.source_list[0].get_cutouts(data.full_image, data.DQ_image, data.filter_name, replace_bad_pixels = True, cutout_size = 100) 
 				#extract spectra
-				data.source_list[0].extract_spectra(plot=False, bkg_sub_shift_size = 45, \
+				data.source_list[0].extract_spectra(plot=False, bkg_sub_shift_size = 35,shift_dir = 'vertical', \
 							method = 'optimal_extraction', bad_pix_masking = 1, verbose = False,
-							sub_background = 'shift_and_subtract')#, filter_bkg_size = 3)#,
-							#trace_angle = [-44.14527593, -45.97122308, -44.49100767, -44.72468746])
+							sub_background = 'shift_and_subtract', \
+							trace_angle = [-44.14527593, -45.97122308, -44.49100767, -44.72468746])
 				data.source_list[0].rough_lambda_calibration(method=2)
 
 				#plot them on the axis, first the calibrated images
