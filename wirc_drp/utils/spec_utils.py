@@ -1448,7 +1448,7 @@ def rough_lambda_and_filter_calibration(spectra, widths, xpos, ypos, band = "J",
 
 
 
-def align_set_of_traces(traces_cube, ref_trace, oversampling = 10):
+def align_set_of_traces(traces_cube, ref_trace, oversampling = 10, return_shift = False):
     """
     align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
     and align them with respect to the reference trace of the same length. 
@@ -1464,6 +1464,7 @@ def align_set_of_traces(traces_cube, ref_trace, oversampling = 10):
     #upsample, nearest neighbor
     ref = zoom(ref_trace, oversampling, order = 1)
     #fig, (ax, ax2) = plt.subplots(2,4, figsize = (20,10))
+    shifts = []
     for i, j in enumerate(traces_cube):
         #print(np.max(ref), np.max(j))
         #corr = fftconvolve(ref/np.nanmax(ref), (j/np.nanmax(j))[::-1] )
@@ -1473,8 +1474,11 @@ def align_set_of_traces(traces_cube, ref_trace, oversampling = 10):
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
         new_cube[i] = shift(traces_cube[i], shift_size/oversampling, order = 1) # this shifts wl, flux, and flux_error at the same time. order = 1 so linear interpolation 
-            
-    return new_cube
+        shifts += [shift_size/oversampling]
+    if return_shift:
+        return new_cube, np.array(shifts)
+    else: 
+        return new_cube
 
 def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversampling = 10):
     """
