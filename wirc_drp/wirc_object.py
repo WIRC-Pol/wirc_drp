@@ -1072,17 +1072,13 @@ class wircpol_source(object):
             to_plot = self.trace_images - self.trace_bkg    
         else:         
             to_plot = self.trace_images         
-        plt.text(5,140,"Top - Left", color='w')
+        
         texts = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']        
         for i in range(4):        
             ax = fig.add_subplot(1,4,i+1)             
             plt.imshow(to_plot[i,:,:], origin = origin , **kwargs)         
             plt.text(5,140, texts[i], color = 'w')             
-        plt.text(5,140,"Bottom - Right", color='w')
-
-        plt.text(5,140,"Top - Right", color='w')
-
-        ax.set_yticklabels([])
+            ax.set_yticklabels([])
 
         # ax = fig.add_subplot(141)
 
