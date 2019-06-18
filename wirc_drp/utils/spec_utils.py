@@ -356,7 +356,7 @@ def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
 
     return np.array(spec[::-1]), np.array(var[::-1]) #flip so long wavelenght is to the right
 
-def sum_across_trace(data, variance, extraction_range, plot = False):
+def sum_across_trace(data, variance, extraction_range):
     """
     extract spectrum by simply summing in the spatial direction
     This also serves as a helper function for 
@@ -366,50 +366,22 @@ action
         variance: 2D numpy array of the variance of the data
         extraction_range: a list of [y_begin, y_end], assuming that y is the spatial direction. 
                 (TO BE IMPLEMENTED:
-                If y_range is None, sum the trace in the spectral direction to get a total profile, fit a gaussian 
+                If y_range == None, sum the trace in the spectral direction to get a total profile, fit a gaussian 
                 and use the result as a limit.) 
     Output:
         flux
         flux_var
         
     """
-    #if y_range is None:
+    #if y_range == None:
     #    vert_profile = np.sum(data, axis = 1)
     #    plt.plot(vert_profile)
     #    plt.show()
     #    y_range = [83,94]
-
-
-    if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
-    #ZScale
-        from astropy.visualization import (ZScaleInterval, LinearStretch,
-                               ImageNormalize)
-
-        fig, ax = plt.subplots(1,1,figsize = (5,5))
-
-        norm_bkg_sub = ImageNormalize(data, interval = ZScaleInterval(), stretch = LinearStretch())
-
-        #Plot data and extraction range
-        ax.imshow(data , origin = 'lower', norm = norm_bkg_sub)
-        ax.plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
-        ax.plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
-        ax.set_title('Data (should be background subtracted), Simple Extraction')
-
-
-        # for i in range(extraction_range[0], extraction_range[1]):
-        #     plt.plot(P_0[i,:])
-        #     #plt.plot(median_filter(P_0[i,:], 10))
-        #     plt.ylim([-0.05,0.2])
-        #     plt.xlim([30,140])
-        #     plt.ylabel('P')
-        #     plt.xlabel('Spectral pixel')
-        # plt.title('Spectral Profile')
-        plt.show()
-
     return np.sum(data[extraction_range[0]:extraction_range[1],:], axis = 0), \
                     np.sum(variance[extraction_range[0]:extraction_range[1],:], axis = 0)   
 
-def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_width = None, ext_range = None):
+def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_width = None):
     """helper function for optimal_extraction and sum_across_trace extraction. This function sums
     the given rotated thumbnail in the spectral direction, find the peak (assume one trace only),
     and return the range based on the given width of the trace (from findTrace) and the given 'sigmas'.
@@ -423,15 +395,7 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_
         extraction_range: a 2-element list of [peak - sigma*width, peak + sigma*width]
 
     """
-    if ext_range is None:
-        spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
-    else:
-        spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
-        spatial_profile[0:ext_range[0]] = 0
-        spatial_profile[ext_range[1]:] = 0
-
-    #smoothed
-    spatial_profile = median_filter(spatial_profile, 3)
+    spatial_profile = np.sum(thumbnail, axis = 1) #sum in the spectral direction to get a net spatial profile
     vert_max = np.argmax(spatial_profile) #locate the peak in this profile
     #define lower and upper boundaries of the extraction area. Remember to multiply the trace_width with cos(rotation angle)
     #because the pixel width changes as we rotate the image 
@@ -477,6 +441,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
     #First construct the variance estimate (eq 12, Horne 1986)
     variance = (read_out_noise/gain)**2 + np.abs(data)/gain
     variance = median_filter(variance,6) #Smooth this - try to lower significance of bad pixels
+    variance[bad_pixel_mask < 1.] = 1000000000 #Set the variance really high for bad pixels.
     #Compute a "standard" spectrum estimator by summing across trace
     flux_0, var_0 = sum_across_trace(data-background, variance, extraction_range)
     sky_flux, sky_var = sum_across_trace(background, variance, extraction_range)
@@ -497,41 +462,31 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         P_0 = P_0/P_sum
         
 
-        
         #Now, optimization step. This version makes no attempts to deal with bad pixel
         #print(flux_0.shape, P_0.shape)
         
         #optimized variance 
-        #variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
+        variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
 
-        variance_opt = variance #try this for now
+        # variance_opt = variance #try this for now
         #print('Extraction range is', extraction_range)
 
         if verbose:
             print('Extraction range is', extraction_range)
 
         if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
-        #ZScale
-            from astropy.visualization import (ZScaleInterval, LinearStretch,
-                                   ImageNormalize)
-
             fig, ax = plt.subplots(1,3,figsize = (15,5))
-
-            norm_bkg_sub = ImageNormalize(data - background, interval = ZScaleInterval(), stretch = LinearStretch())
-            norm_var = ImageNormalize(variance_opt, interval = ZScaleInterval(), stretch = LinearStretch())
-            norm_P = ImageNormalize(P_0, interval = ZScaleInterval(), stretch = LinearStretch())
-
-            ax[0].imshow(data - background, origin = 'lower', norm = norm_bkg_sub)
+            ax[0].imshow(data - background, origin = 'lower')
             ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[0].set_title('Data - background')
-            ax[1].imshow(variance_opt, origin = 'lower', norm = norm_var)
+            ax[1].imshow(variance_opt, origin = 'lower')
 
             ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
 
             ax[1].set_title('Optimized variance')
-            ax[2].imshow(P_0, origin = 'lower',norm = norm_P)
+            ax[2].imshow(P_0, origin = 'lower',vmin=0,vmax=0.5)
             ax[2].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[2].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[2].set_title('Profile image')
@@ -568,7 +523,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
         #compute optimized flux and variance spectra
         flux_opt_final = np.nan_to_num(sum1/sum3)
-        variance_opt_final = np.nan_to_num(sumP/sum3 )
+        variance_opt_final = np.nan_to_num(sumP/sum3)
 
         #update flux_0 and var_0
         flux_0 = flux_opt_final
@@ -636,7 +591,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                     '2D_polynomial' to run 2D polynomial fitting to subtract backgrond. If this is selected, bkg_poly_order is the order 
                     of polynomial used
                     'bkg_image' with a background thumbnails provided
-                    'bkg_image_and_shift' use background image first, then shift and subtract to clean residual
     *method:        method for spectral extraction. Choices are
                         (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
                                         is in skimage_order parameter (fast).
@@ -685,9 +639,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     
     if DQ_thumbnails is not None:
         DQ_copy = copy.deepcopy(DQ_thumbnails)
-
-    if bkg_thumbnails is not None:
-        bkg_copy = copy.deepcopy(bkg_thumbnails)
     
     #Flip some of the traces around.
     if mode=='pol': 
@@ -699,10 +650,6 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             DQ_copy[1,:,:] = DQ_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
             DQ_copy[2,:,:] = DQ_copy[2,:,-1::-1] #flip x #Top-right
             DQ_copy[3,:,:] = DQ_copy[3,-1::-1, :] #flip y #Bottom-left
-        if bkg_thumbnails is not None:
-            bkg_copy[1,:,:] = bkg_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
-            bkg_copy[2,:,:] = bkg_copy[2,:,-1::-1] #flip x #Top-right
-            bkg_copy[3,:,:] = bkg_copy[3,-1::-1, :] #flip y #Bottom-left
 
         trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
 
@@ -740,47 +687,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #First, if background subtraction mode is set to background image but the image is not provided, print error message and
         #default to shift and subtract
         if sub_background == 'bkg_image' and bkg_thumbnails is not None:
-            if verbose:
-                print("Background subtraction by using a provided background image.")
-            bkg_raw = bkg_copy[j,:,:]
-            bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
+            bkg_raw = bkg_thumbnails[j,:,:]
+            bkg_scale_factor = np.median(thumbnail)/np.median(bkg_raw) #median scale the background before subtraction
             bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
-
-        elif sub_background == 'bkg_image_and_shift' and bkg_thumbnails is not None:
-            if verbose:
-                print("Background subtraction by using a provided background image then shift and subtract.")
-            bkg_raw = bkg_copy[j,:,:]
-            bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
-            bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
-
-            #Now shift and subtract as well
-            if slit_num != 'slitless' or shift_dir == 'horizontal':
-                bkg_stack = np.dstack((shift( bkg_sub, [0,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),
-                                        shift( bkg_sub, [0,bkg_sub_shift_size ], order = 0,mode = 'nearest' )))
-
-                second_bkg = np.nanmean(bkg_stack, axis=2)
-
-                #if median filter background
-                #bkg = median_filter(bkg, 3)
-
-            elif shift_dir == 'vertical':
-                bkg_stack = np.dstack((shift( bkg_sub, [-bkg_sub_shift_size,0 ], order = 0,mode = 'nearest'),
-                                        shift( bkg_sub, [bkg_sub_shift_size ,0], order = 0,mode = 'nearest')))
-                second_bkg = np.nanmean(bkg_stack, axis=2)
-
-            elif shift_dir =='diagonal': #for slitless data, shift in diagonal
-                bkg_stack = np.dstack((shift( bkg_sub, [-bkg_sub_shift_size,-bkg_sub_shift_size ], order = 0,mode = 'nearest'),\
-                            shift( bkg_sub, [bkg_sub_shift_size,bkg_sub_shift_size ], order = 0 ,mode = 'nearest')))
-                second_bkg = np.nanmean(bkg_stack, axis=2)
-            
-         
-            #if median filter background
-            if filter_bkg_size is not None:
-                second_bkg = median_filter(second_bkg, filter_bkg_size)
-
-            #subtract the shifted background to remove residual.
-            bkg_sub = bkg_sub - second_bkg
-            bkg = bkg_raw*bkg_scale_factor+ second_bkg
 
         # elif sub_background == 'bkg_image' and bkg_thumbnails is None:
         #     print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
@@ -788,9 +697,8 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
              #for first round, we have to do shift and subtract just to find the trace
 
         elif sub_background is not None and mode == 'pol':  
-            if verbose:
-                print("Not background image subtraction")
-            if (sub_background == 'bkg_image' or sub_background == 'bkg_image_and_shift') and (bkg_thumbnails is None):
+
+            if sub_background == 'bkg_image' and bkg_thumbnails is None:
                 print("Background image subtraction selected but background thumbnails not provided, switch to shift and subtraction")
 
             #############################################
@@ -837,7 +745,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             
          
             #if median filter background
-            if filter_bkg_size is not None:
+            if filter_bkg_size != None:
                 bkg = median_filter(bkg, filter_bkg_size)
 
             bkg_sub = thumbnail - bkg
@@ -866,16 +774,14 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         if trace_angle[j] is None:
             raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
                                                                   fractional_fit_type=fractional_fit_type) #linear fit to the trace
-            #widths += [trace_width]
-            width_to_add = trace_width
+            widths += [trace_width]
             angles += [measured_trace_angle]
+            trace_angle[j] = measured_trace_angle
         else:
             angles += [trace_angle[j]] #use the given angle
             raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
                                                           fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
-            #widths += [trace_width]
-            width_to_add = trace_width
-            #May add this or wait for width measured from rotation. 
+            widths += [trace_width]
         
         #After findTrace is run, we can do 2D polynomial background subtraction
         if sub_background == '2D_polynomial':
@@ -955,7 +861,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         elif method == 'fit_across_trace':
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle is None:
+            if trace_angle == None:
                 rotate_spec_angle = measured_trace_angle #use the measured angle
             else:
                 rotate_spec_angle = trace_angle[j] #use the given value
@@ -975,12 +881,11 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
             thumbnails_to_extract.append(bkg_sub) #add background subtracted image
-
         elif method == 'sum_across_trace':
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle is None: #if the trace angle is not given, use the measured angle
+            if trace_angle == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
                 rotate_spec_angle = trace_angle[j] 
@@ -992,18 +897,15 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
-            real_width = image_utils.traceWidth_after_rotation(sub_rotated)
-            width_to_add = real_width
-            # widths +=[real_width]
-
             #determine the extraction range based on the width parameter
+            #first, find the peak
             ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
                 spatial_sigma = spatial_sigma, fixed_width = fixed_width)
 
-            # ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)
+
 
             #call the optimal extraction method, remember it's sum_across_trace(bkg_sub_data, bkg, extraction_range, etc)
-            spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range, plot = plot_optimal_extraction) 
+            spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range) 
 
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) 
@@ -1013,7 +915,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
-            if trace_angle[j] is None: #if the trace angle is not given, use the measured angle
+            if trace_angle[j] == None: #if the trace angle is not given, use the measured angle
                 rotate_spec_angle = measured_trace_angle 
             else: #otherwise, use the given value
                 rotate_spec_angle = trace_angle[j] 
@@ -1027,7 +929,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
 
             #measure real_width after rotation. Now do this for polarimetric data too
             real_width = image_utils.traceWidth_after_rotation(sub_rotated)
-            width_to_add = real_width                
+                
 
             #plt.imshow(sub_rotated, origin = 'lower')
             #plt.show()
@@ -1066,8 +968,17 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)
                 widths += [real_width]
             else:
-                # ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
+                #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)                
+                # fit_im = np.zeros(thumbnail.shape) 
+                # for i in range(fit_im.shape[1]):
+                #     #print(trace[i])
+                #     if trace[i] > 0 and trace[i] < fit_im.shape[1]:
+                #         fit_im[int(trace[i]),i] = 1 
+                # rotated_fit_im = frame_rotate(fit_im, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+                # vert_max = np.argmax( np.sum(rotated_fit_im, axis = 1))
+
+                # ext_range = [int(vert_max - real_width*spatial_sigma), int(vert_max + real_width*spatial_sigma)]    
 
             #call the optimal extraction method, remember it's optimal_extraction(non_bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = optimal_extraction(rotated, bkg, ext_range, bad_pix_masking = bad_pix_masking, \
@@ -1083,11 +994,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             print("method keyword not understood, please choose method='weightedSum', 'fit_across_trace', or method='skimage'")
             return None, None
         
-        #add the width measure here if mode != 'spec'
-        if mode != 'spec': #otherwise, this is dealt with
-            widths+=[ width_to_add ]        
         #Plotting
-
         if plot:
             ax = fig.add_subplot(2,ntraces,j+1)
             ax.set_title(trace_title)
@@ -1515,8 +1422,6 @@ def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversamp
         shift_size = np.nanargmax(corr) - len(ref) +1
         #print(shift_size)
         new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
-
-        plt.show()
             
     return new_cube
 
@@ -1530,7 +1435,7 @@ def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_t
     If ref trace is 'median', then use the median of the set as a reference. 
     """
     #Define reference if not given,
-    if ref_trace is None:
+    if ref_trace == None:
         ref_trace = spectral_cube[0,0,1,:] #This is first observation, first trace (Qp), flux, and the whole vector
     elif ref_trace == 'median':
         ref_trace = np.nanmedian(spectral_cube[:,0,1,:], axis = 0)
@@ -1587,8 +1492,6 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, smooth_size
     if return_scaled_cube:
         return scaled_specs
     else:
-        #first scale the uncertainty by sqrt of number of spectra
-        scaled_specs[:, :, 2,:] = scaled_specs[:, :, 2,:]/np.sqrt(scaled_specs.shape[0])
         return np.median(scaled_specs, axis = 0)
 
 
@@ -2202,48 +2105,5 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
     source_std = np.sqrt(phot*gain + phot_sky*gain + ron**2)/gain #remember that poisson noise is sqrt(N in electrons)
 
     return source_flux, source_std
-
-def align_line(spectra, approx_peak, fit_range, peak_size = 0.1, plot = False):
-    """
-    This function give offset in spectral pixels between given spectra by fitting the peak/trough at the given
-    spectral pixel and within the fitting range. 
-    Inputs: 
-        spectra: a cube contain 2 or more spectra with dimensions (number_spectra, spectral_pixels)
-        approx_peak: The location of the peak in spectral pixel
-        fit_range: the range that the code will try to find peak in other spectra.
-        peak_size: approximate size of the peak with respect to continuum value, default 10%. 
-                    if fitting a trough, this is negative.
-    Outputs:
-        offsets: offsets in pixels for subsequent spectra with respect to the first. 
-    """
-    from astropy.modeling import models, fitting
-    peak_locs = np.zeros(spectra.shape[0])
-
-    #Define fitting models
-    #Gaussian with mean at the given approximated peak, 1% amplitude, and stddev = given fitting range
-    peak_model = models.Gaussian1D(mean = approx_peak, amplitude = peak_size*spectra[0,approx_peak], stddev = 0.5*fit_range)
-    fitter = fitting.LevMarLSQFitter()
-
-    #Mask out area not in fit range
-    # mask = np.ones(spectra.shape[1])
-    # mask[approx_peak - fit_range: approx_peak + fit_range] = 0
-    mask = np.s_[approx_peak - fit_range: approx_peak + fit_range]
-
-    for i in range(spectra.shape[0]):
-        to_fit = spectra[i]
-        xx = np.arange(len(spectra[i]))
-        fit_res = fitter(peak_model, xx[mask], to_fit[mask])
-        peak_locs[i] = fit_res.mean.value
-
-        if plot:
-            plt.plot(xx[mask], to_fit[mask])
-            plt.plot(fit_res(xx))
-            plt.show()
-
-    print(peak_locs)
-
-    return peak_locs - peak_locs[0]
-
-
 
 
