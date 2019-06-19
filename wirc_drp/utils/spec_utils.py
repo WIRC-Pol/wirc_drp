@@ -610,7 +610,7 @@ def background_subtraction(thumbnails, sub_background_method = 'median',
         bkg = (bkg_thumbnails.T * factors).T
         bkg_sub = thumbnails - bkg
 
-    elif sub_background_method == "shift"
+    elif sub_background_method == "shift":
         # print("Warning, this method will be deprecated.")
         bkg = np.zeros(thumbnails.shape)
         bkg_sub = np.zeros(thumbnails.shape)
