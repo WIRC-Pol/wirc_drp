@@ -440,19 +440,22 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
     #background = median_filter(background, 11) #assume no fine structure in background
     #First construct the variance estimate (eq 12, Horne 1986)
     variance = (read_out_noise/gain)**2 + np.abs(data)/gain
-    variance = median_filter(variance,6) #Smooth this - try to lower significance of bad pixels
-    variance[bad_pixel_mask < 1.] = 1000000000 #Set the variance really high for bad pixels.
+    #variance = median_filter(variance,6) #Smooth this - try to lower significance of bad pixels
+    variance[bad_pixel_mask < 1.] = 100000000 #Variance is really high for known bad pixles
     #Compute a "standard" spectrum estimator by summing across trace
-    flux_0, var_0 = sum_across_trace(data-background, variance, extraction_range)
+    #flux_0, var_0 = sum_across_trace(data-background, variance, extraction_range)
+    #Maybe we'll limit this region just for the first iteration
+    flux_0,var_0 = sum_across_trace(data-background,variance,[extraction_range[0],extraction_range[1]])
+    #flux_0[flux_0 <0] = 0.
     sky_flux, sky_var = sum_across_trace(background, variance, extraction_range)
     Mask_old = np.ones(data.shape) #this is the initial bad pixel mask, assuming that all is good
     
+    variance_opt = variance
     while niter > 0:
     
         #Profile image; first pass, eq 14, then smooth with a median filter
         P_0 = np.copy(data)
         P_0 = (data - background)/flux_0 #this is dividing each column (x) in data-background by the sum in that column
-        
         #smooth with a median filter only in the dispersion direction (x); note that the index is (y,x) here
         P_0 = median_filter(P_0, size = (spatial_smooth,spectral_smooth))
 
@@ -468,28 +471,66 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         #optimized variance 
         variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
 
-        # variance_opt = variance #try this for now
+        #variance_opt = variance #try this for now
         #print('Extraction range is', extraction_range)
 
         if verbose:
             print('Extraction range is', extraction_range)
 
         if plot: #what are relavent diagnostic plots from here? P image is one, the actual extraction range is another. 
-            fig, ax = plt.subplots(1,3,figsize = (15,5))
-            ax[0].imshow(data - background, origin = 'lower')
+        #ZScale
+            from astropy.visualization import (ZScaleInterval, LinearStretch,
+                                   ImageNormalize,AsymmetricPercentileInterval)
+
+            fig, ax = plt.subplots(1,6,figsize = (20,5))
+
+            norm_bkg_sub = ImageNormalize(data - background, interval = ZScaleInterval(), stretch = LinearStretch())
+            norm_var = ImageNormalize(variance_opt, interval = ZScaleInterval(), stretch = LinearStretch())
+            norm_P = ImageNormalize(P_0, interval = AsymmetricPercentileInterval(1,99), stretch = LinearStretch())
+            norm3 = ImageNormalize((data-background-flux_0*P_0)**2, interval = ZScaleInterval(),stretch=LinearStretch())
+            norm4 = ImageNormalize(sig_clip**2*variance_opt, interval = ZScaleInterval(), stretch=LinearStretch())
+
+            ax[0].imshow(data - background, origin = 'lower', norm = norm_bkg_sub)
             ax[0].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[0].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[0].set_title('Data - background')
-            ax[1].imshow(variance_opt, origin = 'lower')
+            
+            ax[1].imshow(flux_0*P_0,origin='lower',norm=norm_bkg_sub)
+            ax[1].set_title("flux_0*P0")
 
             ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
+=======
+            
+            ax[1].imshow(flux_0*P_0,origin='lower',norm=norm_bkg_sub)
+            ax[1].set_title("flux_0*P0")
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
             ax[1].set_title('Optimized variance')
             ax[2].imshow(P_0, origin = 'lower',vmin=0,vmax=0.5)
+||||||| merged common ancestors
+            ax[1].set_title('Optimized variance')
+            ax[2].imshow(P_0, origin = 'lower',norm = norm_P)
+=======
+            ax[2].imshow(variance_opt, origin = 'lower', norm = norm_var)
+>>>>>>> Stashed changes
             ax[2].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[2].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
-            ax[2].set_title('Profile image')
+            ax[2].set_title('Optimized variance')
+
+            ax[3].imshow(P_0, origin = 'lower',norm = norm_P)
+            ax[3].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
+            ax[3].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
+            ax[3].set_title('Profile image')
+            
+
+            ax[4].set_title("Data-Background-flux_0*P_0**2")
+            im3=ax[4].imshow((data-background-flux_0*P_0)**2,origin='lower',norm = norm3)
+            fig.colorbar(im3, ax=ax[4]) 
+            ax[5].set_title("sig_clip**2*variance_opt")
+            ax[5].imshow(sig_clip**2*variance_opt,norm=norm4,origin='lower')
+            fig.colorbar(im3, ax=ax[5])
             # for i in range(extraction_range[0], extraction_range[1]):
             #     plt.plot(P_0[i,:])
             #     #plt.plot(median_filter(P_0[i,:], 10))
@@ -875,7 +916,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             #update background frame with a 2D fitted background. 
 
             #first mask out the trace using results from findTrace
-            if trace_angle is None:
+            if trace_angle[j] is None:
                 mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
             else:
                 mask = make_mask_from_findTrace(trace, 3*trace_width, trace_angle[j])
@@ -898,9 +939,9 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
             bkg = np.ones(thumbnail.shape) * bkg_level
             bkg_sub = thumbnail - bkg 
            
-        #if diag_mask:
-        #    mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
-        #    bkg_sub[~mask] = 0.
+        if diag_mask:
+            mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
+            bkg_sub[~mask] = 0.
 
         if verbose:
             print("Trace width {}".format(trace_width))
@@ -2126,7 +2167,7 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
 
         #if background subtraction type is fit_background, then call the function
 
-        diag_mask = 0
+      #  diag_mask = 0
         if diag_mask:
             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
             bkg_sub[~mask] = 0.

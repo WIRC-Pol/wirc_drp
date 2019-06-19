@@ -26,7 +26,7 @@ matplotlib.use('Qt4Agg')
 import sys, os, glob, gc, time
 
 if __name__ == "__main__":
-	prefix = 'image'
+	prefix = 'wirc'
 	#First, define a base directory. 
 	#base_dir = "/Users/kaew/work/wircpol/trials/auto_reduction/data/data_stage/"
 	#base_cal = "/Users/kaew/work/wircpol/trials/auto_reduction/data/temp_cals/"
@@ -121,28 +121,23 @@ if __name__ == "__main__":
 				#dark_fn = base_cal+"image0063_master_dark.fits" #15s
 				dark_fn = base_cal+"image0123_master_dark.fits" #30s
 				#load in data as wirc object, and calibrate
-				if sky_ref != '0000':
-					data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn, \
-						 bkg_fn = base_dir+date+'/%s%s.fits'%(prefix,sky_ref.zfill(4)))
-					data.calibrate(mask_bad_pixels = False, verbose = False, sub_bkg_now = True)
-				else:
-					data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn)#,\
-						#bkg_fn = base_dir+date+'/wirc1468.fits')
-					data.calibrate(mask_bad_pixels = False, verbose = False, sub_bkg_now = False)
+				bkg_fn = "/scr/data/quicklook/auto_reduction/20190421/J1501_60.0s_auto/wirc0381_auto_extracted.fits"
+				#bkg_fn = None
+				data = wo.wirc_data(raw_filename = file_name, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn,bkg_fn=bkg_fn)
+				data.calibrate(mask_bad_pixels =  False, verbose = False,sub_bkg_now=True,bkg_by_quadrants=True)
 
 				#after calibration, get thumbnails and extract spectra!
 
 				#add source at the given location x,y 
+				data.add_source(int(x_coord),int(y_coord))
 				#data.source_list.append(wo.wircpol_source([int(y_coord),int(x_coord)], 'slitless', data.n_sources + 1))
 				#data.n_sources += 1
-				data.add_source(int(x_coord), int(y_coord),update_w_chi2_shift = True)
+
 				#get cutouts
-				data.source_list[0].get_cutouts(data.full_image, data.DQ_image, data.filter_name, replace_bad_pixels = True, cutout_size = 100) 
+				data.source_list[0].get_cutouts(data.full_image, data.filter_name, True, image_bkg_fn = "/scr/data/quicklook/auto_reduction/20190421/J1501_60.0s_auto/wirc0381_auto_extracted.fits",cutout_size = 80) 
 				#extract spectra
-				data.source_list[0].extract_spectra(plot=False, bkg_sub_shift_size = 35,shift_dir = 'vertical', \
-							method = 'optimal_extraction', bad_pix_masking = 1, verbose = False,
-							sub_background = 'shift_and_subtract', \
-							trace_angle = [-44.14527593, -45.97122308, -44.49100767, -44.72468746])
+				data.source_list[0].extract_spectra(plot=False, sub_background = None, bkg_sub_shift_size = 45, \
+							method = 'optimal_extraction', bad_pix_masking = 1, verbose = False)
 				data.source_list[0].rough_lambda_calibration(method=2)
 
 				#plot them on the axis, first the calibrated images

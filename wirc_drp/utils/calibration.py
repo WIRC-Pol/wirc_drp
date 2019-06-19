@@ -64,7 +64,8 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
     dark_exp_time = master_dark_hdu[0].header['EXPTIME']
 
     #Open all files into a 3D array
-    foo = np.empty((dark_shape[0],dark_shape[1],len(flat_list)))
+    #foo = np.empty((dark_shape[0],dark_shape[1],len(flat_list)))
+    foo = []
 
     #Open first flat file to check exposure time and filter
     first_flat_hdu = f.open(flat_list[0])
@@ -82,18 +83,21 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
     print("Combining flat files")
     for i in range(0,len(flat_list)):
-        #subtract dark for each file, then normalize by mode
-        hdu = f.open(flat_list[i])
-        d_sub = hdu[0].data  - factor*master_dark
-        #normalize
-        if normalize == 'mode':
-            d_sub = d_sub/mode(d_sub, axis = None, nan_policy = 'omit')
-        elif normalize == 'median':
-            d_sub = d_sub/np.nanmedian(d_sub)
-        foo[:,:,i] = d_sub
-
+        try: 
+            #subtract dark for each file, then normalize by mode
+            hdu = f.open(flat_list[i],ignore_missing_end=True)
+            d_sub = hdu[0].data  - factor*master_dark
+            #normalize
+            if normalize == 'mode':
+                d_sub = d_sub/mode(d_sub, axis = None, nan_policy = 'omit')
+            elif normalize == 'median':
+                d_sub = d_sub/np.nanmedian(d_sub)
+        #foo[:,:,i] = d_sub
+            foo.append(d_sub)
+        except:
+            print("Some error. Skipping file {}".format(i))   
     #Median combine frames
-    flat = np.median(foo, axis = 2)
+    flat = np.median(foo, axis = 0)
 
     #Filter bad pixels
     #bad_px = sigma_clip(flat, sigma = sig_bad_pix) #old and bad

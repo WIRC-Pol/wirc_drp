@@ -782,8 +782,8 @@ def locationInIm(wl, location_in_fov, filter_name = 'J'):
     dpx = round(dwl/(wlPerPix))
 
     traceLocation = [ [ 453+location_in_fov[0]+dpx, -435 + location_in_fov[1]-dpx],\
-                    [  -465+location_in_fov[0]-dpx,  445+ location_in_fov[1]+dpx], \
-                    [   440+location_in_fov[0]+dpx,  449+location_in_fov[1]+dpx], \
+                    [  -455+location_in_fov[0]-dpx,  455+ location_in_fov[1]+dpx], \
+                    [   450+location_in_fov[0]+dpx,  455+location_in_fov[1]+dpx], \
                     [  -445+location_in_fov[0]-dpx, -455+location_in_fov[1]-dpx]]
     return np.array(traceLocation)
 
