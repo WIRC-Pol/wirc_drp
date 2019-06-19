@@ -200,7 +200,7 @@ class wirc_data(object):
 
             #background subtraction should be done at spectral extraction step to propagate error correctly           
             #set sub_bkg_now to False and this will be done when the source is created. 
-            if self.bkg_fn is not None and sub_bkg_now == True: #Old case where we want to do background subtraction now
+            if self.bkg_fn is not None: #Old case where we want to do background subtraction now
                 background_hdu = fits.open(self.bkg_fn)
                 background = background_hdu[0].data
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
@@ -227,29 +227,30 @@ class wirc_data(object):
                         background = background/master_flat
                 else: #if the background is already reduced
                     pass #do nothing, it's already good!
+                self.bkg_image = background
+                if sub_bkg_now == True: 
 
-                ### If this flag is set, you estimate the scaling by the median of each quadrant, not the whole image. 
-                if bkg_by_quadrants:
-                    [1063,1027]
-                    scale_bkg1 = np.nanmedian(self.full_image[:1063,:1027])/np.nanmedian(background[:1063,:1027])
-                    scale_bkg2 = np.nanmedian(self.full_image[:1063,1027:])/np.nanmedian(background[:1063,1027:])
-                    scale_bkg3 = np.nanmedian(self.full_image[1063:,:1027])/np.nanmedian(background[1063:,:1027])
-                    scale_bkg4 = np.nanmedian(self.full_image[1063:,1027:])/np.nanmedian(background[1063:,1027:])
+                    ### If this flag is set, you estimate the scaling by the median of each quadrant, not the whole image. 
+                    if bkg_by_quadrants:
+                        scale_bkg1 = np.nanmedian(self.full_image[:1063,:1027])/np.nanmedian(background[:1063,:1027])
+                        scale_bkg2 = np.nanmedian(self.full_image[:1063,1027:])/np.nanmedian(background[:1063,1027:])
+                        scale_bkg3 = np.nanmedian(self.full_image[1063:,:1027])/np.nanmedian(background[1063:,:1027])
+                        scale_bkg4 = np.nanmedian(self.full_image[1063:,1027:])/np.nanmedian(background[1063:,1027:])
 
-                    self.full_image[:1063,:1027] -= scale_bkg1*background[:1063,:1027]
-                    self.full_image[:1063,1027:] -= scale_bkg2*background[:1063,1027:]
-                    self.full_image[1063:,:1027] -= scale_bkg3*background[1063:,:1027]
-                    self.full_image[1063:,1027:] -= scale_bkg4*background[1063:,1027:]
+                        self.full_image[:1063,:1027] -= scale_bkg1*background[:1063,:1027]
+                        self.full_image[:1063,1027:] -= scale_bkg2*background[:1063,1027:]
+                        self.full_image[1063:,:1027] -= scale_bkg3*background[1063:,:1027]
+                        self.full_image[1063:,1027:] -= scale_bkg4*background[1063:,1027:]
 
-                else:
-                    scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
+                    else:
+                        scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
 
-                    #Subtract the background
-                    self.full_image -= scale_bkg*background
+                        #Subtract the background
+                        self.full_image -= scale_bkg*background
 
-                #Update the header
-                self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
-                self.header['BKG_FN'] = self.bkg_fn
+                    #Update the header
+                    self.header['HISTORY'] = "Subtracted background frame {}".format(self.bkg_fn)
+                    self.header['BKG_FN'] = self.bkg_fn
 
             if median_subtract and report_median:
                 self.full_image -= med
@@ -993,7 +994,7 @@ class wircpol_source(object):
             cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
         try:
             self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,
-            cutout_size= cutout_size, sub_bar = sub_bar, verbose = verbose)[0])
+            cutout_size= cutout_size, sub_bar = False, verbose = verbose)[0])
         except:
             if verbose:
                 print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
@@ -1043,6 +1044,36 @@ class wircpol_source(object):
                     for i in range(len(self.trace_bkg)):        
                         bad_pix_map = self.trace_images_DQ[i].astype(bool)  
                         self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)  
+    def get_bkg_cutouts(self,bkg_image,filter_name,replace_bad_pixels = True, method = 'median', 
+        box_size = 5,cutout_size = None,sub_bar=True, verbose=False):
+        """
+        Cutout thumbnails from a background image in self.bkg_image and put them into self.trace_bkg
+        if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation
+        method can be 'median' or 'interpolate'
+        """
+
+        locs = [int(self.pos[0]),int(self.pos[1])]
+
+        self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,
+            filter_name = filter_name, cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
+
+
+        if replace_bad_pixels:
+            #check method
+            if method == 'interpolate':
+                #iterate through the 4 thumbnails
+                for i in range(len(self.trace_bkg)):
+                    bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                    self.trace_bkg[i] = calibration.replace_bad_pix_with_interpolation(self.trace_bkg[i], self.trace_images_DQ[i])
+                    # except:
+                    #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
+            elif method == 'median':
+                #iterate through the 4 thumbnails
+                for i in range(len(self.trace_bkg)):
+                    bad_pix_map = self.trace_images_DQ[i].astype(bool)
+                    self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)
+                # except:
+                #     print("Cannot replace bad_pixels if the DQ image doesn't exist.")
 
     def get_bkg_cutouts(self,bkg_image,filter_name,replace_bad_pixels = True, method = 'median', 
         box_size = 5,cutout_size = None,sub_bar=True, verbose=False):
@@ -1163,22 +1194,22 @@ class wircpol_source(object):
         fig = plt.figure(figsize = (12,8))
 
         ax = fig.add_subplot(141)
-        plt.imshow(self.trace_images_extracted[0,:,:], **kwargs)
+        plt.imshow(self.trace_images_extracted[0,:,:],vmin=np.percentile(self.trace_images_extracted[0,:,:],5),vmax=np.percentile(self.trace_images_extracted[0,:,:],99), **kwargs)
         plt.text(5,275,"Top - Left", color='w')
 
 
         ax = fig.add_subplot(142)
-        plt.imshow(self.trace_images_extracted[1,:,:], **kwargs)
+        plt.imshow(self.trace_images_extracted[1,:,:],vmin=np.percentile(self.trace_images_extracted[0,:,:],5),vmax=np.percentile(self.trace_images_extracted[0,:,:],99), **kwargs)
         plt.text(5,275,"Bottom - Right", color='w')
         ax.set_yticklabels([])
 
         ax = fig.add_subplot(143)
-        plt.imshow(self.trace_images_extracted[2,:,:], **kwargs)
+        plt.imshow(self.trace_images_extracted[2,:,:],vmin=np.percentile(self.trace_images_extracted[0,:,:],5),vmax=np.percentile(self.trace_images_extracted[0,:,:],99), **kwargs)
         plt.text(5,275,"Top - Right", color='w')
         ax.set_yticklabels([])
 
         ax = fig.add_subplot(144)
-        plt.imshow(self.trace_images_extracted[3,:,:], **kwargs)
+        plt.imshow(self.trace_images_extracted[3,:,:],vmin=np.percentile(self.trace_images_extracted[0,:,:],5),vmax=np.percentile(self.trace_images_extracted[0,:,:],99), **kwargs)
         plt.text(5,275,"Bottom - Left", color='w')
         ax.set_yticklabels([])
 
