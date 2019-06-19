@@ -500,21 +500,14 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
             ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
-=======
-            
-            ax[1].imshow(flux_0*P_0,origin='lower',norm=norm_bkg_sub)
-            ax[1].set_title("flux_0*P0")
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
-            ax[1].set_title('Optimized variance')
-            ax[2].imshow(P_0, origin = 'lower',vmin=0,vmax=0.5)
-||||||| merged common ancestors
-            ax[1].set_title('Optimized variance')
-            ax[2].imshow(P_0, origin = 'lower',norm = norm_P)
-=======
+
+            #ax[1].set_title('Optimized variance')
+            #ax[2].imshow(P_0, origin = 'lower',vmin=0,vmax=0.5)
+
+            #ax[2].imshow(P_0, origin = 'lower',norm = norm_P)
+
             ax[2].imshow(variance_opt, origin = 'lower', norm = norm_var)
->>>>>>> Stashed changes
             ax[2].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[2].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
             ax[2].set_title('Optimized variance')
