@@ -33,7 +33,7 @@ from wirc_drp import constants
 from photutils import RectangularAperture, aperture_photometry,make_source_mask
 from astropy.stats import sigma_clipped_stats
 
-import ccdproc
+# import ccdproc
 
 import cv2
 # import pyfftw
@@ -782,8 +782,8 @@ def locationInIm(wl, location_in_fov, filter_name = 'J'):
     dpx = round(dwl/(wlPerPix))
 
     traceLocation = [ [ 453+location_in_fov[0]+dpx, -435 + location_in_fov[1]-dpx],\
-                    [  -465+location_in_fov[0]-dpx,  445+ location_in_fov[1]+dpx], \
-                    [   440+location_in_fov[0]+dpx,  449+location_in_fov[1]+dpx], \
+                    [  -455+location_in_fov[0]-dpx,  455+ location_in_fov[1]+dpx], \
+                    [   450+location_in_fov[0]+dpx,  455+location_in_fov[1]+dpx], \
                     [  -445+location_in_fov[0]-dpx, -455+location_in_fov[1]-dpx]]
     return np.array(traceLocation)
 
@@ -1586,6 +1586,7 @@ def clean_thumbnails_for_cosmicrays(thumbnails, method='lacosmic',thumbnails_dq=
         return thumbnails, thumbnails_dq
 
     if method == 'lascosmic':
+        import ccdproc
         # A downside to this method is that it doesn't update the DQ frame. 
         
         for i in range(4):

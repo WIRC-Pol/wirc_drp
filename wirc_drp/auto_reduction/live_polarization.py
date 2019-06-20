@@ -18,6 +18,7 @@ from wirc_drp.utils import spec_utils as su
 from wirc_drp.utils.source_utils import compute_qu
 import matplotlib.pyplot as plt 
 import numpy as np 
+import datetime
 
 import matplotlib
 matplotlib.use('Qt4Agg')
@@ -137,7 +138,7 @@ if __name__ == "__main__":
 
 	trace_labels = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
 	#The plots
-	fig, ax = plt.subplots(3,2, figsize = (8, 10))
+	fig, ax = plt.subplots(3,2, figsize = (8, 16))
 
 	ax[0,0].set_ylabel('Flux (ADU)', fontsize = 12)
 	ax[0,1].set_ylabel('Flux (ADU)', fontsize = 12)
@@ -181,6 +182,8 @@ if __name__ == "__main__":
 
 				data = wo.wirc_data(wirc_object_filename=file_name, verbose=False, load_full_image = False )
 
+				fig.suptitle("{} including files {} to {}\n{} Pacific".format(data.header['OBJECTA'],sys.argv[4],fn_string[-4:],datetime.datetime.now()))
+				
 				#Read spectra and half wave plate angle
 				spectra = data.source_list[0].trace_spectra
 
@@ -228,14 +231,14 @@ if __name__ == "__main__":
 					holding[HWP_ind] += [spectra]
 					HWP_in_holding[HWP_ind] = HWP #again, there can only be one HWP in holding
 
-					ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])))
+					ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
 				else: #something in the holding list
 					if HWP_in_holding[HWP_ind] == HWP: # in case of same angle, just add the new spectrum to the list
 						holding[HWP_ind] += [spectra]
-						ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])))
+						ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
 					else: #Different angle, call compute q, u to get q and u
 						#Note that for each pair of images at different HWP angle, we get 
-						ax[0,HWP_ind].set_title('Computing q, u from HWP angles %.1f and %.1f'%(HWP,HWP_in_holding[HWP_ind]))
+						ax[0,HWP_ind].set_title('Computing q, u from HWP angles %.1f and %.1f'%(HWP,HWP_in_holding[HWP_ind]),fontsize=9)
 						spec1 = spectra
 						spec2 = holding[HWP_ind][0] #Take the 0th, i.e. first element in the holding list. 
 						HWP2 = HWP_in_holding[HWP_ind] #same with the HWP angle. 
@@ -429,13 +432,27 @@ if __name__ == "__main__":
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
 						#med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
+<<<<<<< Updated upstream
 						ax[2,0].set_ylim([0,5])
 						ax[2,1].set_ylim([-20,50])
 						ax[2,0].set_xlim([50,150])
 						ax[2,1].set_xlim([50,150])
 						#ax[2,0].axhline(6.46)
+||||||| merged common ancestors
+						ax[2,0].set_ylim([0,7])
+						ax[2,1].set_ylim([20,50])
+						ax[2,0].set_xlim([50,150])
+						ax[2,1].set_xlim([50,150])
+						ax[2,0].axhline(6.46*0.85)
+=======
+						ax[2,0].set_ylim([0,3])
+						ax[2,1].set_ylim([20,50])
+						ax[2,0].set_xlim([30,150])
+						ax[2,1].set_xlim([30,150])
+						#ax[2,0].axhline(6.46*0.85)
+>>>>>>> Stashed changes
 						#ax[2,0].axhline(2.88*0.85)
-						#ax[2,1].axhline(69)
+						#ax[2,1].axhline(24)
 
 						
 
@@ -476,6 +493,8 @@ if __name__ == "__main__":
 				# ax[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
 				#save extraction results
+				fig.tight_layout()
+				plt.subplots_adjust(top=0.85)
 				plt.savefig("/scr/wircpol/WIRC-Pol-Website/flask/app/static/img/quick_look_img.png",bbox_inches="tight")
 				# data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
 				first_file = int(fn_string[-4:])+1
