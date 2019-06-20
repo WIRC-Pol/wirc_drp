@@ -135,3 +135,7 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
         u_err =  pol_err[list(u_ind[0])] 
         # print(q.shape, q_err.shape)
         return q, u, q_err, u_err, q_ind[0], u_ind[0]
+
+
+
+        
