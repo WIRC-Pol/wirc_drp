@@ -93,6 +93,21 @@ def get_angles_widths_from_list(filelist, data_dir = '', source_number = 0):
 # q, u, q_err, u_err, q_position, u_position = compute_qu(spec1, spec2, HWP1, HWP2)
 #helper function to compute q and u given two spectra cubes
 def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
+    """
+    compute_qu is a helper function that takes two spectral cubes, each with the dimensions of (4,3,spec_pix)
+    with two orthogonal HWP angles (0 and 45 or 22.5 and 67.5), then compute q and u
+    Inputs:
+        spec1, spec2: spectra cubes, each with the dimensions of (4,3,spec_pix). 
+                        First index is the 4 spectra in one WIRC image.
+                        Second index is (wavelength, flux, flux_error)
+                        Last index is the spectral pixel direction
+        HWP1, HWP2: half wave plate angles for spec1 and spec2 respectively. We need HWP2-HWP1 to be 45 deg (orthogonal)
+        run_alignment: booleen indicating whether to run align_spectral_cube and scale_and_combine_spectra. Default is True
+    Output:
+        q, u: normalized stokes vectors q and u where q, u corresponds to polarization along 0 and 45 degrees respectively
+        q_err, u_err: associated uncertainties
+        q_ind, u_ind: indices of frames used to compute q and u. This is provided so we can check the results. 
+    """ 
     #stack spectra
     # if spec1.shape != spec2.shape:
     if ((round(HWP1,2) - round(HWP2,2))%45) >0.01: #add some tolerance
@@ -135,6 +150,115 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
         u_err =  pol_err[list(u_ind[0])] 
         # print(q.shape, q_err.shape)
         return q, u, q_err, u_err, q_ind[0], u_ind[0]
+
+def group_HWP(HWP_set):
+    """
+    Helper function to compute_qu_for_obs_sequence. It groups given list of HWP angles into sets of two orthogonal observations. 
+
+    Input: HWP_set, a vector of all half wave plate angles in the observing compute_qu_for_obs_sequence
+    Output: Two arrays each for sets of 0/45 deg and another for 22.5/67.5. compute_qu_for_obs_sequence can then use this info to call 
+            compute_qu to compute qu for each appropriate pair.  
+    """
+    # #HWP_index determine which pair is q and which is u. If HWP = 0 or 45, HWP_ind = 0; if HWP = 22.5, 67.5, HWP_ind = 1
+    # #So HWP_ind = 0; LL, UR is q, LR, UL is u. Flipped for HWP_ind = 1
+    # HWP_ind = (HWP_set//22.5)%2
+
+    # group_0 = HWP_set[HWP_ind == 0]
+    # group_1 = HWP_set[HWP_ind == 1]
+    # #initialize the sets of observations
+    # set_0 = []
+    # set_1 = []
+    # holding_0_ind = []
+    # holding_1_ind = []
+    # for i, HWP in enumerate(group_0):
+
+    set_0 = np.where(HWP_set == 0)
+    set_225 = np.where(HWP_set == 22.5)
+    set_45 = np.where(HWP_set == 45)
+    set_675 = np.where(HWP_set == 67.5)
+
+    pairs_0 = np.stack([set_0[0], set_45[0]], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair. 
+    pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
+
+    return pairs_0, pairs_225
+
+def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0):
+    """
+    This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
+    and call compute_qu to measure polarization q and u. 
+
+    Parameters:
+        obs_set: a spectral cube with shape (N, 4, 3, spec_pix) where N is the number of frames. Each element is the 4 spectra from single image. 
+        HWP_set: a vector of length N, prescribing the half wave plate angle for each of the frame in obs_set. Values should be 0, 45, 22.5, 67.5 for double diff. 
+                 if there is an offset from this orthogonal set, indicae so in HWP_offset
+        HWP_offset: a float indicating the zeropoint of the HWP angle. We proceed with HWP_set - HWP_offset.
+
+    Output:
+        q, q_err, u, u_err **currently single differencing in time. Can do double difference manually afterward. This may change. 
+    """
+    #First, check length
+    if spectra_cube.shape[0] != len(HWP_set):
+        raise ValueError("Lengths of spectra_cube and HWP_set are not equal.")
+
+    #Apply HWP_offset
+    HWP_final = HWP - HWP_offset
+    #check if the values are good. 
+    all_ang = set([0,45,22.5,67.5])
+    if set(HWP_final) != all_ang:
+        raise ValueError("HWP set doesn't have all 4 angles or have wrong angles: %s"%str(set(HWP_final)))
+
+    #Arrange the sequence into best pairs of 0/45 and 22.5/67.5 to compute qu
+    pairs_0, pairs_225 = group_HWP(HWP_final)
+
+    #First deal with observations with HWP angles 0/45. Go through the list and compute q and u for each pair
+
+    all_q0 = []
+    all_u0 = []
+    all_qerr0 = []
+    all_uerr0 = []
+    all_qind0 = []
+    all_uind0 = []
+
+    for i in pairs_0:
+        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], HWP_final[i[0]], HWP_final[i[1]])
+        all_q0    += [q]
+        all_u0    += [u]
+        all_qerr0 += [q_err]
+        all_uerr0 += [u_err]
+        all_qind0 += [q_ind]
+        all_uind0 += [u_ind]
+
+    #Now deal with observations with HWP angles 22.5/67.5. 
+
+    all_q225 = []
+    all_u225 = []
+    all_qerr225 = []
+    all_uerr225 = []
+    all_qind225 = []
+    all_uind225 = []
+
+    for i in pairs_225:
+        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], HWP_final[i[0]], HWP_final[i[1]])
+        all_q225    += [q]
+        all_u225    += [u]
+        all_qerr225 += [q_err]
+        all_uerr225 += [u_err]
+        all_qind225 += [q_ind]
+        all_uind225 += [u_ind]
+
+
+    all_q       = np.array(all_q0 + all_q225    )
+    all_u       = np.array(all_u0 + all_u225     )
+    all_qerr   = np.array(all_qerr0 + all_qerr225   )
+    all_uerr   = np.array(all_uerr0 + all_uerr225   )
+    all_qind   = np.array(all_qind0 + all_qind225   )
+    all_uind   = np.array(all_uind0 + all_uind225   )
+
+    return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
+
+
+
+
 
 
 
