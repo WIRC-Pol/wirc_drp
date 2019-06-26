@@ -6,6 +6,8 @@ from scipy.ndimage import shift
 from scipy.signal import fftconvolve 
 from astropy.io import ascii as asci
 from astropy.io import fits 
+from wirc_drp.utils import spec_utils as su
+
 
 
 def plot_source_traces(source_list, cmap = None, figsize=(8,8), plot_lims = None):
@@ -138,7 +140,7 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
         q_ind = np.where(np.logical_or(sampling_angles_1 == 0, sampling_angles_1 == 90))
         u_ind = np.where(np.logical_or(sampling_angles_1 == 45, sampling_angles_1 == 135))
 
-        print(HWP1, HWP2, sampling_angles_1, sampling_angles_2, q_ind, u_ind)
+        #print(HWP1, HWP2, sampling_angles_1, sampling_angles_2, q_ind, u_ind)
         # print(signs)
         # print(signs[list(q_ind[0])])
         # print('q shape is ',pol_vec[q_ind[0]].shape)
@@ -182,7 +184,7 @@ def group_HWP(HWP_set):
 
     return pairs_0, pairs_225
 
-def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0):
+def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True):
     """
     This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
     and call compute_qu to measure polarization q and u. 
@@ -201,7 +203,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0):
         raise ValueError("Lengths of spectra_cube and HWP_set are not equal.")
 
     #Apply HWP_offset
-    HWP_final = HWP - HWP_offset
+    HWP_final = HWP_set - HWP_offset
     #check if the values are good. 
     all_ang = set([0,45,22.5,67.5])
     if set(HWP_final) != all_ang:
@@ -220,7 +222,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0):
     all_uind0 = []
 
     for i in pairs_0:
-        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], HWP_final[i[0]], HWP_final[i[1]])
+        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], HWP_final[i[0]], HWP_final[i[1]], run_alignment)
         all_q0    += [q]
         all_u0    += [u]
         all_qerr0 += [q_err]
@@ -238,7 +240,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0):
     all_uind225 = []
 
     for i in pairs_225:
-        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], HWP_final[i[0]], HWP_final[i[1]])
+        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], HWP_final[i[0]], HWP_final[i[1]], run_alignment)
         all_q225    += [q]
         all_u225    += [u]
         all_qerr225 += [q_err]
