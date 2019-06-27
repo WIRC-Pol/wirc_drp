@@ -500,13 +500,8 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
 
             ax[1].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[1].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
-
-
-            #ax[1].set_title('Optimized variance')
-            #ax[2].imshow(P_0, origin = 'lower',vmin=0,vmax=0.5)
-
-            #ax[2].imshow(P_0, origin = 'lower',norm = norm_P)
-
+            
+            
             ax[2].imshow(variance_opt, origin = 'lower', norm = norm_var)
             ax[2].plot([0,data.shape[1]],[extraction_range[0],extraction_range[0]], '--')
             ax[2].plot([0,data.shape[1]],[extraction_range[1],extraction_range[1]], '--')
@@ -808,8 +803,15 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         #First, if background subtraction mode is set to background image but the image is not provided, print error message and
         #default to shift and subtract
         if sub_background == 'bkg_image' and bkg_thumbnails is not None:
-            bkg_raw = bkg_thumbnails[j,:,:]
-            bkg_scale_factor = np.median(thumbnail)/np.median(bkg_raw) #median scale the background before subtraction
+            if j == 0:
+                bkg_raw = bkg_thumbnails[j,:,:]
+            elif j == 1:
+                bkg_raw = bkg_thumbnails[1,-1::-1, -1::-1]
+            elif j == 2:
+                bkg_raw = bkg_thumbnails[2,:,-1::-1]
+            else: 
+                bkg_raw = bkg_thumbnails[3,-1::-1, :]
+            bkg_scale_factor = np.nanmedian(thumbnail)/np.nanmedian(bkg_raw) #median scale the background before subtraction
             bkg_sub = thumbnail - bkg_raw*bkg_scale_factor
 
         # elif sub_background == 'bkg_image' and bkg_thumbnails is None:
@@ -1264,7 +1266,13 @@ def rough_wavelength_calibration_v2(trace, filter_name, lowcut=0, highcut=-1):
     #for location of peak gradients in the transmission function, we know the wl
     wl_up = wla[np.argmax(grad_trans)]
     wl_down = wla[np.argmin(grad_trans)]
-    
+   
+    print(wla)
+    print(wl_up)
+    print(wl_down)
+    print(np.argmax(grad_trans))
+    print(np.argmin(grad_trans)) 
+
     slope = (wl_down - wl_up )/(np.argmin(grad) - np.argmax(grad))
 
     x = np.arange(len(trace_copy))

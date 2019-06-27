@@ -1182,6 +1182,7 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
 
 # @profile
 def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_mask=False,mode='pol',fractional_fit_type = None):
+
     """
     mode='pol' or 'spec'
     
@@ -1194,6 +1195,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
     At the location of maximum flux, it calls traceWidth to get the stddev of 
     the gaussian fit to the trace at that location.
     """
+
     peaks = []
     peak_size = []
     
@@ -1297,7 +1299,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
 
     #Now for the trace width, mask irrelevent area to prevent traceWidth trying to fit weird places in the image
     on_trace = np.abs(fit-peaks) < 5 #5 pixels
-    x_bigpeak = np.argmax(peak_size*on_trace) #set "peaks" that are not on trace to zero
+    x_bigpeak = np.nanargmax(peak_size*on_trace) #set "peaks" that are not on trace to zero
     y_bigpeak = peaks[x_bigpeak]
     width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
 
