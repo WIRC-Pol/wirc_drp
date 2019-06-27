@@ -189,7 +189,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
     and call compute_qu to measure polarization q and u. 
 
-    Parameters:
+    Input:
         obs_set: a spectral cube with shape (N, 4, 3, spec_pix) where N is the number of frames. Each element is the 4 spectra from single image. 
         HWP_set: a vector of length N, prescribing the half wave plate angle for each of the frame in obs_set. Values should be 0, 45, 22.5, 67.5 for double diff. 
                  if there is an offset from this orthogonal set, indicae so in HWP_offset
@@ -257,6 +257,85 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     all_uind   = np.array(all_uind0 + all_uind225   )
 
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
+
+
+def find_best_background(list_of_headers, separation_threshold = 2):
+    """
+    find_best_background takes a list of headers from WIRC+Pol observations and find best background frame for each element. 
+    Here are the conditions: 
+        Same HWP angle
+        With telescope offset greater than 'separation_threshold' (default at 2 arcsec)
+        Closest in time
+        Not already used by another frame (this condition is relaxed if every frame is used up. Say we have extra set of exposures at position A)
+
+    Input:
+        list_of_headers: a list of fits headers of the observations. 
+        separation_threshold: how far away, in arcsec, the background frame is required to be from the current frame. 
+
+    Output: 
+        list of the same length of list_of_headers giving the index of the best background for each frame in list_of_headers
+        example: if the best background for file wirc0001 is wirc0005, then best_bkg[1] = 5 
+    """
+    from astropy.time import Time
+    from astropy.coordinates import SkyCoord
+    import astropy.units as u 
+    #closest in time, some distance away, same HWP
+    sep_threshold = separation_threshold 
+    all_hdr = list_of_headers
+    #get some useful quantities
+    coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
+    names = np.array([x['RAW_FN'] for x in all_hdr])
+    hwps = np.array([x['HWP_ANG'] for x in all_hdr])
+    times = np.array([Time(x['UTSHUT'], format = 'isot') for x in all_hdr])
+
+    #array to keep track of best background frame
+    best_bkgs = np.array( [None]*len(all_hdr) )
+    #array to keep track of whether this index is already in a pair 
+    already_in_pair = np.zeros(len(all_hdr))
+
+    for i in range(len(all_hdr)):
+        if best_bkgs[i] is None:
+    #         print(i)
+            all_dist = np.array([ (coords[i].separation(x)).arcsec for x in coords ])
+            far_enough = all_dist > sep_threshold
+            same_hwp = hwps == hwps[i]
+
+            all_good = np.logical_and(far_enough, same_hwp)
+
+
+        
+            #are there good background that is not already in a pair?
+            not_in_pair = already_in_pair == 0
+            if np.any(not_in_pair[all_good]): #if there're some frames available not already in a pair, use those first
+                all_good = np.logical_and(all_good, not_in_pair)
+            #otherwise, just accept the repeat
+     
+
+            #time difference
+            t0 = Time(all_hdr[i]['UTSHUT'], format = 'isot')
+            time_diff = np.array([ np.abs((x - t0).value) for x in times[all_good]])
+
+            #Use minimal time difference
+            best_bkg = names[all_good][np.where(time_diff == np.min(time_diff))[0]]
+            
+
+
+            #Save this in best_bkg array
+            best_bkgs[i] = np.where( names == best_bkg[0] )[0][0]
+            
+            #remember that this is already in an AB pair
+            already_in_pair[i] = 1
+            
+            #But also reciprocate, so it's neatly in a pair
+            if best_bkgs[np.where(names == best_bkg )[0]][0] is None:
+                #print(names[np.where(names == best_bkg )[0]])
+                best_bkgs[np.where(names == best_bkg )[0]] = np.where(names == names[i])[0][0]
+                #also remember that this frame is already in a pair
+                already_in_pair[np.where(names == best_bkg )[0]] = 1
+            
+    return best_bkgs.astype('int')     
+    
+    #     print(all_dist)
 
 
 
