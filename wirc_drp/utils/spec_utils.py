@@ -1564,7 +1564,7 @@ def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_t
     If ref trace is 'median', then use the median of the set as a reference. 
     """
     #Define reference if not given,
-    if ref_trace == None:
+    if ref_trace is None:
         ref_trace = spectral_cube[0,0,1,:] #This is first observation, first trace (Qp), flux, and the whole vector
     elif ref_trace == 'median':
         ref_trace = np.nanmedian(spectral_cube[:,0,1,:], axis = 0)
