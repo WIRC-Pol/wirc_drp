@@ -432,27 +432,13 @@ if __name__ == "__main__":
 						#This is part of p where p < 3 sigma_p, so probably zero polarization
 						#med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
 						#plot limits
-<<<<<<< Updated upstream
-						ax[2,0].set_ylim([0,5])
-						ax[2,1].set_ylim([-20,50])
-						ax[2,0].set_xlim([50,150])
-						ax[2,1].set_xlim([50,150])
-						#ax[2,0].axhline(6.46)
-||||||| merged common ancestors
+
 						ax[2,0].set_ylim([0,7])
 						ax[2,1].set_ylim([20,50])
 						ax[2,0].set_xlim([50,150])
 						ax[2,1].set_xlim([50,150])
 						ax[2,0].axhline(6.46*0.85)
-=======
-						ax[2,0].set_ylim([0,3])
-						ax[2,1].set_ylim([20,50])
-						ax[2,0].set_xlim([30,150])
-						ax[2,1].set_xlim([30,150])
-						#ax[2,0].axhline(6.46*0.85)
->>>>>>> Stashed changes
-						#ax[2,0].axhline(2.88*0.85)
-						#ax[2,1].axhline(24)
+
 
 						
 
