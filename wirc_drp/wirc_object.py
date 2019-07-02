@@ -120,7 +120,7 @@ class wirc_data(object):
             try:
                 date_in=self.header['UTSHUT']
                 target_pos=coord.SkyCoord(self.header['RA'],self.header['DEC'],unit=(u.hourangle,u.deg),frame='icrs')
-                palomar=coord.EarthLocation.of_site('palomar')
+                palomar=coord.EarthLocation.of_site('Palomar')
                 time=ap_time.Time(date_in,format='isot',scale='utc',location=palomar)
                 mid_exptime=0.5*self.header['EXPTIME']*self.header['COADDS']/(24*3600) #in units of days
                 ltt_bary=time.light_travel_time(target_pos)
