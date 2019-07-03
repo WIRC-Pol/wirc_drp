@@ -6,7 +6,8 @@ Created on Tue Nov  1 16:22:27 2016
 Various focal plane masks to be simulated
 """
 import numpy as np
-from scipy.ndimage import imread
+# from scipy.ndimage import imread
+from imageio import imread #Scipy got rid of imread in version 1.2 and we now need to use iamgeio
 import os 
 from astropy.io import fits
 #from constants import *
