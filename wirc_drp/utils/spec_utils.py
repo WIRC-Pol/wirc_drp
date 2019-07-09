@@ -19,7 +19,7 @@ from scipy.ndimage import shift, median_filter, zoom
 from scipy.ndimage import gaussian_filter
 from scipy import ndimage as ndi
 from scipy.signal import fftconvolve
-from skimage.measure import profile_line
+# from skimage.measure import profile_line
 
 from astropy.modeling import models, fitting
 from astropy.convolution import Gaussian1DKernel, Box1DKernel, convolve
@@ -710,6 +710,7 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
     *method:        method for spectral extraction. Choices are
                         (i) skimage: this is just the profile_line method from skimage. Order for interpolation 
                                         is in skimage_order parameter (fast).
+                                        ######This is deprecated!!!
                         (ii) weightedSum: this is 2D weighted sum assfuming Gaussian profile. Multiply the PSF with data
                                         and sum for each location along the dispersion direction (fast). The width of the Gaussian
                                         is based on the measured value by 'findTrace'. One can adjust this using the parameter 'width_scale'.
@@ -954,17 +955,20 @@ def spec_extraction(thumbnails, slit_num, filter_name = 'J', plot = True, output
         ######################################
                 
 
-        ##skimage profile_line trying different interpolation orders
+        ##skimage profile_line: deprecate this. move to optimal extraction
+        ##
         if method == 'skimage':
-            if verbose:
-                print("Extraction by skimage")
-            #linewidth = 20 #This should be adjusted based on fitted seeing.
-            linewidth = 2*trace_width #use the measured trace width
-            spec_res = profile_line(bkg_sub, (0,trace[0]), (len(bkg_sub[1]),trace[-1]), linewidth = linewidth,order =  skimage_order)                
-            spectra.append(spec_res)
-            spectra_std.append((gain*spec_res+linewidth * sigma_ron**2)/gain**2) #poisson + readout
+            # if verbose:
+            #     print("Extraction by skimage")
+            # #linewidth = 20 #This should be adjusted based on fitted seeing.
+            # linewidth = 2*trace_width #use the measured trace width
+            # spec_res = profile_line(bkg_sub, (0,trace[0]), (len(bkg_sub[1]),trace[-1]), linewidth = linewidth,order =  skimage_order)                
+            # spectra.append(spec_res)
+            # spectra_std.append((gain*spec_res+linewidth * sigma_ron**2)/gain**2) #poisson + readout
+            print("skimage profile_line method is depracated. Use optimal_extraction instead")
+            method = 'optimal'
 
-        elif method == 'weightedSum':
+        if method == 'weightedSum':
             #define PSF (Gaussian for now)
             psf = np.zeros((21,21))
             xx,yy = np.mgrid[0:np.shape(psf)[0], 0:np.shape(psf)[1]]
