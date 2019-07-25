@@ -367,7 +367,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
 
     return locs
 
-def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, verbose = False, slit_pos = 'slitless', trace_template = None):
+def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, verbose = False, cutout_size = None, slit_pos = 'slitless', trace_template = None,max_offset=10):
     """
     This function grabs the upper left cutout from given x,y location of the zeroth order, then uses chi2_shift to align it
     with a trace template, then spits out the new x, y location that will center the trace. 
@@ -388,16 +388,21 @@ def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, v
     else:
         pass
 
+    if cutout_size is not None:
+        if cutout_size > trace_template.shape[0]:
+            trace_template = np.pad(trace_template,cutout_size-trace_template.shape[0],'edge')
+    cutout_size = int(trace_template.shape[0]/2)
     # Grab top left trace cutout
     UL_trace = cutout_trace_thumbnails(image, np.expand_dims([[y,x], slit_pos],axis=0) , flip = False, filter_name = 'foo',
-            cutout_size = int(trace_template.shape[0]/2), sub_bar = False, mode = 'pol', verbose = False)[0][0] #just take the first ones
-
+            cutout_size = cutout_size, sub_bar = False, mode = 'pol', verbose = False)[0][0] #just take the first ones
+	
     try:
         shifts = chi2_shift(median_filter(UL_trace,3),trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
         if verbose:
             print("Shfits are x,y = ", shifts)
         #Sometimes if it's too big the whole thing gets shifted out and it breaks things. 
-        if (np.abs(shifts[0]) < 10 and np.abs(shifts[1]) < 10):
+        if (np.abs(shifts[0]) < max_offset and np.abs(shifts[1]) < max_offset):
+            print("Applying shifts")
             x -= shifts[0]
             y -= shifts[1]
         
