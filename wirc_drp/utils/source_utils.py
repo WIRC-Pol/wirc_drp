@@ -338,8 +338,8 @@ def find_best_background(list_of_headers, separation_threshold = 2):
     #     print(all_dist)
 
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
-    target_name="",date="19850625",t_ext = 3600,binsize=1,theta_wrap=180,ldwarf=False,show=True,
-    save_path=None):
+    target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
+    save_path=None,legend_loc ="bottom left"):
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
@@ -374,7 +374,6 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             q_mean[i] = mn
         q_std[i] = std/np.sqrt(q_dd.shape[0])
         mn,md,std = stats.sigma_clipped_stats(u_dd[:,i], sigma=3, maxiters=5)
-        p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
         u_std[i] = std/np.sqrt(q_dd.shape[0])
         if mode == 'median':
             u_mean[i] = md
@@ -383,7 +382,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
 
     p_mean = np.sqrt(q_mean**2+u_mean**2)
     theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
-    theta_mean[theta_mean < 0] +=180
+    theta_mean[theta_mean < theta_wrap] +=180
 
     q_mean_err = np.sqrt(np.sum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
     u_mean_err = np.sqrt(np.sum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
@@ -427,7 +426,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
 
     #Wrap theta about 180
-    theta[theta>theta_wrap] -= 180
+    theta_mean[theta_mean>theta_wrap] -= 180
 
 
 
@@ -461,7 +460,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[0,1].plot(wvs,u_mean,'k')   
     axes[1,0].plot(wvs,p_mean,'k')
     axes[1,1].plot(wvs,theta_mean,'k')
-    axes[2,1].plot(np.radians(theta_bin),inds_bin,'k')
+    axes[2,1].plot(np.radians(theta_mean),wvs,'k')
 
     #Make a line at zero
     axes[0,0].axhline(0.,color='r',linestyle='--')
@@ -492,8 +491,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[1,0].set_xlim(xlow,xhigh)
     axes[1,1].set_xlim(xlow,xhigh)
 
-    axes[0,0].set_ylim(-ylow,yhigh)
-    axes[0,1].set_ylim(-ylow,yhigh)
+    axes[0,0].set_ylim(ylow,yhigh)
+    axes[0,1].set_ylim(ylow,yhigh)
     axes[1,0].set_ylim(0,yhigh)
     axes[1,1].set_ylim(0,180)
 
@@ -501,15 +500,15 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[0,1].locator_params(nbins=6)
     axes[1,0].locator_params(nbins=6)
     axes[1,1].locator_params(nbins=6)
+    axes[2,1].locator_params(nbins=3)
 
-    axes[0,0].legend(loc="upper left")
+    axes[0,0].legend(loc=legend_loc,fontsize=14)
     #Figure Title
-    fig.suptitle("{}, {}, t_exp = {},Bin size = ".format(target_name,date,binsize),fontsize=24)
+    fig.suptitle("{}, {}, t_exp = {},Bin size = ".format(target_name,date,t_ext,binsize),fontsize=24)
 
     #Some annotations: 
     diff=(yhigh-ylow)
     spacing = diff/16
-
     # #### Add some Text
     axes[0,0].text(1.025*xlow,yhigh-spacing,r"Mean $q$ = {:.2f}%".format(mn_q*100),fontsize=20)
     axes[0,0].text(1.025*xlow,yhigh-2*spacing,r"Mean $q$ Error = {:.2f}%".format(mn_q_err*100),fontsize=20)
@@ -526,11 +525,12 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     ## Put in the plot overlaid with the spectrum
     axes[2,0].plot(wvs,p_mean,'k')
     axes[2,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color='k',alpha=0.1)
-    axes[2,0].plot(wvs,3*p_mean_err,r,label=r"3$\sigma$ from zero")
+    axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
     axes[2,0].legend(fontsize=14)
     #Twin axis to show the mean spectrum
     twin = axes[2,0].twinx()
-    p_right = twin.plot(wv,spec)
+    p_right, = twin.plot(wvs,spec)
     twin.set_ylim(0,1.3*np.max(spec))
 
     #### Lots of plot setup ####
@@ -557,13 +557,13 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[1,1].set_xlim(xlow,xhigh)
     axes[2,0].set_xlim(xlow,xhigh)
 
-    axes[0,0].set_ylim(-ylow,yhigh)
-    axes[0,1].set_ylim(-ylow,yhigh)
+    axes[0,0].set_ylim(ylow,yhigh)
+    axes[0,1].set_ylim(ylow,yhigh)
     axes[1,0].set_ylim(0,yhigh)
     axes[1,1].set_ylim(-90,90)
     axes[2,1].set_ylim(xlow,xhigh)
     axes[2,1].set_xlim(np.radians(theta_wrap)-np.pi,np.radians(theta_wrap))
-    axes[2,0].set_ylim(0,0.02)
+    axes[2,0].set_ylim(0,yhigh)
 
     ### Number of ticks
     axes[0,0].locator_params(nbins=6)
