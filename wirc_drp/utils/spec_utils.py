@@ -1270,12 +1270,6 @@ def rough_wavelength_calibration_v2(trace, filter_name, lowcut=0, highcut=-1):
     #for location of peak gradients in the transmission function, we know the wl
     wl_up = wla[np.argmax(grad_trans)]
     wl_down = wla[np.argmin(grad_trans)]
-   
-    print(wla)
-    print(wl_up)
-    print(wl_down)
-    print(np.argmax(grad_trans))
-    print(np.argmin(grad_trans)) 
 
     slope = (wl_down - wl_up )/(np.argmin(grad) - np.argmax(grad))
 

@@ -896,12 +896,13 @@ class wirc_data(object):
                 self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
 
 
-    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, verbose = False, trace_template = None):
+    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, n_chi2_iters = 1, chi2_cutout_size=None,max_offset=10, verbose = False, trace_template = None):
         """trace_template is the template you want to align the new location to
         """
         if update_w_chi2_shift:
-            x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
-                verbose = verbose, trace_template = trace_template)
+            for i in range(n_chi2_iters):
+                x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
+                    verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)
         self.source_list.append(wircpol_source([y,x],slit_pos,self.n_sources+1)) #where slit_pos is '0','1','2' or slitless.
         self.n_sources += 1
 
