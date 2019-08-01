@@ -403,7 +403,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             p_mean = np.sqrt(q_mean**2+u_mean**2)
             theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
 
-            spec_bin = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
+            spec = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
 
             q_mean_err = np.sqrt(np.sum(q_mean_err[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
             q_std = np.sqrt(np.sum(q_std[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
@@ -421,7 +421,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
             # theta_bin[theta_bin < 0] +=180
 
-            spec_bin = np.mean(spec.reshape(-1,binsize),axis=1)
+            spec = np.mean(spec.reshape(-1,binsize),axis=1)
 
             q_mean_err = np.sqrt(np.sum(q_mean_err.reshape(-1,binsize)**2,axis=1))/binsize
             q_std = np.sqrt(np.sum(q_std.reshape(-1,binsize)**2,axis=1))/binsize
@@ -467,7 +467,6 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[0,1].plot(wvs,u_mean,'k')   
     axes[1,0].plot(wvs,p_mean,'k')
     
-    axes[2,1].plot(np.radians(theta_mean),wvs,'k')
 
     #Make a line at zero
     axes[0,0].axhline(0.,color='r',linestyle='--')
@@ -485,7 +484,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     else:
         where_theta = p_mean > 3*p_mean_err
     axes[1,1].errorbar(wvs[where_theta],theta_mean[where_theta],yerr=theta_mean_err[where_theta],linestyle="None",marker='o',color='k')
-
+    axes[2,1].errorbar(np.radians(theta_mean[where_theta]),wvs[where_theta],xerr=np.radians(theta_mean_err[where_theta]),linestyle="None",marker='o',color='k')
     #Fill in photon/ron error ranges from stds
     axes[0,0].plot(wvs,q_mean+q_std,'k--',alpha=0.5,label="Standard Error on the Mean")
     axes[0,0].plot(wvs,q_mean-q_std,'k--',alpha=0.5)
@@ -508,7 +507,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[0,0].set_ylim(ylow,yhigh)
     axes[0,1].set_ylim(ylow,yhigh)
     axes[1,0].set_ylim(0,yhigh)
-    axes[1,1].set_ylim(0,180)
+    axes[1,1].set_ylim(theta_wrap-180,theta_wrap)
 
     axes[0,0].locator_params(nbins=6)
     axes[0,1].locator_params(nbins=6)
@@ -518,7 +517,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
 
     axes[0,0].legend(loc=legend_loc,fontsize=14)
     #Figure Title
-    fig.suptitle("{}, {}, t_exp = {},Bin size = ".format(target_name,date,t_ext,binsize),fontsize=24)
+    fig.suptitle("{}, {}, t_exp = {}, Bin size = {}".format(target_name,date,t_ext,binsize),fontsize=24)
 
     #Some annotations: 
     diff=(yhigh-ylow)
@@ -574,11 +573,11 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[0,0].set_ylim(ylow,yhigh)
     axes[0,1].set_ylim(ylow,yhigh)
     axes[1,0].set_ylim(0,yhigh)
-    axes[1,1].set_ylim(-90,90)
+    axes[1,1].set_ylim(theta_wrap-180,theta_wrap)
     axes[2,1].set_ylim(xlow,xhigh)
     axes[2,1].set_xlim(np.radians(theta_wrap)-np.pi,np.radians(theta_wrap))
     axes[2,0].set_ylim(0,yhigh)
-
+    axes[2,1].set_rticks([1.15, 1.2, 1.25, 1.30])
     ### Number of ticks
     axes[0,0].locator_params(nbins=6)
     axes[0,1].locator_params(nbins=6)
