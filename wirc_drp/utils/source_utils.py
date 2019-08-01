@@ -339,7 +339,7 @@ def find_best_background(list_of_headers, separation_threshold = 2):
 
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
-    save_path=None,legend_loc ="bottom left"):
+    save_path=None,legend_loc ="bottom left",all_theta=False):
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
@@ -406,9 +406,12 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             spec_bin = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
 
             q_mean_err = np.sqrt(np.sum(q_mean_err[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+            q_std = np.sqrt(np.sum(q_std[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
             u_mean_err = np.sqrt(np.sum(u_mean_err[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+            u_std = np.sqrt(np.sum(u_std[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
             p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
             theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
+            
         
         else: 
             q_mean = np.mean(q_mean.reshape(-1,binsize),axis=1)
@@ -421,10 +424,14 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             spec_bin = np.mean(spec.reshape(-1,binsize),axis=1)
 
             q_mean_err = np.sqrt(np.sum(q_mean_err.reshape(-1,binsize)**2,axis=1))/binsize
+            q_std = np.sqrt(np.sum(q_std.reshape(-1,binsize)**2,axis=1))/binsize
             u_mean_err = np.sqrt(np.sum(u_mean_err.reshape(-1,binsize)**2,axis=1))/binsize
+            u_std = np.sqrt(np.sum(u_std.reshape(-1,binsize)**2,axis=1))/binsize
             p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
             theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
-
+    p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
+    theta_std = 0.5*np.degrees( np.sqrt( (u_mean**2*q_std**2+q_mean**2*u_std**2)/(q_mean**2+u_mean**2)**2))
+    
     #Wrap theta about 180
     theta_mean[theta_mean>theta_wrap] -= 180
 
@@ -459,7 +466,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
         axes[0,0].plot(wvs,q_mean,'k',label="Mean")    
     axes[0,1].plot(wvs,u_mean,'k')   
     axes[1,0].plot(wvs,p_mean,'k')
-    axes[1,1].plot(wvs,theta_mean,'k')
+    
     axes[2,1].plot(np.radians(theta_mean),wvs,'k')
 
     #Make a line at zero
@@ -470,7 +477,14 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[0,0].fill_between(wvs,q_mean+q_mean_err,q_mean-q_mean_err,color='k',alpha=0.1,label="Propagated Noise")
     axes[0,1].fill_between(wvs,u_mean+u_mean_err,u_mean-u_mean_err,color='k',alpha=0.1)
     axes[1,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color='k',alpha=0.1)
-    axes[1,1].fill_between(wvs,theta_mean+theta_mean_err,theta_mean-theta_mean_err,color='k',alpha=0.1)
+    # axes[1,1].fill_between(wvs,theta_mean+theta_mean_err,theta_mean-theta_mean_err,color='k',alpha=0.1)
+
+    #Only plot theta where > 3sigma
+    if all_theta:
+        where_theta = p_mean > 0
+    else:
+        where_theta = p_mean > 3*p_mean_err
+    axes[1,1].errorbar(wvs[where_theta],theta_mean[where_theta],yerr=theta_mean_err[where_theta],linestyle="None",marker='o',color='k')
 
     #Fill in photon/ron error ranges from stds
     axes[0,0].plot(wvs,q_mean+q_std,'k--',alpha=0.5,label="Standard Error on the Mean")
@@ -479,8 +493,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[0,1].plot(wvs,u_mean-u_std,'k--',alpha=0.5)
     axes[1,0].plot(wvs,p_mean+p_std,'k--',alpha=0.5)
     axes[1,0].plot(wvs,p_mean-p_std,'k--',alpha=0.5)
-    axes[1,1].plot(wvs,theta_mean+theta_std,'k--',alpha=0.5)
-    axes[1,1].plot(wvs,theta_mean-theta_std,'k--',alpha=0.5)
+    # axes[1,1].plot(wvs,theta_mean+theta_std,'k--',alpha=0.5)
+    # axes[1,1].plot(wvs,theta_mean-theta_std,'k--',alpha=0.5)
 
     #3-sigma for p
     axes[1,0].plot(inds,3*p_mean_err,'r')
