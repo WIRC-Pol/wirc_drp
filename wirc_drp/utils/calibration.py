@@ -1213,3 +1213,10 @@ def remove_correlated_channel_noise(image,n_channels = 8, mask = None):
         image_copy[quad_size+channel_width*(i):quad_size+channel_width*(i+1),quad_size:] -= ur_channel_median
 
     return image_copy
+
+def correct_nonlinearity(image, n_coadd, nonlinearity_constant = -8e-7):
+    image_copy = np.array(image, dtype = float) #copy image
+    image_copy /= n_coadd
+    image_copy = (-1 + np.sqrt(1 + 4*nonlinearity_constant*image_copy)) / \
+                 (2*nonlinearity_constant) #quadratic formula with correct root
+    return image_copy * n_coadd
