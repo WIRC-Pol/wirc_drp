@@ -338,7 +338,8 @@ def find_best_background(list_of_headers, separation_threshold = 2):
     #     print(all_dist)
 
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
-    target_name="",date="1985-06-25",t_ext = 3600,binsize=1,theta_wrap=180,ldwarf=False):
+    target_name="",date="19850625",t_ext = 3600,binsize=1,theta_wrap=180,ldwarf=False,show=True,
+    save_path=None):
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
