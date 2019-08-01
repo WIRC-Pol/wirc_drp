@@ -555,9 +555,10 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[1,1].set_ylabel(r"$\theta$",fontsize=24)
     axes[1,1].set_xlabel(r"$\theta$",fontsize=24)
 
-    axes[1,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
-    axes[1,1].set_xlabel("Wavelength [arb units.]",fontsize=24)
-    axes[2,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
+    axes[1,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+    axes[1,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+    axes[2,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+    axes[2,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
     twin.set_ylabel("Uncalibrated Spectrum",color=p_right.get_color())
 
     #Shrink the space for the title
