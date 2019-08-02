@@ -137,7 +137,7 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False, report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False, report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False):
         '''
         Apply dark and flat-field correction
 
@@ -150,6 +150,10 @@ class wirc_data(object):
         #TODO Add checks to make sure the flatnames are not none
 
         if not self.calibrated:
+            if correct_nonlinearity:
+                n_coadds = self.header["COADDS"]
+                self.full_image = calibration.correct_nonlinearity(
+                                      self.full_image, n_coadds)
 
             if self.dark_fn is not None:
                 #Open the master dark
