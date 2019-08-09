@@ -1299,3 +1299,12 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     
     else:
         print('Unsupported datatype for variable: num_PCA_modes. Variable must be either int or 1-D np.ndarray')
+
+
+        
+def correct_nonlinearity(image, n_coadd, nonlinearity_constant = -8e-7):
+    image_copy = np.array(image, dtype = float) #copy image
+    image_copy /= n_coadd
+    image_copy = (-1 + np.sqrt(1 + 4*nonlinearity_constant*image_copy)) / \
+                 (2*nonlinearity_constant) #quadratic formula with correct root
+    return image_copy * n_coadd

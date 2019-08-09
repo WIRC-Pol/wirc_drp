@@ -1270,12 +1270,6 @@ def rough_wavelength_calibration_v2(trace, filter_name, lowcut=0, highcut=-1):
     #for location of peak gradients in the transmission function, we know the wl
     wl_up = wla[np.argmax(grad_trans)]
     wl_down = wla[np.argmin(grad_trans)]
-   
-    print(wla)
-    print(wl_up)
-    print(wl_down)
-    print(np.argmax(grad_trans))
-    print(np.argmin(grad_trans)) 
 
     slope = (wl_down - wl_up )/(np.argmin(grad) - np.argmax(grad))
 
@@ -1570,8 +1564,9 @@ def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_t
     #Define reference if not given,
     if ref_trace is None:
         ref_trace = spectral_cube[0,0,1,:] #This is first observation, first trace (Qp), flux, and the whole vector
-    elif ref_trace == 'median':
-        ref_trace = np.nanmedian(spectral_cube[:,0,1,:], axis = 0)
+    elif type(ref_trace) == str:
+		if ref_trace == 'median':
+			ref_trace = np.nanmedian(spectral_cube[:,0,1,:], axis = 0)
     #create a destination array
     aligned_cube = np.zeros(spectral_cube.shape) 
     #loop through 4 spectral traces
