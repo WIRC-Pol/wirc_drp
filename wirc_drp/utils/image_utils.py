@@ -19,6 +19,7 @@ from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
 import scipy.signal
 from wirc_drp.constants import *
 from wirc_drp.masks.wircpol_masks import *
+from wirc_drp.masks import *
 from scipy.ndimage import gaussian_filter as gauss
 # from scipy.ndimage.filters import median_filter, shift
 from scipy.ndimage import median_filter, shift, rotate
@@ -518,6 +519,301 @@ def check_traces(full_image, wo_source_list, verbose = False):
         source_brightness.append(np.sum(trace_diag_val))
         
     return(source_ok, source_brightness)
+
+
+
+def mask_sources_in_direct_image(im, source_template, source_list, trace_fluxes, boxsize=10, save_path=None, show_plot=True):
+    """
+    masks sources in source_list by doing up to two procedures depending on flux of source:
+
+    if there are any bright sources (>3sigma), we do a fill of all pixels brighter than 3sigma 
+    with the median pixel flux of the image.
+
+    Then, for all found sources (regardless of flux), we do a fill based on a median in a box centered
+    on each pixel using the source template to locate the traces. 
+
+    ARGS
+    ---
+    im: 2-D np.array
+        direct image
+    source_template: 2-D np.array
+        reference frame that shows what typical spatial orientation of traces looks like (used also for cross-correlating to find sources)
+    source_list: list of tuples
+        list of source positions
+    trace_fluxes: list
+        list of typical trace fluxes to get a sense of how bright each source/trace is (takes 95th percentile flux of trace)
+
+    KWARGS
+    ---
+    boxsize: int
+        size of box to do median fill of sources/traces
+    save_path: str
+        if not None, the filepath to save a .fits file of masked image to. default is None
+    show_plot: bool
+        if True, shows plot of masked image. default is True
+    overwrite: bool
+        if True, replaces self.full_image with masked image. otherwise, saves masked image to self.masked_image
+    
+    output: 2-D np.array
+        returns masked image
+    """
+
+    print('Masking sources.')
+    
+    #bright traces are problematic with masking so we have an extra masking step for >3sigma traces
+    #first we make these bright sources (>3sigma) nans
+    if any(i > np.median(im)+3*np.std(im) for i in trace_fluxes):
+
+        im[np.where(im > np.median(im)+3*np.std(im))] = np.nan
+
+        nans = np.where(np.isnan(im))
+        med = np.nanmedian(im)
+
+        for i in range(len(nans[0])):
+            #then we replace nans with image median 
+            im[(nans[0][i],nans[1][i])] = med
+
+    ref_traces = np.where(source_template==1)
+
+    #for fainter pixels, we use the source template 
+    trace_x = np.array([], dtype=int)
+    trace_y = np.array([], dtype=int)
+
+    for i in range(len(source_list)):
+        trace_x = np.append(trace_x, ref_traces[1]+source_list[i][0]-500)
+        trace_y = np.append(trace_y, ref_traces[0]+source_list[i][1]-500)
+
+    #we replace trace pixels with nans 
+    for i in range(len(trace_x)):
+        im[trace_y[i]][trace_x[i]] = np.nan
+    #then we fill in these nans with the median of a box stamp centered on the pixel
+    for i in range(len(trace_x)):
+        im[trace_y[i]][trace_x[i]] = np.nanmedian(im[trace_y[i]-boxsize//2:trace_y[i]+boxsize//2,
+                                                                trace_x[i]-boxsize//2:trace_x[i]+boxsize//2])
+
+    if save_path is not None:
+        fits.writeto(save_path, im, overwrite=True)
+    
+    if show_plot:
+        plt.figure(figsize=(5, 5))
+        plt.title('Masked image', fontsize=15)
+        plt.imshow(im, origin='lower', vmin=0, vmax=1000)
+        plt.colorbar()
+        plt.show()
+        
+    return im
+
+
+
+def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=1, grid_res=18,
+                    neighborhood_size=50, perc_threshold=98, bgd_subt_perc_threshold=98,
+                   mask_fp=None, boxsize=10, show_plots=True):
+    """
+    cross correlates input WIRC+POL image with a reference template to look for sources in image.
+    
+    ARGS
+    ----
+    in_fp: str
+        filepath to input image
+    
+    KWARGS
+    ------
+    out_fp: str
+        filepath to save plots to
+    sigma: int
+        sigma cutoff for determining which maxima are sources
+    ref_fp: str
+        filepath to reference template for cross correlation
+    grid_res: int
+        pixel resolution for grid search
+    neighborhood_size: fl
+        search radius size in which to look for maxima in image
+    perc_threshold: fl
+        percentile threshold for to be considered a potential source in cross correlation grid
+    bgd_subt_perc_threshold: fl
+        percentile for filtering background noise before searcing for maxima in image
+    mask_fp: str
+        filepath for saving masked image
+    boxsize: int
+        search box size for replacing masked sources with median of surrounding pixels
+        
+    OUTPUT
+    ---
+    OUT:list of source positions ordered by brightest flux to least
+    
+    **if mask_fp is not None, will also return masked image**
+    OUT (1): masked image
+    OUT (2): list of source positions ordered by brightest flux to least
+    """
+    print('Finding sources')
+    im_x = im.shape[1]
+    im_y = im.shape[0]
+    ref_x = ref_frame.shape[1]
+    ref_y = ref_frame.shape[0]
+    #modeling four quadrants of image
+    bar_width=120
+    im_ctr = (1024, 1070) #(x, y)
+    
+    upper_left = np.zeros((2048, 2048), dtype=bool)
+    upper_right = np.zeros((2048, 2048), dtype=bool)
+    lower_left = np.zeros((2048, 2048), dtype=bool)
+    lower_right= np.zeros((2048, 2048), dtype=bool)
+
+    upper_left[1070+bar_width//2:,:1024-bar_width//2]=True # (x, y) = (964,918)
+    upper_right[1070+bar_width//2:,1024+bar_width//2:]=True # (x, y) = (964, 918)
+    lower_left[:1070-bar_width//2,:1024-bar_width//2]=True # (x, y) = (964, 1010)
+    lower_right[:1070-bar_width//2,1024+bar_width//2:]=True # (x, y) = (964, 1010)
+
+    #modeling four different sections of bar
+    top_bar = np.zeros((2048, 2048), dtype=bool)
+    right_bar = np.zeros((2048, 2048), dtype=bool)
+    left_bar = np.zeros((2048, 2048), dtype=bool)
+    bottom_bar = np.zeros((2048, 2048), dtype=bool)
+
+    top_bar[1070+bar_width//2:,1024-bar_width//2:1024+bar_width//2]=True
+    right_bar[1070-bar_width//2:1070+bar_width//2, 1024+bar_width//2:]=True
+    left_bar[1070-bar_width//2:1070+bar_width//2, :1024-bar_width//2]=True
+    bottom_bar[:1070-bar_width//2,1024-bar_width//2:1024+bar_width//2]=True
+
+    center = np.zeros((2048, 2048), dtype=bool)
+    center[1070-bar_width//2:1070+bar_width//2, 1024-bar_width//2:1024+bar_width//2]=True
+    
+    #reshaping models to correct dimensions
+    UL = im[upper_left].reshape(918, 964)
+    UR = im[upper_right].reshape(918, 964)
+    LL = im[lower_left].reshape(1010, 964)
+    LR = im[lower_right].reshape(1010, 964)
+
+    TB = im[top_bar].reshape(918,bar_width)
+    RB = im[right_bar].reshape(bar_width, 964)
+    LB = im[left_bar].reshape(bar_width, 964)
+    BB = im[bottom_bar].reshape(1010,bar_width)
+
+    ctr = im[center].reshape(bar_width, bar_width)
+    
+    #subtract off median bar value for determining accurate flux of traces that overlap with the bar
+    TB = TB - np.median(TB)
+    RB = RB - np.median(RB)
+    LB = LB - np.median(LB)
+    BB = BB - np.median(BB)
+    
+    #set all pixels with flux less than a set percentile threshold to zero to eliminate mask and bar background
+    UL[np.where(UL<np.percentile(UL,bgd_subt_perc_threshold))]=0
+    UR[np.where(UR<np.percentile(UR,bgd_subt_perc_threshold))]=0
+    LL[np.where(LL<np.percentile(LL,bgd_subt_perc_threshold))]=0
+    LR[np.where(LR<np.percentile(LR,bgd_subt_perc_threshold))]=0
+    
+    TB[np.where(TB<np.percentile(TB,bgd_subt_perc_threshold))]=0
+    RB[np.where(RB<np.percentile(RB,bgd_subt_perc_threshold))]=0
+    LB[np.where(LB<np.percentile(LB,bgd_subt_perc_threshold))]=0
+    BB[np.where(BB<np.percentile(BB,bgd_subt_perc_threshold))]=0
+    
+    ctr[np.where(ctr<np.percentile(ctr,bgd_subt_perc_threshold))]=0
+    
+    #recombine image segments together to produce background subtracted image
+    top = np.hstack((UL, TB, UR))
+    middle = np.hstack((LB, ctr, RB))
+    bottom = np.hstack((LL, BB, LR))
+    
+    sub_im = np.vstack((bottom, middle, top))
+    
+    y, x = np.indices(im.shape)
+    
+    #do a grid search cross correlation between reference and percentile cut input frame
+    grid = np.asarray([[np.correlate(sub_im[0+grid_res*y:ref_y+grid_res*y, 0+grid_res*x:ref_x+grid_res*x].ravel(), 
+                                     ref_frame.ravel())[0] for x in range((im_x-ref_x)//grid_res)] for y in range((im_y-ref_y)//grid_res)])
+
+    #zoom interpolates grid by grid_res factor
+    grid = scipy.ndimage.zoom(grid, grid_res)
+    
+    #find local maxima in cross correlation grid
+    grid_max = filters.maximum_filter(grid, neighborhood_size)
+    maxima = (grid == grid_max)
+    grid_min = filters.minimum_filter(grid, neighborhood_size)
+    diff = ((grid_max - grid_min) > np.percentile(grid_max-grid_min, perc_threshold))
+    maxima[diff == 0] = 0
+
+    #convert these local maxima to source positions in input image
+    labeled, num_objects = ndimage.label(maxima)
+    slices = ndimage.find_objects(labeled)
+    x, y = [], []
+    for dy,dx in slices:
+        x_center = (dx.start + dx.stop - 1)/2
+        x.append(x_center)
+        y_center = (dy.start + dy.stop - 1)/2    
+        y.append(y_center)
+    
+    sources_x = [(i + ref_frame.shape[1]//2 - ((im_x-ref_x) % grid_res)) for i in x]
+    sources_y = [(j + ref_frame.shape[0]//2 - ((im_y-ref_y) % grid_res)) for j in y]
+    
+    sources_x_UL = np.asarray(sources_x)+constants.dUL[0]
+    sources_y_UL = np.asarray(sources_y)+constants.dUL[1]
+    
+    sources_x_UR = np.asarray(sources_x)+constants.dUR[0]
+    sources_y_UR = np.asarray(sources_y)+constants.dUR[1]
+    
+    sources_x_LL = np.asarray(sources_x)+constants.dLL[0]
+    sources_y_LL = np.asarray(sources_y)+constants.dLL[1]
+    
+    sources_x_LR = np.asarray(sources_x)+constants.dLR[0]
+    sources_y_LR = np.asarray(sources_y)+constants.dLR[1]
+        
+    #time to sort through potential sources and keep ones that satisfy sigma cutoff
+    sources = []
+    trace_fluxes = []
+    ref_traces = np.where(ref_frame==1)
+    
+    for i in range(len(sources_x)):    
+        trace_x = ref_traces[1]+sources_x[i]-ref_frame.shape[1]//2
+        trace_y = ref_traces[0]+sources_y[i]-ref_frame.shape[0]//2
+        
+        #estimates trace flux using background subtracted image
+        trace_flux = int(np.percentile((sub_im[(trace_y.astype(int), trace_x.astype(int))]), 95))
+        
+        #we only keep sources greater than sigma cutoff
+        if trace_flux>(np.median(im)+sigma_threshold*np.std(im)):
+            sources.append((int(sources_x[i]), int(sources_y[i])))
+            trace_fluxes.append(trace_flux)
+    
+    #sort sources by flux from brightest to faintest
+    ordered_sources = [pos for _,pos in sorted(zip(trace_fluxes, sources))]
+    ordered_sources.reverse()
+    trace_fluxes.sort(reverse=True)
+        
+    if show_plots:
+        #plots 
+        f, ax = plt.subplots(2, 2, figsize=(10, 10))
+        #input frame
+        ax[0][0].set_title('Input frame', fontsize=15)
+        ax[0][0].imshow(im, origin='lower', vmin=0, vmax=1000)
+        #background subtracted input frame
+        ax[0][1].set_title('Background subtracted input frame', fontsize=15)
+        ax[0][1].imshow(sub_im, origin='lower', vmin=0, vmax=1000)
+        #cross correlation grid
+        ax[1][0].set_title('Potential sources in CC Grid', fontsize=15)
+        ax[1][0].imshow(grid, origin='lower')
+        ax[1][0].plot(x, y, 'ro')
+        #sources
+        ax[1][1].set_title('Sources ordered by flux', fontsize=15)
+        cbar = ax[1][1].imshow(im, origin='lower', vmin=0, vmax=1000)
+        for i in range(len(ordered_sources)):
+            ax[1][1].plot(ordered_sources[i][0], ordered_sources[i][1], 'ro')
+            ax[1][1].annotate(str(i+1), (ordered_sources[i][0]+21, ordered_sources[i][1]+21), color='r', fontsize=15)
+        f.subplots_adjust(right=0.92)
+        cbar_ax = f.add_axes([0.95, 0.1, 0.03, 0.8])
+        f.colorbar(cbar, cax=cbar_ax)
+        if out_fp is not None:
+            plt.savefig(out_fp, bbox_inches = 'tight')
+        plt.show()
+    
+    if not ordered_sources:
+        print('No sources found.')
+    else:
+        print('Source positions ordered by flux: {}'.format(ordered_sources))
+        print('Trace fluxes: {}'.format(trace_fluxes))
+    
+    return ordered_sources, trace_fluxes
+
 
 
 def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seeing, plot = False):
