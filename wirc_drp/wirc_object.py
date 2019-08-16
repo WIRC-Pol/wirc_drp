@@ -811,12 +811,15 @@ class wirc_data(object):
             #print ("ending iteration #",i)
 
 
-    def find_sources_v2(self, sigma_threshold=0, show_plots=True):
+    def find_sources_v2(self, source_template=None, sigma_threshold=0, show_plots=True):
         """
         Finds the number of sources in the image.
         """
         if self.source_template is None:
-            self.source_template = fits.getdata('source_template.fits')
+            if source_template is None:
+                self.source_template = fits.getdata('source_template.fits')
+            else:
+                self.source_template = fits.getdata(source_template)
         self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.source_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 
         self.n_sources = len(self.source_list)
@@ -824,12 +827,15 @@ class wirc_data(object):
 
 
 
-    def mask_sources(self, boxsize=10, save_path=None, show_plot=True, overwrite=False):
+    def mask_sources(self, bright_source_template=None, boxsize=10, save_path=None, show_plot=True, overwrite=False):
         """
         masks sources in image
         """
         if self.bright_source_template is None:
-            self.bright_source_template = fits.getdata('trace_mask.fits')
+            if bright_source_template is None:
+                self.bright_source_template = fits.getdata('trace_mask.fits')
+            else:
+                self.bright_source_template = fits.getdata(bright_source_template)
         if (not any(self.source_list)) and (not self.already_masked):
             print('Need to find sources first. Running source finding algorithm.')
             self.find_sources_v2()
