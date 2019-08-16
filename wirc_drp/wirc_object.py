@@ -46,7 +46,7 @@ class wirc_data(object):
     """
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True, 
-        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, source_template=None, verbose = True):
+        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, source_template=None, bright_source_template=None, verbose = True):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file,
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once.
@@ -104,6 +104,8 @@ class wirc_data(object):
             self.hp_fn = hp_fn
             self.ref_lib = ref_lib
             self.source_template = source_template
+            self.bright_source_template = bright_source_template
+
             self.trace_fluxes = []
 
             #A bad flag that indicates this whole file should be disregarded.
@@ -813,8 +815,8 @@ class wirc_data(object):
         """
         Finds the number of sources in the image.
         """
-
-        self.source_template = fits.getdata('source_template.fits')
+        if self.source_template is None:
+            self.source_template = fits.getdata('source_template.fits')
         self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.source_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 
         self.n_sources = len(self.source_list)
@@ -826,15 +828,17 @@ class wirc_data(object):
         """
         masks sources in image
         """
+        if self.bright_source_template is None:
+            self.bright_source_template = fits.getdata('trace_mask.fits')
         if (not any(self.source_list)) and (not self.already_masked):
             print('Need to find sources first. Running source finding algorithm.')
             self.find_sources_v2()
 
             if overwrite:
-                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.source_list, self.trace_fluxes,
+                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.bright_source_template, self.source_list, self.trace_fluxes,
                                                                 boxsize=boxsize, save_path=save_path, show_plot=show_plot)
             else:
-                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.source_list, self.trace_fluxes,
+                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.bright_source_template self.source_list, self.trace_fluxes,
                                                                 boxsize=boxsize, save_path=save_path, show_plot=show_plot)
 
             self.already_masked=True
@@ -845,10 +849,10 @@ class wirc_data(object):
             print('Image already masked. See self.masked_image or self.full_image if overwrite=True')
         else:
             if overwrite:
-                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.source_list, self.trace_fluxes,
+                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.bright_source_template, self.source_list, self.trace_fluxes,
                                                                 boxsize=boxsize, save_path=save_path, show_plot=show_plot)
             else:
-                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.source_list, self.trace_fluxes,
+                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.bright_source_template, self.source_list, self.trace_fluxes,
                                                                 boxsize=boxsize, save_path=save_path, show_plot=show_plot)
 
             self.already_masked=True
