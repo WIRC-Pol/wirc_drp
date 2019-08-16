@@ -527,7 +527,7 @@ def check_traces(full_image, wo_source_list, verbose = False):
 
 
 
-def mask_sources_in_direct_image(im, dim_template, bright_template, source_list, trace_fluxes,
+def mask_sources_in_direct_image(im, trace_template, source_list, trace_fluxes,
                                 lower_sigma=0, upper_sigma=2, boxsize=10, save_path=None, show_plot=True):
     """
     masks sources in source_list depending on brightness of traces for given source. 
@@ -568,46 +568,30 @@ def mask_sources_in_direct_image(im, dim_template, bright_template, source_list,
         returns masked image
     """
     print('Masking sources.')
-    dim_traces = np.where(dim_template==1)
-    bright_traces = np.where(bright_template==1)
+    traces = np.where(trace_template==1)
     
     lower_sigma_cutoff = np.median(im)+lower_sigma*np.std(im)
     upper_sigma_cutoff = np.median(im)+upper_sigma*np.std(im)
 
-    #for dim traces, we use the source template. for bright traces, we use the bigger mask template 
-    dim_trace_x = np.array([], dtype=int)
-    dim_trace_y = np.array([], dtype=int)
-    
-    bright_trace_x = np.array([], dtype=int)
-    bright_trace_y = np.array([], dtype=int)
+    #for dim traces, we use the source template. for bright traces, we use the bigger mask template
+    trace_x = np.array([], dtype=int)
+    trace_y = np.array([], dtype=int)
 
     #we create two separate lists of traces based on trace flux
-    for i, flux in enumerate(trace_fluxes):
-        if flux > upper_sigma_cutoff:
-            bright_trace_x = np.append(bright_trace_x, bright_traces[1]+source_list[i][0]-500)
-            bright_trace_y = np.append(bright_trace_y, bright_traces[0]+source_list[i][1]-500)
-        elif flux < upper_sigma_cutoff:
-            dim_trace_x = np.append(dim_trace_x, dim_traces[1]+source_list[i][0]-500)
-            dim_trace_y = np.append(dim_trace_y, dim_traces[0]+source_list[i][1]-500)
+    for i in range(len(source_list)):
+        trace_x = np.append(trace_x, traces[1]+source_list[i][0]-500)
+        trace_y = np.append(trace_y, traces[0]+source_list[i][1]-500)
 
-    #we replace bright trace pixels that overlap with the bright template with nans 
-    for i in range(len(bright_trace_x)):
-        if im[bright_trace_y[i]][bright_trace_x[i]] > lower_sigma_cutoff:
-            im[bright_trace_y[i]][bright_trace_x[i]] = np.nan
+
+    #we replace pixels that overlap with the trace template that are brigher than a lower sigma cutoff with nans 
+    for i in range(len(trace_x)):
+        if im[trace_y[i]][trace_x[i]] > lower_sigma_cutoff:
+            im[trace_y[i]][trace_x[i]] = np.nan
     #then we fill in these nans with the median of a box stamp centered on the pixel
-    for i in range(len(bright_trace_x)):
-        if np.isnan(im[bright_trace_y[i]][bright_trace_x[i]]):
-            im[bright_trace_y[i]][bright_trace_x[i]] = np.nanmedian(im[bright_trace_y[i]-boxsize//2:bright_trace_y[i]+boxsize//2,
-                                                                  bright_trace_x[i]-boxsize//2:bright_trace_x[i]+boxsize//2])
-
-    #for the dim pixels, we simply nan every pixel that overlaps with the dim template   
-    for i in range(len(dim_trace_x)):
-        im[dim_trace_y[i]][dim_trace_x[i]] = np.nan
-    #then again we fill in these nans with the median of a box stamp centered on the pixel
-    for i in range(len(dim_trace_x)):
-        im[dim_trace_y[i]][dim_trace_x[i]] = np.nanmedian(im[dim_trace_y[i]-boxsize//2:dim_trace_y[i]+boxsize//2,
-                                                                  dim_trace_x[i]-boxsize//2:dim_trace_x[i]+boxsize//2])
-    
+    for i in range(len(trace_x)):
+        if np.isnan(im[trace_y[i]][trace_x[i]]):
+            im[trace_y[i]][trace_x[i]] = np.nanmedian(im[trace_y[i]-boxsize//2:trace_y[i]+boxsize//2,
+                                                                  trace_x[i]-boxsize//2:trace_x[i]+boxsize//2])
     
     if save_path is not None:
         fits.writeto(save_path, im, overwrite=True)

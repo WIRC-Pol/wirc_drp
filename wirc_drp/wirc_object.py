@@ -46,7 +46,7 @@ class wirc_data(object):
     """
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True, 
-        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, source_template=None, bright_source_template=None, verbose = True):
+        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, cross_correlation_template=None, trace_template=None, verbose = True):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file,
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once.
@@ -103,8 +103,8 @@ class wirc_data(object):
             self.bp_fn = bp_fn
             self.hp_fn = hp_fn
             self.ref_lib = ref_lib
-            self.source_template = source_template
-            self.bright_source_template = bright_source_template
+            self.cross_correlation_template = cross_correlation_template
+            self.trace_template = trace_template
 
             self.trace_fluxes = []
 
@@ -811,40 +811,58 @@ class wirc_data(object):
             #print ("ending iteration #",i)
 
 
-    def find_sources_v2(self, source_template=None, sigma_threshold=0, show_plots=True):
+    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True):
         """
         Finds the number of sources in the image.
+
+        cross_correlation_template: 2-D np.array
+            By default, uses cross_correlation_template under wircpol_masks module of wirc_drp, but if you provide a template, it will use that instead. (Default=None)
+        sigma_threshold: fl
+            only keeps sources that have a flux above specified sigma threshold. (Default=0)
+        show_plots: bool
+            if True, shows plots. (Default=True)
         """
-        if self.source_template is None:
-            if source_template is None:
-                self.source_template = fits.getdata('source_template.fits')
+        if self.cross_correlation_template is None:
+            if cross_correlation_template is None:
+                self.cross_correlation_template = wircpol_masks.cross_correlation_template
             else:
-                self.source_template = fits.getdata(source_template)
-        self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.source_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
+                self.cross_correlation_template = cross_correlation_template
+        self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 
         self.n_sources = len(self.source_list)
         self.header['NSOURCES'] = self.n_sources
 
 
 
-    def mask_sources(self, bright_source_template=None, boxsize=10, save_path=None, show_plot=True, overwrite=False):
+    def mask_sources(self, trace_template=None, sigma_threshold=0, boxsize=10, save_path=None, show_plot=True, overwrite=False):
         """
         masks sources in image
+
+        trace_template: 2-D np.array
+            By default, uses the trace_template under wircpol_masks module of wirc_drp, but if you provide a template, it will use that instead. (Default=None)
+        boxsize: int
+            size of box used to do median fill of traces. (Default=10)
+        save_path: str
+            if not None, saves masked image as .fits file to specified path. (Default=None)
+        show_plot: bool
+            if True, shows masked image. (Default=True)
+        overwrite: bool
+            if True, overwrites full_image with masked image. Else, saves masked image to self.masked_image (Default=False)
         """
-        if self.bright_source_template is None:
-            if bright_source_template is None:
-                self.bright_source_template = fits.getdata('trace_mask.fits')
+        if self.trace_template is None:
+            if trace_template is None:
+                self.trace_template = wircpol_masks.trace_template
             else:
-                self.bright_source_template = fits.getdata(bright_source_template)
+                self.trace_template = trace_template
         if (not any(self.source_list)) and (not self.already_masked):
             print('Need to find sources first. Running source finding algorithm.')
-            self.find_sources_v2()
+            self.find_sources_v2(sigma_threshold=sigma_threshold, show_plots=show_plot)
 
             if overwrite:
-                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.bright_source_template, self.source_list, self.trace_fluxes,
+                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.trace_template, self.source_list, self.trace_fluxes,
                                                                 boxsize=boxsize, save_path=save_path, show_plot=show_plot)
             else:
-                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.bright_source_template self.source_list, self.trace_fluxes,
+                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.trace_template, self.source_list, self.trace_fluxes,
                                                                 boxsize=boxsize, save_path=save_path, show_plot=show_plot)
 
             self.already_masked=True
@@ -855,10 +873,10 @@ class wirc_data(object):
             print('Image already masked. See self.masked_image or self.full_image if overwrite=True')
         else:
             if overwrite:
-                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.bright_source_template, self.source_list, self.trace_fluxes,
+                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.trace_template, self.source_list, self.trace_fluxes,
                                                                 boxsize=boxsize, save_path=save_path, show_plot=show_plot)
             else:
-                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.source_template, self.bright_source_template, self.source_list, self.trace_fluxes,
+                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.trace_template, self.source_list, self.trace_fluxes,
                                                                 boxsize=boxsize, save_path=save_path, show_plot=show_plot)
 
             self.already_masked=True
