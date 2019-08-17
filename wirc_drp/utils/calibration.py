@@ -1104,7 +1104,7 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
         for i in range(1024):
 
             #Upper Left
-            to_sub = sigma_clipped_stats(mn_quad[:,i],sigma=sigma,iters=iters)[1] #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
+            to_sub = sigma_clipped_stats(mn_quad[:,i],sigma=sigma,maxiters=iters)[1] #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
 
             clean_imm[:1024,i]  -= to_sub
             clean_imm[1024:,-i] -= to_sub
