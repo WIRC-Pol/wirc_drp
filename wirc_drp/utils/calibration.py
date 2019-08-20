@@ -1104,7 +1104,7 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
         for i in range(1024):
 
             #Upper Left
-            to_sub = sigma_clipped_stats(mn_quad[:,i],sigma=sigma,iters=iters)[1] #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
+            to_sub = sigma_clipped_stats(mn_quad[:,i],sigma=sigma,maxiters=iters)[1] #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
 
             clean_imm[:1024,i]  -= to_sub
             clean_imm[1024:,-i] -= to_sub
@@ -1214,9 +1214,10 @@ def remove_correlated_channel_noise(image,n_channels = 8, mask = None):
 
     return image_copy
 
-def correct_nonlinearity(image, n_coadd, nonlinearity_constant = -8e-7):
+def correct_nonlinearity(image, n_coadd, nonlinearity_arr):
+    assert np.shape(nonlinearity_arr) == np.shape(image)
     image_copy = np.array(image, dtype = float) #copy image
     image_copy /= n_coadd
-    image_copy = (-1 + np.sqrt(1 + 4*nonlinearity_constant*image_copy)) / \
-                 (2*nonlinearity_constant) #quadratic formula with correct root
+    image_copy = (-1 + np.sqrt(1 + 4*nonlinearity_arr*image_copy)) / \
+                 (2*nonlinearity_arr) #quadratic formula with correct root
     return image_copy * n_coadd
