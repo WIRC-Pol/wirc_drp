@@ -404,8 +404,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             wvs = np.mean(wvs[:-snip].reshape(-1,binsize),axis=1)
             p_mean = np.sqrt(q_mean**2+u_mean**2)
             theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
-
-            spec = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
+            if spec is not None:
+                spec = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
 
             q_mean_err = np.sqrt(np.sum(q_mean_err[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
             q_std = np.sqrt(np.sum(q_std[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
@@ -422,8 +422,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             p_mean = np.sqrt(q_mean**2+u_mean**2)
             theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
             # theta_bin[theta_bin < 0] +=180
-
-            spec = np.mean(spec.reshape(-1,binsize),axis=1)
+            if spec is not None:
+                spec = np.mean(spec.reshape(-1,binsize),axis=1)
 
             q_mean_err = np.sqrt(np.sum(q_mean_err.reshape(-1,binsize)**2,axis=1))/binsize
             q_std = np.sqrt(np.sum(q_std.reshape(-1,binsize)**2,axis=1))/binsize
@@ -544,10 +544,11 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
     axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
     axes[2,0].legend(fontsize=14)
-    #Twin axis to show the mean spectrum
-    twin = axes[2,0].twinx()
-    p_right, = twin.plot(wvs,spec)
-    twin.set_ylim(0,1.3*np.max(spec))
+    if spec is not None:
+        #Twin axis to show the mean spectrum
+        twin = axes[2,0].twinx()
+        p_right, = twin.plot(wvs,spec)
+        twin.set_ylim(0,1.3*np.max(spec))
 
     #### Lots of plot setup ####
 
@@ -562,7 +563,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[1,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
     axes[2,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
     axes[2,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
-    twin.set_ylabel("Uncalibrated Spectrum",color=p_right.get_color())
+    if spec is not None:
+        twin.set_ylabel("Uncalibrated Spectrum",color=p_right.get_color())
 
     #Shrink the space for the title
     plt.subplots_adjust(top=0.95)
