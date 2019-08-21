@@ -94,7 +94,7 @@ def get_angles_widths_from_list(filelist, data_dir = '', source_number = 0):
 #POLARIZATION CALCULATION HELPER
 # q, u, q_err, u_err, q_position, u_position = compute_qu(spec1, spec2, HWP1, HWP2)
 #helper function to compute q and u given two spectra cubes
-def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
+def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ratio'):
     """
     compute_qu is a helper function that takes two spectral cubes, each with the dimensions of (4,3,spec_pix)
     with two orthogonal HWP angles (0 and 45 or 22.5 and 67.5), then compute q and u
@@ -105,11 +105,16 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
                         Last index is the spectral pixel direction
         HWP1, HWP2: half wave plate angles for spec1 and spec2 respectively. We need HWP2-HWP1 to be 45 deg (orthogonal)
         run_alignment: booleen indicating whether to run align_spectral_cube and scale_and_combine_spectra. Default is True
+        method: Either 'flux_ratio' or 'double_difference'. 
     Output:
         q, u: normalized stokes vectors q and u where q, u corresponds to polarization along 0 and 45 degrees respectively
         q_err, u_err: associated uncertainties
         q_ind, u_ind: indices of frames used to compute q and u. This is provided so we can check the results. 
     """ 
+    #If method is neither 'flux_ratio' nor 'double_difference', revert to 'flux_ratio'
+    if method not in ['flux_ratio','double_difference']:
+        print("method has to be either flux_ratio or double_difference. not %s. revert to flux_ratio"%method)
+
     #stack spectra
     # if spec1.shape != spec2.shape:
     if ((round(HWP1,2) - round(HWP2,2))%45) >0.01: #add some tolerance
@@ -126,31 +131,37 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True):
         else:
             scaled_cube = spec_cube
 
-        #polarization vector and uncertainty. This is (spec1-spec2)/(spec1+spec2)
-        pol_vec = (scaled_cube[0,:,1,:] - scaled_cube[1,:,1,:])/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])
-        pol_err = (2/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])**2) * np.sqrt(  (scaled_cube[0,:,1,:]*scaled_cube[1,:,2,:])**2 + (scaled_cube[0,:,2,:]* scaled_cube[1,:,1,:])**2)
+        if method == 'double_difference':
+            #polarization vector and uncertainty. This is (spec1-spec2)/(spec1+spec2)
+            pol_vec = (scaled_cube[0,:,1,:] - scaled_cube[1,:,1,:])/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])
+            pol_err = (2/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])**2) * np.sqrt(  (scaled_cube[0,:,1,:]*scaled_cube[1,:,2,:])**2 + (scaled_cube[0,:,2,:]* scaled_cube[1,:,1,:])**2)
 
-        #now determine which is which
-        sampling_angles_0 = np.array([135, 45, 0, 90]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
-        sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
-        sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
-        signs = np.sign(sampling_angles_2 - sampling_angles_1) # 0 - 45 is +q, 22.5 - 67.5 is +u
+            #now determine which is which
+            sampling_angles_0 = np.array([135, 45, 90, 0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
+            sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
+            sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
+            signs = np.sign(sampling_angles_2 - sampling_angles_1) # 0 - 45 is +q, 22.5 - 67.5 is +u
 
-        #q's are those with sampling_angles_1 = 0 or 90 and sampling_angles_2 = 90 or 0
-        q_ind = np.where(np.logical_or(sampling_angles_1 == 0, sampling_angles_1 == 90))
-        u_ind = np.where(np.logical_or(sampling_angles_1 == 45, sampling_angles_1 == 135))
+            #q's are those with sampling_angles_1 = 0 or 90 and sampling_angles_2 = 90 or 0
+            q_ind = np.where(np.logical_or(sampling_angles_1 == 0, sampling_angles_1 == 90))
+            u_ind = np.where(np.logical_or(sampling_angles_1 == 45, sampling_angles_1 == 135))
 
-        #print(HWP1, HWP2, sampling_angles_1, sampling_angles_2, q_ind, u_ind)
-        # print(signs)
-        # print(signs[list(q_ind[0])])
-        # print('q shape is ',pol_vec[q_ind[0]].shape)
-        q_sign = signs[q_ind[0]]
-        u_sign = signs[u_ind[0]]
-        q =  pol_vec[q_ind[0]]*q_sign[:,None] 
-        u =  pol_vec[u_ind[0]]*u_sign[:,None] 
-        q_err =  pol_err[list(q_ind[0])] 
-        u_err =  pol_err[list(u_ind[0])] 
-        # print(q.shape, q_err.shape)
+            #print(HWP1, HWP2, sampling_angles_1, sampling_angles_2, q_ind, u_ind)
+            # print(signs)
+            # print(signs[list(q_ind[0])])
+            # print('q shape is ',pol_vec[q_ind[0]].shape)
+            q_sign = signs[q_ind[0]]
+            u_sign = signs[u_ind[0]]
+            q =  pol_vec[q_ind[0]]*q_sign[:,None] 
+            u =  pol_vec[u_ind[0]]*u_sign[:,None] 
+            q_err =  pol_err[list(q_ind[0])] 
+            u_err =  pol_err[list(u_ind[0])] 
+            # print(q.shape, q_err.shape)
+
+        elif method == 'flux_ratio':
+
+
+
         return q, u, q_err, u_err, q_ind[0], u_ind[0]
 
 def group_HWP(HWP_set):
