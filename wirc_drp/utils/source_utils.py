@@ -179,9 +179,12 @@ def group_HWP(HWP_set):
     set_45 = np.where(HWP_set == 45)
     set_675 = np.where(HWP_set == 67.5)
 
-    pairs_0 = np.stack([set_0[0], set_45[0]], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair. 
-    pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
+    small_0_45 = np.min( (len(set_0[0]), len(set_45[0])))
+    small_225_675 = np.min( (len(set_225[0]), len(set_675[0])))
 
+
+    pairs_0 = np.stack([set_0[0][0:small_0_45], set_45[0]][0:small_0_45], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair. 
+    pairs_225 = np.stack([set_225[0][0:small_225_675], set_675[0][0:small_225_675]], axis = 1)
     return pairs_0, pairs_225
 
 def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True):
@@ -339,13 +342,15 @@ def find_best_background(list_of_headers, separation_threshold = 2):
 
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
-    save_path=None,legend_loc ="bottom left",all_theta=False):
+    save_path=None,legend_loc ="bottom left",all_theta=False,
+    fig = None, axes = None):
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
 
     Inputs:
-    mode    - Either "mean" or "median"
+    mode      - Either "mean" or "median"
+    fig, axes - to plot on existing figure/axes. None if not. 
     '''
 
     #First calculate the double_difference values
@@ -402,8 +407,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             wvs = np.mean(wvs[:-snip].reshape(-1,binsize),axis=1)
             p_mean = np.sqrt(q_mean**2+u_mean**2)
             theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
-
-            spec = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
+            if spec is not None:
+                spec = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
 
             q_mean_err = np.sqrt(np.sum(q_mean_err[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
             q_std = np.sqrt(np.sum(q_std[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
@@ -420,8 +425,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             p_mean = np.sqrt(q_mean**2+u_mean**2)
             theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
             # theta_bin[theta_bin < 0] +=180
-
-            spec = np.mean(spec.reshape(-1,binsize),axis=1)
+            if spec is not None:
+                spec = np.mean(spec.reshape(-1,binsize),axis=1)
 
             q_mean_err = np.sqrt(np.sum(q_mean_err.reshape(-1,binsize)**2,axis=1))/binsize
             q_std = np.sqrt(np.sum(q_std.reshape(-1,binsize)**2,axis=1))/binsize
@@ -455,7 +460,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     std_p = np.std(p_mean[inds])
 
     ### Make the plot!!! ###
-    fig,axes = plt.subplots(3,2,figsize=(16,20))
+    if fig is None and axes is None:
+        fig,axes = plt.subplots(3,2,figsize=(16,20))
 
     axes[2,1] = plt.subplot(3,2,6, projection='polar')
     ##### Plot Q, U, P and theta ######
@@ -541,10 +547,11 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
     axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
     axes[2,0].legend(fontsize=14)
-    #Twin axis to show the mean spectrum
-    twin = axes[2,0].twinx()
-    p_right, = twin.plot(wvs,spec)
-    twin.set_ylim(0,1.3*np.max(spec))
+    if spec is not None:
+        #Twin axis to show the mean spectrum
+        twin = axes[2,0].twinx()
+        p_right, = twin.plot(wvs,spec)
+        twin.set_ylim(0,1.3*np.max(spec))
 
     #### Lots of plot setup ####
 
@@ -555,10 +562,12 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[1,1].set_ylabel(r"$\theta$",fontsize=24)
     axes[1,1].set_xlabel(r"$\theta$",fontsize=24)
 
-    axes[1,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
-    axes[1,1].set_xlabel("Wavelength [arb units.]",fontsize=24)
-    axes[2,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
-    twin.set_ylabel("Uncalibrated Spectrum",color=p_right.get_color())
+    axes[1,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+    axes[1,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+    axes[2,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+    axes[2,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+    if spec is not None:
+        twin.set_ylabel("Uncalibrated Spectrum",color=p_right.get_color())
 
     #Shrink the space for the title
     plt.subplots_adjust(top=0.95)

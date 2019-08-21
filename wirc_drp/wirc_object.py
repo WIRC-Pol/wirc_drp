@@ -137,7 +137,7 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False, report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False, report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None):
         '''
         Apply dark and flat-field correction
 
@@ -153,7 +153,8 @@ class wirc_data(object):
             if correct_nonlinearity:
                 n_coadds = self.header["COADDS"]
                 self.full_image = calibration.correct_nonlinearity(
-                                      self.full_image, n_coadds)
+                                      self.full_image, n_coadds,
+                                      nonlinearity_array)
 
             if self.dark_fn is not None:
                 #Open the master dark
@@ -245,6 +246,16 @@ class wirc_data(object):
                         self.full_image[:1063,1027:] -= scale_bkg2*background[:1063,1027:]
                         self.full_image[1063:,:1027] -= scale_bkg3*background[1063:,:1027]
                         self.full_image[1063:,1027:] -= scale_bkg4*background[1063:,1027:]
+                    elif multicomponent_frame is not None:
+                        ncomps = int(np.max(multicomponent_frame))
+                        img_meds = [np.nanmedian(self.full_image[multicomponent_frame == i].flatten()) for i in range(1, ncomps + 1)]
+                        bkg_meds = [np.nanmedian(background[multicomponent_frame == i].flatten()) for i in range(1, ncomps + 1)]
+                        scale_factors = np.array(img_meds)/np.array(bkg_meds)
+                        new_arr = np.zeros(background.shape)
+                        for i in range(scale_factors.shape[0]):
+                            working_mask = (multicomponent_frame == i + 1)
+                            new_arr[working_mask] = background[working_mask]*scale_factors[i]
+                        self.full_image -= new_arr
 
                     else:
                         scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
@@ -354,7 +365,10 @@ class wirc_data(object):
             if report_median:
                 return med
             elif report_bkg_multiplier:
-                return scale_bkg
+                if multicomponent_frame is None:
+                    return scale_bkg
+                else:
+                    return scale_factors
         else:
             print("Data already calibrated")
 

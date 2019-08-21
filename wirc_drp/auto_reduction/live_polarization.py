@@ -14,8 +14,8 @@ This script looks for data reduced by auto_reduction.py and compute
 
 import astropy.io.fits as fits
 import wirc_drp.wirc_object as wo 
-from wirc_drp.utils import spec_utils as su
-from wirc_drp.utils.source_utils import compute_qu
+from wirc_drp.utils import spec_utils as su, source_utils
+# from wirc_drp.utils.source_utils import compute_qu
 import matplotlib.pyplot as plt 
 import numpy as np 
 import datetime
@@ -83,7 +83,7 @@ if __name__ == "__main__":
 	all_files = sorted(glob.glob(redux_dir+'*_auto_extracted.fits')) #get all files in the directory
 	# print(redux_dir+'*_auto_extracted.fits', all_files)
 
-	plt.ion()
+	# plt.ion()
 	#plt.tight_layout()
 
 	"""This is the live output plot, it will show 
@@ -137,22 +137,22 @@ if __name__ == "__main__":
 	HWP_angles = np.array([])
 
 	trace_labels = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
-	#The plots
+	#The plots. Now use source_utils.plot_pol_summary
 	fig, ax = plt.subplots(3,2, figsize = (8, 16))
 
-	ax[0,0].set_ylabel('Flux (ADU)', fontsize = 12)
-	ax[0,1].set_ylabel('Flux (ADU)', fontsize = 12)
+	# ax[0,0].set_ylabel('Flux (ADU)', fontsize = 12)
+	# ax[0,1].set_ylabel('Flux (ADU)', fontsize = 12)
 
 
-	ax[1,0].set_ylabel('q (%)', fontsize = 12)
-	ax[1,1].set_ylabel('u (%)', fontsize = 12)
-	ax[1,0].set_xlabel('Spectral pixel', fontsize = 12)
-	ax[1,1].set_xlabel('Spectral pixel', fontsize = 12)
+	# ax[1,0].set_ylabel('q (%)', fontsize = 12)
+	# ax[1,1].set_ylabel('u (%)', fontsize = 12)
+	# ax[1,0].set_xlabel('Spectral pixel', fontsize = 12)
+	# ax[1,1].set_xlabel('Spectral pixel', fontsize = 12)
 
-	ax[2,0].set_ylabel('p (%)', fontsize = 12)
-	ax[2,1].set_ylabel(r'$\theta$ (deg)', fontsize = 12)
-	ax[2,0].set_xlabel('Spectral pixel', fontsize = 12)
-	ax[2,1].set_xlabel('Spectral pixel', fontsize = 12)
+	# ax[2,0].set_ylabel('p (%)', fontsize = 12)
+	# ax[2,1].set_ylabel(r'$\theta$ (deg)', fontsize = 12)
+	# ax[2,0].set_xlabel('Spectral pixel', fontsize = 12)
+	# ax[2,1].set_xlabel('Spectral pixel', fontsize = 12)
 
 	plt.tight_layout()
 
@@ -182,7 +182,7 @@ if __name__ == "__main__":
 
 				data = wo.wirc_data(wirc_object_filename=file_name, verbose=False, load_full_image = False )
 
-				fig.suptitle("{} including files {} to {}\n{} Pacific".format(data.header['OBJECTA'],sys.argv[4],fn_string[-4:],datetime.datetime.now()))
+				# fig.suptitle("{} including files {} to {}\n{} Pacific".format(data.header['OBJECTA'],sys.argv[4],fn_string[-4:],datetime.datetime.now()))
 				
 				#Read spectra and half wave plate angle
 				spectra = data.source_list[0].trace_spectra
@@ -205,15 +205,15 @@ if __name__ == "__main__":
 				elif HWP < 0:
 					HWP = HWP + 90
 
-				#First of all, plot the spectra
-				ax[0, 0].plot( spectra[0,1,:], 'b', label = '%s'%trace_labels[0])
-				ax[0, 0].plot( spectra[1,1,:], 'r', label = '%s'%trace_labels[1])
-				ax[0, 1].plot( spectra[2,1,:], 'b', label = '%s'%trace_labels[2])
-				ax[0, 1].plot( spectra[3,1,:], 'r', label = '%s'%trace_labels[3])
-				if first_time:
-					ax[0, 0].legend(loc = 'lower center', frameon = False, fontsize = 12)
-					ax[0, 1].legend(loc = 'lower center', frameon = False, fontsize = 12)
-					first_time = False
+				# #First of all, plot the spectra
+				# ax[0, 0].plot( spectra[0,1,:], 'b', label = '%s'%trace_labels[0])
+				# ax[0, 0].plot( spectra[1,1,:], 'r', label = '%s'%trace_labels[1])
+				# ax[0, 1].plot( spectra[2,1,:], 'b', label = '%s'%trace_labels[2])
+				# ax[0, 1].plot( spectra[3,1,:], 'r', label = '%s'%trace_labels[3])
+				# if first_time:
+				# 	ax[0, 0].legend(loc = 'lower center', frameon = False, fontsize = 12)
+				# 	ax[0, 1].legend(loc = 'lower center', frameon = False, fontsize = 12)
+				# 	first_time = False
 				#Determine which pair this belongs to:
 
 				if (HWP//22.5)%2 == 0: #This is for HWP = 0, 45, etc ("Q")
@@ -231,21 +231,21 @@ if __name__ == "__main__":
 					holding[HWP_ind] += [spectra]
 					HWP_in_holding[HWP_ind] = HWP #again, there can only be one HWP in holding
 
-					ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
+					# ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
 				else: #something in the holding list
 					if HWP_in_holding[HWP_ind] == HWP: # in case of same angle, just add the new spectrum to the list
 						holding[HWP_ind] += [spectra]
-						ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
+						# ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
 					else: #Different angle, call compute q, u to get q and u
 						#Note that for each pair of images at different HWP angle, we get 
-						ax[0,HWP_ind].set_title('Computing q, u from HWP angles %.1f and %.1f'%(HWP,HWP_in_holding[HWP_ind]),fontsize=9)
+						# ax[0,HWP_ind].set_title('Computing q, u from HWP angles %.1f and %.1f'%(HWP,HWP_in_holding[HWP_ind]),fontsize=9)
 						spec1 = spectra
 						spec2 = holding[HWP_ind][0] #Take the 0th, i.e. first element in the holding list. 
 						HWP2 = HWP_in_holding[HWP_ind] #same with the HWP angle. 
 						if (HWP2-HWP)%45 != 0:
 							print("Bug: two halfwave plates are not orthogonal.")
 						del holding[HWP_ind][0] #Then delete it
-						q, u, q_err, u_err, q_position, u_position = compute_qu(spec1, spec2, HWP, HWP2)
+						q, u, q_err, u_err, q_position, u_position = source_utils.compute_qu(spec1, spec2, HWP, HWP2)
 						all_q     += [q[0], q[1]]
 						all_u     += [u[0], u[1]]
 						all_q_err += [q_err[0], q_err[1]]
@@ -263,13 +263,24 @@ if __name__ == "__main__":
 						dd_all_q_err += [ q_err_dd ]
 						dd_all_u_err += [ u_err_dd ]
 
+						#PLOT using source_utils.plot_pol_summary
+						#wvs is just index
+						plt.clf()
+						source_utils.plot_pol_summary(np.arange(len(all_q), None, all_q, all_u, all_q_err, all_u_err, fig = fig, axes = axes,
+													mode = 'mean', xlow = 70, xhigh = 130, target_name = object_name, date = date)
 
-						print(np.array(all_q).shape)
+# plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
+#     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
+#     save_path=None,legend_loc ="bottom left",all_theta=False,
+#     fig = None, axes = None)
+
+
+						# print(np.array(all_q).shape)
 						#Save measured q and u into a file. 
 						#np.save(redux_dir+'%s_%s_qu.npy'%(object_name,  last_file), np.array([all_q, all_u, all_q_err, all_u_err, all_q_pos, all_u_pos]))
 						#np.save(redux_dir+'%s_%s_qu_double_diff.npy'%(object_name, last_file), np.array([dd_all_q, dd_all_u, dd_all_q_err, dd_all_u_err]))
 
-						colors = ['r','y','b','c']
+						# colors = ['r','y','b','c']
 						# Plot q and u into the collective plot! This one is single differencing version
 						#for ind in range(2):
 						# 	ax[1,0].errorbar(range(len(q[ind])), 100*q[ind], yerr = 100*q_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
@@ -278,166 +289,166 @@ if __name__ == "__main__":
 						# 	ax[1,1].axvline(0)
 
 						#Plot double differencing values
-						ax[1,0].errorbar(range(len(q_dd)), 100*q_dd, yerr = 100*q_err_dd, alpha = 0.2 )
-						ax[1,1].errorbar(range(len(u_dd)), 100*u_dd, yerr = 100*u_err_dd, alpha = 0.2 )
-						ax[1,0].axvline(0)
-						ax[1,1].axvline(0)
+						# ax[1,0].errorbar(range(len(q_dd)), 100*q_dd, yerr = 100*q_err_dd, alpha = 0.2 )
+						# ax[1,1].errorbar(range(len(u_dd)), 100*u_dd, yerr = 100*u_err_dd, alpha = 0.2 )
+						# ax[1,0].axvline(0)
+						# ax[1,1].axvline(0)
 
 							# ax[1,0].plot(range(len(q[ind])),  100*q_err[ind], alpha = 0.5 )
 							# ax[1,1].plot(range(len(u[ind])),  100*u_err[ind], alpha = 0.5 )
 
 
 
-						#compute current median q and u
-						q_med = np.nanmedian(np.array(all_q), axis = 0)
-						u_med = np.nanmedian(np.array(all_u), axis = 0)
-						q_std = np.nanstd(np.array(all_q), axis = 0)/np.sqrt(len(all_q))
-						u_std = np.nanstd(np.array(all_u), axis = 0)/np.sqrt(len(all_u))
-						#double difference
-						q_med_dd = np.nanmedian(np.array(dd_all_q), axis = 0)
-						u_med_dd = np.nanmedian(np.array(dd_all_u), axis = 0)
-						q_std_dd = np.nanstd(np.array(dd_all_q), axis = 0)/np.sqrt(len(dd_all_q))
-						u_std_dd = np.nanstd(np.array(dd_all_u), axis = 0)/np.sqrt(len(dd_all_u))
-						#LIVE SNR
-						#HARD CODED AREA: FIX THIS
-						q_med_med = np.nanmedian(q_med_dd[70:130])
-						u_med_med = np.nanmedian(u_med_dd[70:130])
-						q_std_med = np.nanmedian(q_std_dd[70:130])
-						u_std_med = np.nanmedian(u_std_dd[70:130])					
+						# #compute current median q and u
+						# q_med = np.nanmedian(np.array(all_q), axis = 0)
+						# u_med = np.nanmedian(np.array(all_u), axis = 0)
+						# q_std = np.nanstd(np.array(all_q), axis = 0)/np.sqrt(len(all_q))
+						# u_std = np.nanstd(np.array(all_u), axis = 0)/np.sqrt(len(all_u))
+						# #double difference
+						# q_med_dd = np.nanmedian(np.array(dd_all_q), axis = 0)
+						# u_med_dd = np.nanmedian(np.array(dd_all_u), axis = 0)
+						# q_std_dd = np.nanstd(np.array(dd_all_q), axis = 0)/np.sqrt(len(dd_all_q))
+						# u_std_dd = np.nanstd(np.array(dd_all_u), axis = 0)/np.sqrt(len(dd_all_u))
+						# #LIVE SNR
+						# #HARD CODED AREA: FIX THIS
+						# q_med_med = np.nanmedian(q_med_dd[70:130])
+						# u_med_med = np.nanmedian(u_med_dd[70:130])
+						# q_std_med = np.nanmedian(q_std_dd[70:130])
+						# u_std_med = np.nanmedian(u_std_dd[70:130])					
 
 
-						# #remove old line and plot a new one
-						try: 
-							med_q_line.remove()
-							med_u_line.remove()
-						except:
-							pass
-						# med_q_line =  ax[1,0].errorbar(range(len(q_med)), q_med*100, yerr = 100*q_std, alpha = 1, color = 'k')
-						# med_u_line =  ax[1,1].errorbar(range(len(u_med)), u_med*100, yerr = 100*u_std, alpha = 1, color = 'k')
-						med_q_line =  ax[1,0].errorbar(range(len(q_med_dd)), q_med_dd*100, yerr = 100*q_std_dd, alpha = 1, color = 'k')
-						med_u_line =  ax[1,1].errorbar(range(len(u_med_dd)), u_med_dd*100, yerr = 100*u_std_dd, alpha = 1, color = 'k')
+						# # #remove old line and plot a new one
+						# try: 
+						# 	med_q_line.remove()
+						# 	med_u_line.remove()
+						# except:
+						# 	pass
+						# # med_q_line =  ax[1,0].errorbar(range(len(q_med)), q_med*100, yerr = 100*q_std, alpha = 1, color = 'k')
+						# # med_u_line =  ax[1,1].errorbar(range(len(u_med)), u_med*100, yerr = 100*u_std, alpha = 1, color = 'k')
+						# med_q_line =  ax[1,0].errorbar(range(len(q_med_dd)), q_med_dd*100, yerr = 100*q_std_dd, alpha = 1, color = 'k')
+						# med_u_line =  ax[1,1].errorbar(range(len(u_med_dd)), u_med_dd*100, yerr = 100*u_std_dd, alpha = 1, color = 'k')
 
-						ax[1,0].set_title('Median q = %.2f $\pm$ %.2f %%  SNR = %.2f'%(100*q_med_med, 100*q_std_med, q_med_med/q_std_med))
-						ax[1,1].set_title('Median u = %.2f $\pm$ %.2f %%  SNR = %.2f'%(100*u_med_med, 100*u_std_med, u_med_med/u_std_med))
+						# ax[1,0].set_title('Median q = %.2f $\pm$ %.2f %%  SNR = %.2f'%(100*q_med_med, 100*q_std_med, q_med_med/q_std_med))
+						# ax[1,1].set_title('Median u = %.2f $\pm$ %.2f %%  SNR = %.2f'%(100*u_med_med, 100*u_std_med, u_med_med/u_std_med))
 
 
 
-						#plot limits
-						ax[1,0].set_ylim([-5,5])
-						ax[1,1].set_ylim([-9,3])
-						ax[1,0].set_xlim([50,150])
-						ax[1,1].set_xlim([50,150])
+						# #plot limits
+						# ax[1,0].set_ylim([-5,5])
+						# ax[1,1].set_ylim([-9,3])
+						# ax[1,0].set_xlim([50,150])
+						# ax[1,1].set_xlim([50,150])
 
-						#Now compute degree and angle of polarization
-						p = np.sqrt(q**2 + u**2)
-						theta = 0.5*np.arctan2(u,q)
-						#uncertainties
-						p_err = 1/p*np.sqrt( (q*q_err)**2 + (u*u_err)**2)
-						theta_err = (2/p**2) * np.sqrt((q*u_err)**2 + (u*q_err)**2)
+						# #Now compute degree and angle of polarization
+						# p = np.sqrt(q**2 + u**2)
+						# theta = 0.5*np.arctan2(u,q)
+						# #uncertainties
+						# p_err = 1/p*np.sqrt( (q*q_err)**2 + (u*u_err)**2)
+						# theta_err = (2/p**2) * np.sqrt((q*u_err)**2 + (u*q_err)**2)
 
-						#Double differencing
-						p_dd = np.sqrt(q_dd**2 + u_dd**2)
-						theta_dd = 0.5*np.arctan2(u_dd,q_dd)
-						#uncertainties
-						p_err_dd = 1/p_dd*np.sqrt( (q_dd*q_err_dd)**2 + (u_dd*u_err_dd)**2)
-						theta_err_dd = (2/p_dd**2) * np.sqrt((q_dd*u_err_dd)**2 + (u_dd*q_err_dd)**2)
+						# #Double differencing
+						# p_dd = np.sqrt(q_dd**2 + u_dd**2)
+						# theta_dd = 0.5*np.arctan2(u_dd,q_dd)
+						# #uncertainties
+						# p_err_dd = 1/p_dd*np.sqrt( (q_dd*q_err_dd)**2 + (u_dd*u_err_dd)**2)
+						# theta_err_dd = (2/p_dd**2) * np.sqrt((q_dd*u_err_dd)**2 + (u_dd*q_err_dd)**2)
 
-						#add to the list
-						all_p += [p[0], p[1]]
-						all_theta += [theta[0], theta[1]]
-						all_p_err += [[p_err[0], p_err[1]]]
-						all_theta_err += [theta_err[0], theta_err[1]]
+						# #add to the list
+						# all_p += [p[0], p[1]]
+						# all_theta += [theta[0], theta[1]]
+						# all_p_err += [[p_err[0], p_err[1]]]
+						# all_theta_err += [theta_err[0], theta_err[1]]
 
-						#add to the list
-						dd_all_p += [p_dd]
-						dd_all_theta += [theta_dd]
-						dd_all_p_err += [p_err_dd]
-						dd_all_theta_err += [theta_err_dd]
-						#Plot p and theta
+						# #add to the list
+						# dd_all_p += [p_dd]
+						# dd_all_theta += [theta_dd]
+						# dd_all_p_err += [p_err_dd]
+						# dd_all_theta_err += [theta_err_dd]
+						# #Plot p and theta
 						
-						# for ind in range(2):
-						# 	ax[2,0].errorbar(range(len(p[ind])),     100*p[ind], yerr = 100*p_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
-						# 	ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+						# # for ind in range(2):
+						# # 	ax[2,0].errorbar(range(len(p[ind])),     100*p[ind], yerr = 100*p_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
+						# # 	ax[2,1].errorbar(range(len(theta[ind])), 100*theta[ind], yerr = 100*theta_err[ind], color = colors[q_position[ind]], alpha = 0.2 )
 
-						#Plot double differenced
-						HWPcol = ['cyan', 'green']
-						ax[2,0].errorbar(range(len(p_dd)),     100*p_dd, yerr = 100*p_err_dd, color = HWPcol[HWP_ind],alpha = 0.1 )
-						ax[2,1].errorbar(range(len(theta_dd)), 100*theta_dd, yerr = 100*theta_err_dd, color = HWPcol[HWP_ind],alpha = 0.1 )
+						# #Plot double differenced
+						# HWPcol = ['cyan', 'green']
+						# ax[2,0].errorbar(range(len(p_dd)),     100*p_dd, yerr = 100*p_err_dd, color = HWPcol[HWP_ind],alpha = 0.1 )
+						# ax[2,1].errorbar(range(len(theta_dd)), 100*theta_dd, yerr = 100*theta_err_dd, color = HWPcol[HWP_ind],alpha = 0.1 )
 							
 
 
-						#compute current median p and theta
-						p_med = np.nanmedian(np.array(all_p), axis = 0)
-						theta_med = np.nanmedian(np.array(all_theta), axis = 0)
-						p_std = np.nanstd(np.array(all_p), axis = 0)/np.sqrt(len(all_p))
-						theta_std = np.nanstd(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
+						# #compute current median p and theta
+						# p_med = np.nanmedian(np.array(all_p), axis = 0)
+						# theta_med = np.nanmedian(np.array(all_theta), axis = 0)
+						# p_std = np.nanstd(np.array(all_p), axis = 0)/np.sqrt(len(all_p))
+						# theta_std = np.nanstd(np.array(all_theta), axis = 0)/np.sqrt(len(all_theta))
 
 
-						#Vectorial calculation of p and theta
-                        #print(current_pol_vec.shape)
-						current_pol_vec = np.stack([np.array(dd_all_q), np.array(dd_all_u)])
-						print('pol vector shape is ',current_pol_vec.shape)
-						mean_pol = np.mean(current_pol_vec, axis = 1)
-						print('mean_pol shape is ',mean_pol.shape)
-						std_pol = np.std(current_pol_vec, axis = 1)/np.sqrt(current_pol_vec.shape[1])
+						# #Vectorial calculation of p and theta
+      #                   #print(current_pol_vec.shape)
+						# current_pol_vec = np.stack([np.array(dd_all_q), np.array(dd_all_u)])
+						# print('pol vector shape is ',current_pol_vec.shape)
+						# mean_pol = np.mean(current_pol_vec, axis = 1)
+						# print('mean_pol shape is ',mean_pol.shape)
+						# std_pol = np.std(current_pol_vec, axis = 1)/np.sqrt(current_pol_vec.shape[1])
 
-						mean_p = np.sqrt(mean_pol[0]**2 + mean_pol[1]**2 )
-						std_p = 1/mean_p *np.sqrt( np.sum(mean_pol*std_pol, axis = 0)**2)
+						# mean_p = np.sqrt(mean_pol[0]**2 + mean_pol[1]**2 )
+						# std_p = 1/mean_p *np.sqrt( np.sum(mean_pol*std_pol, axis = 0)**2)
 
-						mean_theta = 0.5*np.arctan2(mean_pol[1],mean_pol[0])
-						std_theta = (2/mean_p**2) * np.sqrt((mean_pol[0]*std_pol[1])**2 + (mean_pol[1]*std_pol[0])**2)
+						# mean_theta = 0.5*np.arctan2(mean_pol[1],mean_pol[0])
+						# std_theta = (2/mean_p**2) * np.sqrt((mean_pol[0]*std_pol[1])**2 + (mean_pol[1]*std_pol[0])**2)
 
-						#compute current median p and theta, double diff
-						p_med_dd = np.nanmedian(np.array(dd_all_p), axis = 0)
-						theta_med_dd = np.nanmedian(np.array(dd_all_theta), axis = 0)
-						p_std_dd = np.std(np.array(dd_all_p), axis = 0)/np.sqrt(len(dd_all_p))
-						theta_std_dd = np.std(np.array(dd_all_theta), axis = 0)/np.sqrt(len(dd_all_theta))
+						# #compute current median p and theta, double diff
+						# p_med_dd = np.nanmedian(np.array(dd_all_p), axis = 0)
+						# theta_med_dd = np.nanmedian(np.array(dd_all_theta), axis = 0)
+						# p_std_dd = np.std(np.array(dd_all_p), axis = 0)/np.sqrt(len(dd_all_p))
+						# theta_std_dd = np.std(np.array(dd_all_theta), axis = 0)/np.sqrt(len(dd_all_theta))
 
-						#Mark the area where p < 3dp
-						poor_snr = np.where( p_med < 3*p_std)
+						# #Mark the area where p < 3dp
+						# poor_snr = np.where( p_med < 3*p_std)
 
-						# #remove old line and plot a new one
-						try: 
-							#med_p_line.remove()
-							#med_p_bad.remove()
-							#med_theta_line.remove()
-							med_vec_p_line.remove()
-							#(med_vec_p_line.pop(0)).remove()
-							(med_vec_theta_line.pop(0)).remove()	
-						except:
-							print('poop1')
-							pass
+						# # #remove old line and plot a new one
+						# try: 
+						# 	#med_p_line.remove()
+						# 	#med_p_bad.remove()
+						# 	#med_theta_line.remove()
+						# 	med_vec_p_line.remove()
+						# 	#(med_vec_p_line.pop(0)).remove()
+						# 	(med_vec_theta_line.pop(0)).remove()	
+						# except:
+						# 	print('poop1')
+						# 	pass
 
-						#try:
+						# #try:
 					
-						#except:
-						#	print('poop2')
-						#	pass
-						# med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
-						#med_p_line     =  ax[2,0].errorbar(range(len(p_med_dd)), (p_med_dd)*100, yerr = 100*p_std_dd, ls = '--', alpha = 0.8, color = 'k')
+						# #except:
+						# #	print('poop2')
+						# #	pass
+						# # med_p_line     =  ax[2,0].errorbar(range(len(p_med)), p_med*100, yerr = 100*p_std, alpha = 1, color = 'k')
+						# #med_p_line     =  ax[2,0].errorbar(range(len(p_med_dd)), (p_med_dd)*100, yerr = 100*p_std_dd, ls = '--', alpha = 0.8, color = 'k')
 
-						#med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd)+90, yerr = np.degrees(theta_std_dd),ls= '--', alpha = 0.8, color = 'k')
-						med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med_dd)))
-						med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std_dd)))
+						# #med_theta_line =  ax[2,1].errorbar(range(len(theta_med_dd)), np.degrees(theta_med_dd)+90, yerr = np.degrees(theta_std_dd),ls= '--', alpha = 0.8, color = 'k')
+						# med_med_theta = np.degrees(np.median(np.nan_to_num(theta_med_dd)))
+						# med_std_theta = np.degrees(np.median(np.nan_to_num(theta_std_dd)))
 
-						#Nem's p and theta
-						med_vec_p_line     =  ax[2,0].errorbar(range(len(mean_p)), mean_p*100, yerr = 100*std_p, alpha = 1, color = 'k')
-						#med_vec_p_line = ax[2,0].plot(range(len(mean_p)), mean_p*100, alpha = 1, color = 'k')
+						# #Nem's p and theta
+						# med_vec_p_line     =  ax[2,0].errorbar(range(len(mean_p)), mean_p*100, yerr = 100*std_p, alpha = 1, color = 'k')
+						# #med_vec_p_line = ax[2,0].plot(range(len(mean_p)), mean_p*100, alpha = 1, color = 'k')
 
-						#med_vec_theta_line =  ax[2,1].errorbar(range(len(mean_theta)), np.degrees(mean_theta), yerr = np.degrees(std_theta), alpha = 1, color = 'k')
-						med_vec_theta_line = ax[2,1].plot(range(len(mean_theta)), np.degrees(mean_theta),  alpha = 1, color = 'k')
+						# #med_vec_theta_line =  ax[2,1].errorbar(range(len(mean_theta)), np.degrees(mean_theta), yerr = np.degrees(std_theta), alpha = 1, color = 'k')
+						# med_vec_theta_line = ax[2,1].plot(range(len(mean_theta)), np.degrees(mean_theta),  alpha = 1, color = 'k')
 
-						med_vec_med_theta = np.degrees(np.median(np.nan_to_num(mean_theta)))
-						med_vec_std_theta = np.degrees(np.median(np.nan_to_num(std_theta)))
-						#This is part of p where p < 3 sigma_p, so probably zero polarization
-						#med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
-						#plot limits
+						# med_vec_med_theta = np.degrees(np.median(np.nan_to_num(mean_theta)))
+						# med_vec_std_theta = np.degrees(np.median(np.nan_to_num(std_theta)))
+						# #This is part of p where p < 3 sigma_p, so probably zero polarization
+						# #med_p_bad =  ax[2,0].plot(np.arange(len(p_med))[poor_snr], (p_med[poor_snr])*100 , alpha = 1, color = 'r', marker = '.', ls = 'None')
+						# #plot limits
 
-						ax[2,0].set_ylim([0,7])
-						ax[2,1].set_ylim([20,50])
-						ax[2,0].set_xlim([50,150])
-						ax[2,1].set_xlim([50,150])
-						ax[2,0].axhline(6.46*0.85)
+						# ax[2,0].set_ylim([0,7])
+						# ax[2,1].set_ylim([20,50])
+						# ax[2,0].set_xlim([50,150])
+						# ax[2,1].set_xlim([50,150])
+						# ax[2,0].axhline(6.46*0.85)
 
 
 						
@@ -479,18 +490,18 @@ if __name__ == "__main__":
 				# ax[1].plot(data.source_list[0].trace_spectra[3,1,:], 'r', label = '%s (Um)'%trace_labels[3])
 
 				#save extraction results
-				fig.tight_layout()
-				plt.subplots_adjust(top=0.85)
+				# fig.tight_layout()
+				# plt.subplots_adjust(top=0.85)
 				plt.savefig("/scr/wircpol/WIRC-Pol-Website/flask/app/static/img/quick_look_img.png",bbox_inches="tight")
-				# data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
+				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
 				first_file = int(fn_string[-4:])+1
 
 
 				#DELETE file to not blow up memory usage
 				del data 
-				gc.collect()
+				# gc.collect()
 			# plt.tight_layout()
-				plt.pause(0.0001)
+				# plt.pause(0.0001)
 		#at the end of the for loop, set first_file to the last file, and start again
 			
 	time.sleep(5)
