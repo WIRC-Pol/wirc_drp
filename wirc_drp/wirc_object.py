@@ -144,7 +144,7 @@ class wirc_data(object):
 
 
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False,
-    report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, num_PCA_modes=None):
+                  report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None, num_PCA_modes=None):
         '''
         Apply dark and flat-field correction
 
@@ -160,7 +160,8 @@ class wirc_data(object):
             if correct_nonlinearity:
                 n_coadds = self.header["COADDS"]
                 self.full_image = calibration.correct_nonlinearity(
-                                      self.full_image, n_coadds)
+                                      self.full_image, n_coadds,
+                                      nonlinearity_array)
 
             if self.dark_fn is not None:
                 #Open the master dark
@@ -263,6 +264,16 @@ class wirc_data(object):
                         self.full_image[:1063,1027:] -= scale_bkg2*background[:1063,1027:]
                         self.full_image[1063:,:1027] -= scale_bkg3*background[1063:,:1027]
                         self.full_image[1063:,1027:] -= scale_bkg4*background[1063:,1027:]
+                    elif multicomponent_frame is not None:
+                        ncomps = int(np.max(multicomponent_frame))
+                        img_meds = [np.nanmedian(self.full_image[multicomponent_frame == i].flatten()) for i in range(1, ncomps + 1)]
+                        bkg_meds = [np.nanmedian(background[multicomponent_frame == i].flatten()) for i in range(1, ncomps + 1)]
+                        scale_factors = np.array(img_meds)/np.array(bkg_meds)
+                        new_arr = np.zeros(background.shape)
+                        for i in range(scale_factors.shape[0]):
+                            working_mask = (multicomponent_frame == i + 1)
+                            new_arr[working_mask] = background[working_mask]*scale_factors[i]
+                        self.full_image -= new_arr
 
                     else:
                         scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
@@ -372,7 +383,10 @@ class wirc_data(object):
             if report_median:
                 return med
             elif report_bkg_multiplier:
-                return scale_bkg
+                if multicomponent_frame is None:
+                    return scale_bkg
+                else:
+                    return scale_factors
         else:
             print("Data already calibrated")
 
@@ -987,10 +1001,14 @@ class wirc_data(object):
                 self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
 
 
-    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, n_chi2_iters = 1, chi2_cutout_size=None,max_offset=10, verbose = False, trace_template = None):
+    def add_source(self, x,y, slit_pos = "slitless", sub_bkg = True, update_w_chi2_shift = True, n_chi2_iters = 1, chi2_cutout_size=None,max_offset=10, verbose = False, trace_template = None):
         """trace_template is the template you want to align the new location to
         """
         if update_w_chi2_shift:
+            im = copy.deepcopy(self.full_image)
+
+            if self.bkg_fn is not None and sub_bkg:
+                im -= fits.open(self.bkg_fn)[0].data
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)

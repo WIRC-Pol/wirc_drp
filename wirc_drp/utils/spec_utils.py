@@ -1565,8 +1565,9 @@ def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_t
     if ref_trace is None:
         ref_trace = spectral_cube[0,0,1,:] #This is first observation, first trace (Qp), flux, and the whole vector
     elif type(ref_trace) == str:
-	    if ref_trace == 'median':
-	        ref_trace = np.nanmedian(spectral_cube[:,0,1,:], axis = 0)
+        if ref_trace == 'median':
+            ref_trace = np.nanmedian(spectral_cube[:,0,1,:], axis = 0)
+          
     #create a destination array
     aligned_cube = np.zeros(spectral_cube.shape) 
     #loop through 4 spectral traces
