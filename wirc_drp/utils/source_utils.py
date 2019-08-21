@@ -157,12 +157,46 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             q_err =  pol_err[list(q_ind[0])] 
             u_err =  pol_err[list(u_ind[0])] 
             # print(q.shape, q_err.shape)
+            return q, u, q_err, u_err, q_ind[0], u_ind[0]
 
         elif method == 'flux_ratio':
+            #First, figure out the sampling angles
+            sampling_angles_0 = np.array([135, 45, 90, 0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
+            sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
+            sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
 
+            #indices (non elegant solution...)
+            ind0_0 =   np.where(sampling_angles_1 == 0)[0]
+            ind0_90 =  np.where(sampling_angles_1 == 90)[0]
+            ind0_45 =  np.where(sampling_angles_1 == 45)[0]
+            ind0_135 = np.where(sampling_angles_1 == 135)[0]
+            ind1_0 =   np.where(sampling_angles_2 == 0)[0]
+            ind1_90 =  np.where(sampling_angles_2 == 90)[0]
+            ind1_45 =  np.where(sampling_angles_2 == 45)[0]
+            ind1_135 = np.where(sampling_angles_2 == 135)[0]
 
+            #q computation, 
+            Rq_sq = (scaled_cube[0,ind0_0,1,:]/scaled_cube[0,ind0_90,1,:]) / (scaled_cube[1,ind1_90,1,:]/scaled_cube[1,ind1_0,1,:])
+            Rq_sq_err = Rq_sq * np.sqrt( (scaled_cube[0,ind0_0,2,:]/scaled_cube[0,ind0_0,1,:])**2 +
+                                         (scaled_cube[0,ind0_90,2,:]/scaled_cube[0,ind0_90,1,:])**2 +
+                                         (scaled_cube[0,ind1_0,2,:]/scaled_cube[0,ind1_0,1,:])**2 +
+                                         (scaled_cube[0,ind1_90,2,:]/scaled_cube[0,ind1_90,1,:])**2 )
 
-        return q, u, q_err, u_err, q_ind[0], u_ind[0]
+            q = (np.sqrt(Rq_sq) - 1)/(np.sqrt(Rq_sq) + 1)
+            q_err = Rq_sq_err /np.sqrt(Rq_sq)/(np.sqrt(Rq_sq)+1)**2 
+
+            #u computation, 
+            Ru_sq = (scaled_cube[0,ind0_45,1,:]/scaled_cube[0,ind0_135,1,:]) / (scaled_cube[1,ind1_135,1,:]/scaled_cube[1,ind1_45,1,:])
+            Ru_sq_err = Ru_sq * np.sqrt( (scaled_cube[0,ind0_45,2,:]/scaled_cube[0,ind0_45,1,:])**2 +
+                                         (scaled_cube[0,ind0_135,2,:]/scaled_cube[0,ind0_135,1,:])**2 +
+                                         (scaled_cube[0,ind1_45,2,:]/scaled_cube[0,ind1_45,1,:])**2 +
+                                         (scaled_cube[0,ind1_135,2,:]/scaled_cube[0,ind1_135,1,:])**2 )
+
+            u = (np.sqrt(Ru_sq) - 1)/(np.sqrt(Ru_sq) + 1)
+            u_err = Ru_sq_err /np.sqrt(Ru_sq)/(np.sqrt(Ru_sq)+1)**2 
+            return q, u, q_err, u_err, None, None
+
+        
 
 def group_HWP(HWP_set):
     """
