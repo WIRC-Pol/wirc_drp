@@ -230,7 +230,6 @@ def group_HWP(HWP_set):
 
     pairs_0 = np.stack([set_0[0][0:small_0_45], set_45[0]][0:small_0_45], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair. 
     pairs_225 = np.stack([set_225[0][0:small_225_675], set_675[0][0:small_225_675]], axis = 1)
-
     return pairs_0, pairs_225
 
 def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True):
@@ -683,3 +682,346 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
         else: 
             fn = "{}_{}_Binned.png".format(target_name,date)
         plt.savefig(save_path+fn)
+
+def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_bins=1,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
+    target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
+    save_path=None,legend_loc ="bottom left",all_theta=False,cmap=None,dt=None,period=1.):
+    '''
+    Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
+    are the output of compute_qu_for_obs_sequence. 
+
+    Inputs:
+    wvs     - The wavelengths for the x-axis. Should correspond to the rest of the inputs
+    spec    - The total intensity spectrum
+    spec_cube - A cube that holds All of the spectra (aligned) from your data. Should have shape (nfiles, 4, 3, spec_length)
+    hwp_ang - The HWP angles. Should have length nfiles
+    mode    - Either "mean" or "median"
+    dt      - the change in time from the first frame. 
+    '''
+
+    ### Make the plot!!! ###
+    fig,axes = plt.subplots(3,2,figsize=(16,20))
+
+    #Cycle through the time bins
+
+    time_snip = spec_cube.shape[0] % n_time_bins
+    time_bin_size = spec_cube.shape[0]//n_time_bins
+
+    ### TODO: Add in something so that you can put in the rotational period here and have the colors be cyclic. 
+    if dt is not None:
+        if time_snip != 0:
+            dt_bins = np.mean(np.reshape(dt[:-time_snip],(-1,time_bin_size)),axis=1)
+        else:
+            dt_bins = np.mean(np.reshape(dt,(-1,time_bin_size)),axis=1)
+        phase = (dt_bins % period)/period
+    else:
+        phase = np.linspace(0,1.0,n_time_bins,endpoint=False)
+
+    time_inds = np.arange(spec_cube.shape[0])
+    if cmap is None:
+        colormapp = plt.get_cmap('hsv')
+    else:
+        colormapp = plt.get_cmap(cmap) 
+    print(phase)
+    colors = colormapp(phase)
+    
+    pmeans = []
+    qmeans = []
+    umeans = []
+    theta_means = []
+    for k in range(n_time_bins):
+        # print("time_bin_size = {}".format(time_bin_size)) 
+        good_inds = time_inds[np.where((time_inds >= k*time_bin_size) & (time_inds < (k+1)*time_bin_size))]
+        # print("Using inds {}".format(good_inds))
+        q,u,qerr,uerr,qind,uind = compute_qu_for_obs_sequence(spec_cube[good_inds],hwp_ang[good_inds],run_alignment=False)
+
+        #First calculate the double_difference values
+        q_dd = np.nanmean(q,axis=1)
+        u_dd = np.nanmean(u,axis=1)
+        p_dd = np.sqrt(q_dd**2+u_dd**2)
+        theta_dd = 0.5*np.degrees(np.arctan2(u_dd,q_dd))
+        theta_dd[theta_dd < 0] +=180
+
+        q_dd_err = np.sqrt(np.sum((qerr**2),axis=1))/qerr.shape[1]
+        u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
+
+        #Now calculate the mean or median
+        from astropy import stats
+        q_mean = np.zeros([q_dd.shape[1]]) #We name this mean, though it could either be Mean or Median
+        q_std = np.zeros([q_dd.shape[1]])
+        u_mean = np.zeros([u_dd.shape[1]])
+        u_std = np.zeros([u_dd.shape[1]])
+
+        for i in range(q_dd.shape[1]):
+
+            mn,md,std = stats.sigma_clipped_stats(q_dd[:,i], sigma=3, maxiters=5)
+            if mode == 'median':
+                q_mean[i] = md
+            else:
+                q_mean[i] = mn
+            q_std[i] = std/np.sqrt(q_dd.shape[0])
+            mn,md,std = stats.sigma_clipped_stats(u_dd[:,i], sigma=3, maxiters=5)
+            u_std[i] = std/np.sqrt(q_dd.shape[0])
+            if mode == 'median':
+                u_mean[i] = md
+            else:
+                u_mean[i] = mn
+
+        p_mean = np.sqrt(q_mean**2+u_mean**2)
+        theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
+        theta_mean[theta_mean < theta_wrap] +=180
+
+        q_mean_err = np.sqrt(np.sum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
+        u_mean_err = np.sqrt(np.sum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
+        p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
+        p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
+        theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
+        theta_std = 0.5*np.degrees( np.sqrt( (u_mean**2*q_std**2+q_mean**2*u_std**2)/(q_mean**2+u_mean**2)**2))
+
+
+        wvs = copy.deepcopy(master_wvs)
+        spec = copy.deepcopy(master_spec)
+        ### Implement Binning
+        if binsize != 1:
+            snip = q_mean.shape[0] % binsize
+            if snip != 0:
+                q_mean = np.mean(q_mean[:-snip].reshape(-1,binsize),axis=1)
+                u_mean = np.mean(u_mean[:-snip].reshape(-1,binsize),axis=1)
+                wvs = np.mean(wvs[:-snip].reshape(-1,binsize),axis=1)
+                p_mean = np.sqrt(q_mean**2+u_mean**2)
+                theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
+
+                spec = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
+
+                q_mean_err = np.sqrt(np.sum(q_mean_err[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+                q_std = np.sqrt(np.sum(q_std[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+                u_mean_err = np.sqrt(np.sum(u_mean_err[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+                u_std = np.sqrt(np.sum(u_std[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+                p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
+                theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
+                
+            
+            else: 
+                q_mean = np.mean(q_mean.reshape(-1,binsize),axis=1)
+                u_mean = np.mean(u_mean.reshape(-1,binsize),axis=1)
+                wvs = np.mean(wvs.reshape(-1,binsize),axis=1)
+                p_mean = np.sqrt(q_mean**2+u_mean**2)
+                theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
+                # theta_bin[theta_bin < 0] +=180
+
+                spec = np.mean(spec.reshape(-1,binsize),axis=1)
+
+                q_mean_err = np.sqrt(np.sum(q_mean_err.reshape(-1,binsize)**2,axis=1))/binsize
+                q_std = np.sqrt(np.sum(q_std.reshape(-1,binsize)**2,axis=1))/binsize
+                u_mean_err = np.sqrt(np.sum(u_mean_err.reshape(-1,binsize)**2,axis=1))/binsize
+                u_std = np.sqrt(np.sum(u_std.reshape(-1,binsize)**2,axis=1))/binsize
+                p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
+                theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
+        p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
+        theta_std = 0.5*np.degrees( np.sqrt( (u_mean**2*q_std**2+q_mean**2*u_std**2)/(q_mean**2+u_mean**2)**2))
+        
+        pmeans.append(p_mean)
+        qmeans.append(q_mean)
+        umeans.append(u_mean) 
+        #Wrap theta about 180
+        theta_mean[theta_mean>theta_wrap] -= 180
+        theta_means.append(theta_mean)        
+
+        ##Calculate the mean values
+        low = 65
+        high = 135
+
+        inds = (wvs > 1.165) & (wvs<1.31)
+        mn_q = np.mean(q_mean[inds])
+        mn_u = np.mean(u_mean[inds])
+        mn_p = np.mean(p_mean[inds])
+
+        mn_q_err = np.mean(q_mean_err[inds])
+        mn_u_err = np.mean(u_mean_err[inds])
+        mn_p_err = np.mean(p_mean_err[inds])
+
+        std_q = np.std(q_mean[inds])
+        std_u = np.std(u_mean[inds])
+        std_p = np.std(p_mean[inds])
+
+        ### Make the plot!!! ###
+
+        axes[2,1] = plt.subplot(3,2,6, projection='polar')
+        ##### Plot Q, U, P and theta ######
+        #The mean values
+        if mode == "median":
+            axes[0,0].plot(wvs,q_mean,color=colors[k],label="Median")
+        else:
+            axes[0,0].plot(wvs,q_mean,color=colors[k],label="Mean")    
+        axes[0,1].plot(wvs,u_mean,color=colors[k])   
+        axes[1,0].plot(wvs,p_mean,color=colors[k])
+        
+
+        #Make a line at zero
+        axes[0,0].axhline(0.,color='k',linestyle='--')
+        axes[0,1].axhline(0.,color='k',linestyle='--')
+
+        #Fill in photon/ron error ranges
+        axes[0,0].fill_between(wvs,q_mean+q_mean_err,q_mean-q_mean_err,color=colors[k],alpha=0.1,label="Propagated Noise")
+        axes[0,1].fill_between(wvs,u_mean+u_mean_err,u_mean-u_mean_err,color=colors[k],alpha=0.1)
+        axes[1,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color=colors[k],alpha=0.1)
+        # axes[1,1].fill_between(wvs,theta_mean+theta_mean_err,theta_mean-theta_mean_err,color='k',alpha=0.1)
+
+        #Only plot theta where > 3sigma
+        if all_theta:
+            where_theta = p_mean > 0
+        else:
+            where_theta = p_mean > 3*p_mean_err
+        axes[1,1].errorbar(wvs[where_theta],theta_mean[where_theta],yerr=theta_mean_err[where_theta],
+            linestyle="None",marker='o',color=colors[k])
+        axes[2,1].errorbar(np.radians(theta_mean[where_theta]),wvs[where_theta],xerr=np.radians(theta_mean_err[where_theta]),
+            linestyle="None",marker='o',color=colors[k])
+        #Fill in photon/ron error ranges from stds
+        axes[0,0].plot(wvs,q_mean+q_std,'--',color=colors[k],alpha=0.5,label="Standard Error on the Mean")
+        axes[0,0].plot(wvs,q_mean-q_std,'--',color=colors[k],alpha=0.5)
+        axes[0,1].plot(wvs,u_mean+u_std,'--',color=colors[k],alpha=0.5)
+        axes[0,1].plot(wvs,u_mean-u_std,'--',color=colors[k],alpha=0.5)
+        axes[1,0].plot(wvs,p_mean+p_std,'--',color=colors[k],alpha=0.5)
+        axes[1,0].plot(wvs,p_mean-p_std,'--',color=colors[k],alpha=0.5)
+        # axes[1,1].plot(wvs,theta_mean+theta_std,'k--',alpha=0.5)
+        # axes[1,1].plot(wvs,theta_mean-theta_std,'k--',alpha=0.5)
+
+        #3-sigma for p
+        axes[1,0].plot(inds,3*p_mean_err,'k')
+
+        #Axis plot ranges
+        axes[0,0].set_xlim(xlow,xhigh)
+        axes[0,1].set_xlim(xlow,xhigh)
+        axes[1,0].set_xlim(xlow,xhigh)
+        axes[1,1].set_xlim(xlow,xhigh)
+
+        axes[0,0].set_ylim(ylow,yhigh)
+        axes[0,1].set_ylim(ylow,yhigh)
+        axes[1,0].set_ylim(0,yhigh)
+        axes[1,1].set_ylim(theta_wrap-180,theta_wrap)
+
+        axes[0,0].locator_params(nbins=6)
+        axes[0,1].locator_params(nbins=6)
+        axes[1,0].locator_params(nbins=6)
+        axes[1,1].locator_params(nbins=6)
+        axes[2,1].locator_params(nbins=3)
+
+        if k == 0:
+            axes[0,0].legend(loc=legend_loc,fontsize=14)
+        #Figure Title
+        fig.suptitle("{}, {}, t_exp = {}, Bin size = {}".format(target_name,date,t_ext,binsize),fontsize=24)
+
+        #Some annotations: 
+        diff=(yhigh-ylow)
+        spacing = diff/16
+        # #### Add some Text
+        # axes[0,0].text(1.025*xlow,yhigh-spacing,r"Mean $q$ = {:.2f}%".format(mn_q*100),fontsize=20)
+        # axes[0,0].text(1.025*xlow,yhigh-2*spacing,r"Mean $q$ Error = {:.2f}%".format(mn_q_err*100),fontsize=20)
+        # axes[0,0].text(1.025*xlow,yhigh-3*spacing,r"Std $q$ = {:.2f}%".format(std_q*100),fontsize=20)
+
+        # axes[0,1].text(1.025*xlow,yhigh-spacing,"Mean $u$ = {:.2f}%".format(mn_u*100),fontsize=20)
+        # axes[0,1].text(1.025*xlow,yhigh-2*spacing,"Mean $u$ Error = {:.2f}%".format(mn_u_err*100),fontsize=20)
+        # axes[0,1].text(1.025*xlow,yhigh-3*spacing,"Std $u$ = {:.2f}%".format(std_u*100),fontsize=20)
+
+        # axes[1,0].text(1.025*xlow,yhigh-spacing,"Mean $p$ = {:.2f}%".format(mn_p*100),fontsize=20)
+        # axes[1,0].text(1.025*xlow,yhigh-1.5*spacing,"Mean $p$ Error = {:.2f}%".format(mn_p_err*100),fontsize=20)
+        # axes[1,0].text(1.025*xlow,yhigh-2*spacing,"Std $p$ = {:.2f}%".format(std_p*100),fontsize=20)
+
+        ## Put in the plot overlaid with the spectrum
+        axes[2,0].plot(wvs,p_mean,color=colors[k])
+        axes[2,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color=colors[k],alpha=0.1)
+        axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+        axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+        if k == 0:
+            axes[2,0].legend(fontsize=14)
+        #Twin axis to show the mean spectrum
+        twin = axes[2,0].twinx()
+        p_right, = twin.plot(wvs,spec)
+        twin.set_ylim(0,1.3*np.max(spec))
+
+        #### Lots of plot setup ####
+
+        #Labels
+        axes[0,0].set_ylabel("q",fontsize=24)
+        axes[0,1].set_ylabel("u",fontsize=24)
+        axes[1,0].set_ylabel("p",fontsize=24)
+        axes[1,1].set_ylabel(r"$\theta$",fontsize=24)
+        axes[1,1].set_xlabel(r"$\theta$",fontsize=24)
+
+        axes[1,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
+        axes[1,1].set_xlabel("Wavelength [arb units.]",fontsize=24)
+        axes[2,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
+        twin.set_ylabel("Uncalibrated Spectrum",color=p_right.get_color())
+
+        #Shrink the space for the title
+        plt.subplots_adjust(top=0.95)
+
+        ### Axis plot ranges
+        axes[0,0].set_xlim(xlow,xhigh)
+        axes[0,1].set_xlim(xlow,xhigh)
+        axes[1,0].set_xlim(xlow,xhigh)
+        axes[1,1].set_xlim(xlow,xhigh)
+        axes[2,0].set_xlim(xlow,xhigh)
+
+        axes[0,0].set_ylim(ylow,yhigh)
+        axes[0,1].set_ylim(ylow,yhigh)
+        axes[1,0].set_ylim(0,yhigh)
+        axes[1,1].set_ylim(theta_wrap-180,theta_wrap)
+        axes[2,1].set_ylim(xlow,xhigh)
+        axes[2,1].set_xlim(np.radians(theta_wrap)-np.pi,np.radians(theta_wrap))
+        axes[2,0].set_ylim(0,yhigh)
+        axes[2,1].set_rticks([1.15, 1.2, 1.25, 1.30])
+        ### Number of ticks
+        axes[0,0].locator_params(nbins=6)
+        axes[0,1].locator_params(nbins=6)
+        axes[1,0].locator_params(nbins=6)
+        axes[1,1].locator_params(nbins=6)
+        axes[2,0].locator_params(nbins=6)
+
+        if ldwarf and k==0:
+            ############################
+            ######## Absorption Lines, Ranges and Bandheads #########
+            ############################
+
+            #Vo Bandhead
+            axes[2,0].plot((1.17,1.22),[0.93*yhigh,0.93*yhigh],'k',label="VO")
+            axes[2,0].text((1.195),0.95*yhigh,"V0",fontsize=14)#H20 Range
+
+            axes[2,0].plot((1.1,1.2),(0.86*yhigh,0.86*yhigh),'k',label=r"H$_2$0")
+            axes[2,0].text(1.170,0.88*yhigh,r"H$_2$0",fontsize=14)
+
+            #Na Line
+            axes[2,0].plot((1.14,1.14),(0.85*yhigh,0.95*yhigh),'k',label="Na")
+            axes[2,0].text(1.141,0.9*yhigh, "Na",fontsize=14)
+
+            #K lines
+            axes[2,0].plot((1.177,1.177),(0.75*yhigh,0.85*yhigh),'k',label="K")
+            axes[2,0].text(1.179,0.8*yhigh,"K",fontsize=14)
+
+
+            axes[2,0].plot((1.2485,1.2485),(0.75*yhigh,0.85*yhigh),'k',label="K")
+            axes[2,0].text(1.2505,0.8*yhigh,"K",fontsize=14)
+
+            #FeH doublet
+            axes[2,0].plot((1.1939,1.1939),(0.75*yhigh,0.85*yhigh),"k",label="FeH")
+            axes[2,0].text(1.1955,0.8*yhigh,"FeH",fontsize=14)
+
+            axes[2,0].plot((1.2389,1.2389),(0.75*yhigh,0.85*yhigh),"k",label="FeH")
+            axes[2,0].text(1.2282,0.8*yhigh,"FeH",fontsize=14)
+
+            #H20
+            axes[2,0].plot((1.3,1.51),(0.85*yhigh,0.85*yhigh),'k',label=r"H$_2$0") #Changed from Mike's list below to be the range from Cushing
+            axes[2,0].text(1.31,0.86*yhigh,r"H$_2$0",fontsize=14)
+
+    if show:
+        plt.show()
+    if save_path is not None:
+        if binsize > 1:
+            fn = "{}_{}_Binned.png".format(target_name,date,binsize)
+        else: 
+            fn = "{}_{}_Binned.png".format(target_name,date)
+        plt.savefig(save_path+fn)
+    if dt is not None:
+        return dt_bins,phase,qmeans,umeans,pmeans,theta_means
+    else:
+        return qmeans,umeans,pmeans,theta_means
