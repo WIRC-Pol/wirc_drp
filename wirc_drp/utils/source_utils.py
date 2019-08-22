@@ -388,7 +388,7 @@ def find_best_background(list_of_headers, separation_threshold = 2):
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
     save_path=None,legend_loc ="bottom left",all_theta=False,
-    fig = None, axes = None,filename=None,figsize=(16,20)):
+    fig = None, axes = None,filename=None,figsize=(16,20),title=None):
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
@@ -568,7 +568,10 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
 
     axes[0,0].legend(loc=legend_loc,fontsize=14)
     #Figure Title
-    fig.suptitle("{}, {}, t_exp = {}, Bin size = {}".format(target_name,date,t_ext,binsize),fontsize=24)
+    if title is None:
+        fig.suptitle("{}, {}, t_exp = {}, Bin size = {}".format(target_name,date,t_ext,binsize),fontsize=24)
+    else:
+        fig.suptitle(title,fontsize=24)
 
     #Some annotations: 
     diff=(yhigh-ylow)
