@@ -143,8 +143,8 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False,
-                  report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None, num_PCA_modes=None):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False, sub_bkg=False,
+        report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, num_PCA_modes=None,nonlinearity_array = None, multicomponent_frame = None):
         '''
         Apply dark and flat-field correction
     
@@ -1001,7 +1001,7 @@ class wirc_data(object):
                 self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
 
 
-    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, n_chi2_iters = 1, chi2_cutout_size=None,max_offset=10, verbose = False, trace_template = None):
+    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, n_chi2_iters = 1, chi2_cutout_size=None,max_offset=10, verbose = False, trace_template = None,sub_bkg=False):
         """trace_template is the template you want to align the new location to
         """
         if update_w_chi2_shift:
