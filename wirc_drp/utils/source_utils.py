@@ -224,12 +224,14 @@ def group_HWP(HWP_set):
     set_45 = np.where(HWP_set == 45)
     set_675 = np.where(HWP_set == 67.5)
 
-    small_0_45 = np.min( (len(set_0[0]), len(set_45[0])))
+    small_0_45 = np.min( (len(set_0[0]), len(set_45[0])) )
     small_225_675 = np.min( (len(set_225[0]), len(set_675[0])))
 
-
-    pairs_0 = np.stack([set_0[0][0:small_0_45], set_45[0]][0:small_0_45], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair. 
+    pairs_0 = np.stack([set_0[0][0:small_0_45], set_45[0][0:small_0_45]], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair. 
     pairs_225 = np.stack([set_225[0][0:small_225_675], set_675[0][0:small_225_675]], axis = 1)
+    
+    # pairs_0 = np.stack([set_0[0], set_45[0]], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair.
+    # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
     return pairs_0, pairs_225
 
 def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True):
