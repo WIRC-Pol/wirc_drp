@@ -113,6 +113,8 @@ def make_mask_from_findTrace(fit, width, angle):
 
 trace_masks = fits.open(wircpol_dir+'wirc_drp/masks/trace_masks.fits')[0].data
 
+cross_correlation_template = fits.getdata(wircpol_dir+'wirc_drp/masks/cross_correlation_template.fits')
+trace_template = fits.getdata(wircpol_dir+'wirc_drp/masks/trace_template.fits')
 
 
 ####Cross mask with 2 size slit
