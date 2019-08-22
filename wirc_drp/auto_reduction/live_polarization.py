@@ -1,3 +1,4 @@
+
 """
 Created on Mon Feb 18, 19
 
@@ -209,6 +210,7 @@ if __name__ == "__main__":
 
 		spec = np.sum(BD_up_all_spec_cube[:,:,1,:],axis=(0,1))
 
+		fig_title = ("{}, {}, nfiles = {}, last_file = {}, Bin size = {}".format(target_name,date,len(all_files),allfiles[-1],binsize)
 		source_utils.plot_pol_summary(wvs,spec,q,u,qerr,uerr,ylow=-0.01,yhigh=0.01,ldwarf=True,mode='median',
                               theta_wrap=90,legend_loc="lower left",binsize=6,target_name=object_name,date=date,,
                               save_path="/scr/wircpol/WIRC-Pol-Website/flask/app/static/img/",filename="quick_look_img.png",
