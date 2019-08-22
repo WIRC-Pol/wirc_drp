@@ -22,9 +22,9 @@ import datetime
 
 import matplotlib
 matplotlib.use('Qt4Agg')
-
+#plt.ion()
 import sys, os, glob, gc, time
-
+from scipy.ndimage import shift
 
 # q, u, q_err, u_err, q_position, u_position = compute_qu(spec1, spec2, HWP1, HWP2)
 #helper function to compute q and u given two spectra cubes
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
 	trace_labels = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']
 	#The plots. Now use source_utils.plot_pol_summary
-	fig, ax = plt.subplots(3,2, figsize = (8, 16))
+	#fig, ax = plt.subplots(3,2, figsize = (8, 16))
 
 	# ax[0,0].set_ylabel('Flux (ADU)', fontsize = 12)
 	# ax[0,1].set_ylabel('Flux (ADU)', fontsize = 12)
@@ -154,7 +154,16 @@ if __name__ == "__main__":
 	# ax[2,0].set_xlabel('Spectral pixel', fontsize = 12)
 	# ax[2,1].set_xlabel('Spectral pixel', fontsize = 12)
 
-	plt.tight_layout()
+	################ This bit is to help get good wavelengths ############
+	## Read in a spectrum for spectral alignment
+	cal_spec = np.load("/scr/data/Other_Files/Tinyanont_2018_Fig6/HD109055_set2.npy")[:,:,84:-60]
+	wvs = su.rough_wavelength_calibration_v2(cal_spec[0,1], 'J')
+	plt.plot(wvs,cal_spec[0,1])
+	wvs = np.pad(wvs,2,mode='edge')
+	################################################################
+
+
+	#plt.tight_layout()
 
 	#blank cube for alignment
 	align_cube = []
@@ -165,110 +174,152 @@ if __name__ == "__main__":
 		# print(all_files)
 
 		time.sleep(0.1)
-		for file_name in all_files:
-			#print("First file is", first_file)
-			fn_string = file_name.split('_auto_extracted.fits')[0]
-			# print(fn_string)
-			if int(fn_string[-4:]) < int(first_file) or int(fn_string[-4:]) > int(last_file): #before first file
-				pass
-				#print(file_name, first_file)
-			else: #after first file, do something
-				#get exposure time and filter
-				header = fits.getheader(file_name)
-				exp_time = header['EXPTIME']
-				filter_name = header['AFT'][0] #just the name, J or H
-				if filter_name not in ['J', 'H']:
-					filter_name = input('Invalid filter name (%s) from header, type J or H'%s)
 
-				data = wo.wirc_data(wirc_object_filename=file_name, verbose=False, load_full_image = False )
+		all_spec_cube = []
+		BD_all_spec_cube = []
+		nfiles = np.size(all_files)
+		hwp_ang = np.zeros(nfiles)
+		for im in np.arange(nfiles):
+			wirc_object = wo.wirc_data(wirc_object_filename=all_files[im],verbose=False)
+			hwp_ang[im] = wirc_object.header['HWP_ANG']
+			BD_all_spec_cube.append(wirc_object.source_list[0].trace_spectra)
+		fn_string = all_files[im].split('_auto_extracted.fits')[0]
+		#Three images at each position
+		n_ang = np.size(hwp_ang)
+		BD_up_all_spec_cube = np.array(BD_all_spec_cube)
 
-				# fig.suptitle("{} including files {} to {}\n{} Pacific".format(data.header['OBJECTA'],sys.argv[4],fn_string[-4:],datetime.datetime.now()))
+		from wirc_drp.utils import calibration, spec_utils as su
+		BD_up_all_spec_cube = su.align_spectral_cube(BD_up_all_spec_cube,ref_trace=cal_spec[0,1])
+		spectra = BD_up_all_spec_cube[:,:,1,:]
+
+		#Shift things
+		for i in range(spectra.shape[0]):
+		    BD_up_all_spec_cube[i,1,1,:] = shift(BD_up_all_spec_cube[i,1,1,:],-1)
+		    BD_up_all_spec_cube[i,2,1,:] = shift(BD_up_all_spec_cube[i,2,1,:],1)
+		    BD_up_all_spec_cube[i,3,1,:] = shift(BD_up_all_spec_cube[i,3,1,:],-2)
+
+		    BD_up_all_spec_cube[i,1,2,:] = shift(BD_up_all_spec_cube[i,1,2,:],-1)
+		    BD_up_all_spec_cube[i,2,2,:] = shift(BD_up_all_spec_cube[i,2,2,:],1)
+		    BD_up_all_spec_cube[i,3,2,:] = shift(BD_up_all_spec_cube[i,3,2,:],-2)
+
+		q,u,qerr,uerr,qind,uind = source_utils.compute_qu_for_obs_sequence(BD_up_all_spec_cube,hwp_ang,run_alignment=False)
+
+		plt.close("all")
+		#plt.clf()
+
+		spec = np.sum(BD_up_all_spec_cube[:,:,1,:],axis=(0,1))
+
+		source_utils.plot_pol_summary(wvs,spec,q,u,qerr,uerr,ylow=-0.01,yhigh=0.01,ldwarf=True,mode='median',
+                              theta_wrap=90,legend_loc="lower left",binsize=6,target_name=object_name,date=date,,
+                              save_path="/scr/wircpol/WIRC-Pol-Website/flask/app/static/img/",filename="quick_look_img.png",
+				figsize=(16,20),show=False)
+		#plt.show(block=True)
+                # source_utils.plot_pol_summary(np.arange(len(all_q), None, all_q, all_u, all_q_err, all_u_err, fig = fig, axes = axes,
+							# mode = 'mean', xlow = 70, xhigh = 130, target_name = object_name, date = date))
+		# for file_name in all_files:
+		# 	#print("First file is", first_file)
+		# 	fn_string = file_name.split('_auto_extracted.fits')[0]
+		# 	# print(fn_string)
+		# 	if int(fn_string[-4:]) < int(first_file) or int(fn_string[-4:]) > int(last_file): #before first file
+		# 		pass
+		# 		#print(file_name, first_file)
+		# 	else: #after first file, do something
+		# 		#get exposure time and filter
+		# 		header = fits.getheader(file_name)
+		# 		exp_time = header['EXPTIME']
+		# 		filter_name = header['AFT'][0] #just the name, J or H
+		# 		if filter_name not in ['J', 'H']:
+		# 			filter_name = input('Invalid filter name (%s) from header, type J or H'%s)
+
+		# 		data = wo.wirc_data(wirc_object_filename=file_name, verbose=False, load_full_image = False )
+
+		# 		# fig.suptitle("{} including files {} to {}\n{} Pacific".format(data.header['OBJECTA'],sys.argv[4],fn_string[-4:],datetime.datetime.now()))
 				
-				#Read spectra and half wave plate angle
-				spectra = data.source_list[0].trace_spectra
+		# 		#Read spectra and half wave plate angle
+		# 		spectra = data.source_list[0].trace_spectra
 
-				if len(align_cube) == 0:
-					align_cube = spectra
-				else: 
-					# print(align_cube.shape, spectra.shape)
-					spec_cube = np.stack([align_cube,spectra])
-					aligned_cube = su.align_spectral_cube(spec_cube, ref_trace = None)
-					scaled_cube = su.scale_and_combine_spectra(aligned_cube, return_scaled_cube = True)
+		# 		if len(align_cube) == 0:
+		# 			align_cube = spectra
+		# 		else: 
+		# 			# print(align_cube.shape, spectra.shape)
+		# 			spec_cube = np.stack([align_cube,spectra])
+		# 			aligned_cube = su.align_spectral_cube(spec_cube, ref_trace = None)
+		# 			scaled_cube = su.scale_and_combine_spectra(aligned_cube, return_scaled_cube = True)
 
-					spectra = scaled_cube[1]
+		# 			spectra = scaled_cube[1]
 
-				HWP = float(data.header['HWP_ANG'])
+		# 		HWP = float(data.header['HWP_ANG'])
 
-				#Fix HWP angle degeneracy
-				if HWP > 90 and HWP < 180:
-					HWP = HWP - 90
-				elif HWP < 0:
-					HWP = HWP + 90
+		# 		#Fix HWP angle degeneracy
+		# 		if HWP > 90 and HWP < 180:
+		# 			HWP = HWP - 90
+		# 		elif HWP < 0:
+		# 			HWP = HWP + 90
 
-				# #First of all, plot the spectra
-				# ax[0, 0].plot( spectra[0,1,:], 'b', label = '%s'%trace_labels[0])
-				# ax[0, 0].plot( spectra[1,1,:], 'r', label = '%s'%trace_labels[1])
-				# ax[0, 1].plot( spectra[2,1,:], 'b', label = '%s'%trace_labels[2])
-				# ax[0, 1].plot( spectra[3,1,:], 'r', label = '%s'%trace_labels[3])
-				# if first_time:
-				# 	ax[0, 0].legend(loc = 'lower center', frameon = False, fontsize = 12)
-				# 	ax[0, 1].legend(loc = 'lower center', frameon = False, fontsize = 12)
-				# 	first_time = False
-				#Determine which pair this belongs to:
+		# 		# #First of all, plot the spectra
+		# 		# ax[0, 0].plot( spectra[0,1,:], 'b', label = '%s'%trace_labels[0])
+		# 		# ax[0, 0].plot( spectra[1,1,:], 'r', label = '%s'%trace_labels[1])
+		# 		# ax[0, 1].plot( spectra[2,1,:], 'b', label = '%s'%trace_labels[2])
+		# 		# ax[0, 1].plot( spectra[3,1,:], 'r', label = '%s'%trace_labels[3])
+		# 		# if first_time:
+		# 		# 	ax[0, 0].legend(loc = 'lower center', frameon = False, fontsize = 12)
+		# 		# 	ax[0, 1].legend(loc = 'lower center', frameon = False, fontsize = 12)
+		# 		# 	first_time = False
+		# 		#Determine which pair this belongs to:
 
-				if (HWP//22.5)%2 == 0: #This is for HWP = 0, 45, etc ("Q")
-					HWP_ind = 0
-					# print()
-				elif (HWP//22.5)%2 == 1: #This is 22.5, 67.5, etc ("U") 
-					HWP_ind = 1
-				else:
-					print("Don't support angles apart from 0, 22.5, 45, 67.5, and their multiples yet.")
-					break
+		# 		if (HWP//22.5)%2 == 0: #This is for HWP = 0, 45, etc ("Q")
+		# 			HWP_ind = 0
+		# 			# print()
+		# 		elif (HWP//22.5)%2 == 1: #This is 22.5, 67.5, etc ("U") 
+		# 			HWP_ind = 1
+		# 		else:
+		# 			print("Don't support angles apart from 0, 22.5, 45, 67.5, and their multiples yet.")
+		# 			break
 
-				#The rest of this will be govenred by the HWP angle. 
-				#If this is the first frame, load it into the holding list
-				if len(holding[HWP_ind]) == 0:
-					holding[HWP_ind] += [spectra]
-					HWP_in_holding[HWP_ind] = HWP #again, there can only be one HWP in holding
+		# 		#The rest of this will be govenred by the HWP angle. 
+		# 		#If this is the first frame, load it into the holding list
+		# 		if len(holding[HWP_ind]) == 0:
+		# 			holding[HWP_ind] += [spectra]
+		# 			HWP_in_holding[HWP_ind] = HWP #again, there can only be one HWP in holding
 
-					# ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
-				else: #something in the holding list
-					if HWP_in_holding[HWP_ind] == HWP: # in case of same angle, just add the new spectrum to the list
-						holding[HWP_ind] += [spectra]
-						# ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
-					else: #Different angle, call compute q, u to get q and u
-						#Note that for each pair of images at different HWP angle, we get 
-						# ax[0,HWP_ind].set_title('Computing q, u from HWP angles %.1f and %.1f'%(HWP,HWP_in_holding[HWP_ind]),fontsize=9)
-						spec1 = spectra
-						spec2 = holding[HWP_ind][0] #Take the 0th, i.e. first element in the holding list. 
-						HWP2 = HWP_in_holding[HWP_ind] #same with the HWP angle. 
-						if (HWP2-HWP)%45 != 0:
-							print("Bug: two halfwave plates are not orthogonal.")
-						del holding[HWP_ind][0] #Then delete it
-						q, u, q_err, u_err, q_position, u_position = source_utils.compute_qu(spec1, spec2, HWP, HWP2)
-						all_q     += [q[0], q[1]]
-						all_u     += [u[0], u[1]]
-						all_q_err += [q_err[0], q_err[1]]
-						all_u_err += [u_err[0], u_err[1]]
-						all_q_pos += [q_position[0], q_position[1]]
-						all_u_pos += [u_position[0], u_position[1]]
+		# 			# ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
+		# 		else: #something in the holding list
+		# 			if HWP_in_holding[HWP_ind] == HWP: # in case of same angle, just add the new spectrum to the list
+		# 				holding[HWP_ind] += [spectra]
+		# 				# ax[0,HWP_ind].set_title('HWP angle %.2f in holding, %d images'%(HWP, len(holding[HWP_ind])),fontsize=9)
+		# 			else: #Different angle, call compute q, u to get q and u
+		# 				#Note that for each pair of images at different HWP angle, we get 
+		# 				# ax[0,HWP_ind].set_title('Computing q, u from HWP angles %.1f and %.1f'%(HWP,HWP_in_holding[HWP_ind]),fontsize=9)
+		# 				spec1 = spectra
+		# 				spec2 = holding[HWP_ind][0] #Take the 0th, i.e. first element in the holding list. 
+		# 				HWP2 = HWP_in_holding[HWP_ind] #same with the HWP angle. 
+		# 				if (HWP2-HWP)%45 != 0:
+		# 					print("Bug: two halfwave plates are not orthogonal.")
+		# 				del holding[HWP_ind][0] #Then delete it
+		# 				q, u, q_err, u_err, q_position, u_position = source_utils.compute_qu(spec1, spec2, HWP, HWP2)
+		# 				all_q     += [q[0], q[1]]
+		# 				all_u     += [u[0], u[1]]
+		# 				all_q_err += [q_err[0], q_err[1]]
+		# 				all_u_err += [u_err[0], u_err[1]]
+		# 				all_q_pos += [q_position[0], q_position[1]]
+		# 				all_u_pos += [u_position[0], u_position[1]]
 
-						#Double differencing
-						q_dd = (q[0]+q[1])/2 
-						u_dd = (u[0]+u[1])/2 
-						q_err_dd = (q_err[0] + q_err[1])/2/np.sqrt(2)
-						u_err_dd = (u_err[0] + u_err[1])/2/np.sqrt(2)
-						dd_all_q     += [ q_dd ]
-						dd_all_u     += [ u_dd ]
-						dd_all_q_err += [ q_err_dd ]
-						dd_all_u_err += [ u_err_dd ]
+		# 				#Double differencing
+		# 				q_dd = (q[0]+q[1])/2 
+		# 				u_dd = (u[0]+u[1])/2 
+		# 				q_err_dd = (q_err[0] + q_err[1])/2/np.sqrt(2)
+		# 				u_err_dd = (u_err[0] + u_err[1])/2/np.sqrt(2)
+		# 				dd_all_q     += [ q_dd ]
+		# 				dd_all_u     += [ u_dd ]
+		# 				dd_all_q_err += [ q_err_dd ]
+		# 				dd_all_u_err += [ u_err_dd ]
 
 						#PLOT using source_utils.plot_pol_summary
 						#wvs is just index
-						plt.clf()
-						source_utils.plot_pol_summary(np.arange(len(all_q), None, all_q, all_u, all_q_err, all_u_err, fig = fig, axes = axes,
-													mode = 'mean', xlow = 70, xhigh = 130, target_name = object_name, date = date)
-
+						#plt.clf()
+						#source_utils.plot_pol_summary(np.arange(len(all_q), None, all_q, all_u, all_q_err, all_u_err, fig = fig, axes = axes,
+#													mode = 'mean', xlow = 70, xhigh = 130, target_name = object_name, date = date))
+#
 # plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
 #     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
 #     save_path=None,legend_loc ="bottom left",all_theta=False,
@@ -492,17 +543,17 @@ if __name__ == "__main__":
 				#save extraction results
 				# fig.tight_layout()
 				# plt.subplots_adjust(top=0.85)
-				plt.savefig("/scr/wircpol/WIRC-Pol-Website/flask/app/static/img/quick_look_img.png",bbox_inches="tight")
-				data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
-				first_file = int(fn_string[-4:])+1
+		#plt.savefig("/scr/wircpol/WIRC-Pol-Website/flask/app/static/img/quick_look_img.png",bbox_inches="tight")
+				#data.save_wirc_object(base_dir+date+'/'+object_name+'_%.1fs_auto/'%exp_time+file_name.split('.')[0]+'_auto_extracted.fits')#, full_image = True)
+		first_file = int(fn_string[-4:])+1
 
 
 				#DELETE file to not blow up memory usage
-				del data 
+		#del data 
 				# gc.collect()
 			# plt.tight_layout()
 				# plt.pause(0.0001)
 		#at the end of the for loop, set first_file to the last file, and start again
 			
-	time.sleep(5)
+	time.sleep(10)
 #There's no end in sight!
