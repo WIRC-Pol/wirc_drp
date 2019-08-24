@@ -9,7 +9,7 @@ Imaging Utilities for the WIRC+Pol DRP
 This file contains functions used to extract spectra from a cutout. 
 
 """
-
+import time
 import numpy as np
 from astropy.io import fits
 from astropy.modeling import models, fitting
@@ -30,15 +30,12 @@ import scipy.ndimage.filters as filters
 import copy
 from image_registration import chi2_shift
 from wirc_drp import constants
-
 from photutils import RectangularAperture, aperture_photometry,make_source_mask
 from astropy.stats import sigma_clipped_stats
-
-# import ccdproc
+from scipy import signal
 
 import cv2
 # import pyfftw
-# from numba import jit
 
 def shift_figure(x_figs,y_figs=0):
     '''
@@ -606,7 +603,6 @@ def mask_sources_in_direct_image(im, trace_template, source_list, trace_fluxes,
     return im
 
 
-
 def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=1, grid_res=18,
                     neighborhood_size=50, perc_threshold=98, bgd_subt_perc_threshold=98,
                    mask_fp=None, boxsize=10, show_plots=True):
@@ -643,7 +639,6 @@ def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=
     ---
     OUT:list of source positions ordered by brightest flux to least
     
-    **if mask_fp is not None, will also return masked image**
     OUT (1): masked image
     OUT (2): list of source positions ordered by brightest flux to least
     """
@@ -722,11 +717,14 @@ def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=
     y, x = np.indices(im.shape)
     
     #do a grid search cross correlation between reference and percentile cut input frame
-    grid = np.asarray([[np.correlate(sub_im[0+grid_res*y:ref_y+grid_res*y, 0+grid_res*x:ref_x+grid_res*x].ravel(), 
-                                     ref_frame.ravel())[0] for x in range((im_x-ref_x)//grid_res)] for y in range((im_y-ref_y)//grid_res)])
-
+    #grid = np.asarray([[np.correlate(sub_im[0+grid_res*y:ref_y+grid_res*y, 0+grid_res*x:ref_x+grid_res*x].ravel(), 
+    #                                ref_frame.ravel())[0] for x in range((im_x-ref_x)//grid_res)] for y in range((im_y-ref_y)//grid_res)])
+    #fftconvolve is way faster than the last step
+    start = time.time()
+    grid = signal.fftconvolve(sub_im,ref_frame,mode='valid')
+    print(time.time()-start)
     #zoom interpolates grid by grid_res factor
-    grid = scipy.ndimage.zoom(grid, grid_res)
+    ##grid = scipy.ndimage.zoom(grid, grid_res)
     
     #find local maxima in cross correlation grid
     grid_max = filters.maximum_filter(grid, neighborhood_size)
