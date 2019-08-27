@@ -46,7 +46,7 @@ class wirc_data(object):
     """
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True, 
-        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, verbose = True):
+        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, cross_correlation_template=None, trace_template=None, verbose = True):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file,
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once.
@@ -93,14 +93,20 @@ class wirc_data(object):
 
             self.calibrated = False
             self.bkg_subbed = False
+            self.already_masked = False
 
-            self.n_sources = 0
+            self.n_sources = 0 
             self.source_list = []
             self.dark_fn = dark_fn
             self.flat_fn = flat_fn
             self.bkg_fn = bkg_fn
             self.bp_fn = bp_fn
             self.hp_fn = hp_fn
+            self.ref_lib = ref_lib
+            self.cross_correlation_template = cross_correlation_template
+            self.trace_template = trace_template
+
+            self.trace_fluxes = []
 
             #A bad flag that indicates this whole file should be disregarded.
             self.bad_flag = False
@@ -137,10 +143,11 @@ class wirc_data(object):
             self.source_list = []
 
 
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False, report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None):
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False, sub_bkg=False,
+        report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, num_PCA_modes=None,nonlinearity_array = None, multicomponent_frame = None):
         '''
         Apply dark and flat-field correction
-
+    
         Background subtraction behavior (only when a background frame is provided)  
             If sub_bkg_now is True, then background subtraction is performed here and the subtracted image is saved. 
             If bkg_by_quadrants, then a scaling factor is applied to each quadrant separately
@@ -202,6 +209,17 @@ class wirc_data(object):
 
             if report_median:
                 mean, med, std = sigma_clipped_stats(self.full_image.flatten())
+
+            #PCA background subtraction
+            if num_PCA_modes is not None:
+                if self.ref_lib is not None:
+                    if not self.bkg_subbed:
+                        self.full_image = calibration.PCA_subtraction(self.full_image, self.ref_lib, num_PCA_modes)
+                    else:
+                        print('Already background subtracted.')
+                else:
+                    print('Must provide reference library to perform PCA subtraction.')
+
 
             #background subtraction should be done at spectral extraction step to propagate error correctly           
             #set sub_bkg_now to False and this will be done when the source is created. 
@@ -808,6 +826,79 @@ class wirc_data(object):
             #print ("ending iteration #",i)
 
 
+    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True):
+        """
+        Finds the number of sources in the image.
+
+        cross_correlation_template: 2-D np.array
+            By default, uses cross_correlation_template under wircpol_masks module of wirc_drp, but if you provide a template, it will use that instead. (Default=None)
+        sigma_threshold: fl
+            only keeps sources that have a flux above specified sigma threshold. (Default=0)
+        show_plots: bool
+            if True, shows plots. (Default=True)
+        """
+        if self.cross_correlation_template is None:
+            if cross_correlation_template is None:
+                self.cross_correlation_template = wircpol_masks.cross_correlation_template
+            else:
+                self.cross_correlation_template = cross_correlation_template
+        self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
+
+        self.n_sources = len(self.source_list)
+        self.header['NSOURCES'] = self.n_sources
+
+
+
+    def mask_sources(self, trace_template=None, sigma_threshold=0, boxsize=10, save_path=None, show_plot=True, overwrite=False):
+        """
+        masks sources in image
+
+        trace_template: 2-D np.array
+            By default, uses the trace_template under wircpol_masks module of wirc_drp, but if you provide a template, it will use that instead. (Default=None)
+        boxsize: int
+            size of box used to do median fill of traces. (Default=10)
+        save_path: str
+            if not None, saves masked image as .fits file to specified path. (Default=None)
+        show_plot: bool
+            if True, shows masked image. (Default=True)
+        overwrite: bool
+            if True, overwrites full_image with masked image. Else, saves masked image to self.masked_image (Default=False)
+        """
+        if self.trace_template is None:
+            if trace_template is None:
+                self.trace_template = wircpol_masks.trace_template
+            else:
+                self.trace_template = trace_template
+        if (not any(self.source_list)) and (not self.already_masked):
+            print('Need to find sources first. Running source finding algorithm.')
+            self.find_sources_v2(sigma_threshold=sigma_threshold, show_plots=show_plot)
+
+            if overwrite:
+                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.trace_template, self.source_list, self.trace_fluxes,
+                                                                boxsize=boxsize, save_path=save_path, show_plot=show_plot)
+            else:
+                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.trace_template, self.source_list, self.trace_fluxes,
+                                                                boxsize=boxsize, save_path=save_path, show_plot=show_plot)
+
+            self.already_masked=True
+
+        elif not any(self.source_list):
+            print('No sources to mask.')
+        elif self.already_masked:
+            print('Image already masked. See self.masked_image or self.full_image if overwrite=True')
+        else:
+            if overwrite:
+                self.full_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.trace_template, self.source_list, self.trace_fluxes,
+                                                                boxsize=boxsize, save_path=save_path, show_plot=show_plot)
+            else:
+                self.masked_image = image_utils.mask_sources_in_direct_image(self.full_image.copy().astype(float), self.trace_template, self.source_list, self.trace_fluxes,
+                                                                boxsize=boxsize, save_path=save_path, show_plot=show_plot)
+
+            self.already_masked=True
+            
+
+
+
     def find_sources(self, image_fn, sky = None, threshold_sigma = 5, guess_seeing = 1, plot = False, verbose = False, brightness_sort=False, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5,
                     use_full_frame_mask=True, force_figures = False, mode = 'pol', guess_location = None):
 
@@ -911,10 +1002,14 @@ class wirc_data(object):
                 self.source_list = [x for _,x in sorted(zip(source_brightness,self.source_list),reverse=True)] # brightness sorted source_list
 
 
-    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, n_chi2_iters = 1, chi2_cutout_size=None,max_offset=10, verbose = False, trace_template = None):
+    def add_source(self, x,y, slit_pos = "slitless", update_w_chi2_shift = True, n_chi2_iters = 1, chi2_cutout_size=None,max_offset=10, verbose = False, trace_template = None,sub_bkg=False):
         """trace_template is the template you want to align the new location to
         """
         if update_w_chi2_shift:
+            im = copy.deepcopy(self.full_image)
+
+            if self.bkg_fn is not None and sub_bkg:
+                im -= fits.open(self.bkg_fn)[0].data
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)
