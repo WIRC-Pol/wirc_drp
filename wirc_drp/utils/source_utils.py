@@ -265,7 +265,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
     #Arrange the sequence into best pairs of 0/45 and 22.5/67.5 to compute qu
     pairs_0, pairs_225 = group_HWP(HWP_final)
-    print( pairs_0, pairs_225)
+    #print( pairs_0, pairs_225)
     #First deal with observations with HWP angles 0/45. Go through the list and compute q and u for each pair
 
     all_q0 = []
