@@ -138,7 +138,7 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             pol_err = (2/(scaled_cube[0,:,1,:] + scaled_cube[1,:,1,:])**2) * np.sqrt(  (scaled_cube[0,:,1,:]*scaled_cube[1,:,2,:])**2 + (scaled_cube[0,:,2,:]* scaled_cube[1,:,1,:])**2)
 
             #now determine which is which
-            sampling_angles_0 = np.array([135, 45, 90, 0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
+            sampling_angles_0 = np.array([135, 45, 90,0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
             sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
             sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
             signs = np.sign(sampling_angles_2 - sampling_angles_1) # 0 - 45 is +q, 22.5 - 67.5 is +u
@@ -255,6 +255,10 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     #First, check length
     if spectra_cube.shape[0] != len(HWP_set):
         raise ValueError("Lengths of spectra_cube and HWP_set are not equal.")
+    #And check the computation method
+    #If method is neither 'flux_ratio' nor 'double_difference', revert to 'flux_ratio'
+    if method not in ['flux_ratio','double_difference']:
+        print("method has to be either flux_ratio or double_difference. not %s. revert to flux_ratio"%method)
 
     #Apply HWP_offset
     HWP_final = HWP_set - HWP_offset
