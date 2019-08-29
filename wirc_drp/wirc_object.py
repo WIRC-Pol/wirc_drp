@@ -265,13 +265,14 @@ class wirc_data(object):
                         self.full_image[1063:,:1027] -= scale_bkg3*background[1063:,:1027]
                         self.full_image[1063:,1027:] -= scale_bkg4*background[1063:,1027:]
                     elif multicomponent_frame is not None:
-                        ncomps = int(np.max(multicomponent_frame))
-                        img_meds = [np.nanmedian(self.full_image[multicomponent_frame == i].flatten()) for i in range(1, ncomps + 1)]
-                        bkg_meds = [np.nanmedian(background[multicomponent_frame == i].flatten()) for i in range(1, ncomps + 1)]
+                        comps = np.unique(multicomponent_frame)
+                        
+                        img_meds = [sigma_clipped_stats(self.full_image[multicomponent_frame == comp], cenfunc = np.nanmedian, stdfunc = np.nanstd)[1] for comp in comps]
+                        bkg_meds = [sigma_clipped_stats(background[multicomponent_frame == comp], cenfunc = np.nanmedian, stdfunc = np.nanstd)[1] for comp in comps]
                         scale_factors = np.array(img_meds)/np.array(bkg_meds)
                         new_arr = np.zeros(background.shape)
-                        for i in range(scale_factors.shape[0]):
-                            working_mask = (multicomponent_frame == i + 1)
+                        for i, comp in enumerate(comps):
+                            working_mask = (multicomponent_frame == comp)
                             new_arr[working_mask] = background[working_mask]*scale_factors[i]
                         self.full_image -= new_arr
 
