@@ -605,7 +605,7 @@ def mask_sources_in_direct_image(im, trace_template, source_list, trace_fluxes,
 
 def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=1, grid_res=18,
                     neighborhood_size=50, perc_threshold=98, bgd_subt_perc_threshold=98,
-                   mask_fp=None, boxsize=10, show_plots=True):
+                   mask_fp=None, boxsize=10, show_plots=True,verbose=True):
     """
     cross correlates input WIRC+POL image with a reference template to look for sources in image.
     
@@ -642,7 +642,8 @@ def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=
     OUT (1): masked image
     OUT (2): list of source positions ordered by brightest flux to least
     """
-    print('Finding sources')
+    if verbose:
+        print('Finding sources')
     im_x = im.shape[1]
     im_y = im.shape[0]
     ref_x = ref_frame.shape[1]
@@ -720,9 +721,7 @@ def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=
     #grid = np.asarray([[np.correlate(sub_im[0+grid_res*y:ref_y+grid_res*y, 0+grid_res*x:ref_x+grid_res*x].ravel(), 
     #                                ref_frame.ravel())[0] for x in range((im_x-ref_x)//grid_res)] for y in range((im_y-ref_y)//grid_res)])
     #fftconvolve is way faster than the last step
-    start = time.time()
     grid = signal.fftconvolve(sub_im,ref_frame,mode='valid')
-    print(time.time()-start)
     #zoom interpolates grid by grid_res factor
     ##grid = scipy.ndimage.zoom(grid, grid_res)
     
@@ -805,12 +804,12 @@ def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=
         if out_fp is not None:
             plt.savefig(out_fp, bbox_inches = 'tight')
         plt.show()
-    
-    if not ordered_sources:
-        print('No sources found.')
-    else:
-        print('Source positions ordered by flux: {}'.format(ordered_sources))
-        print('Trace fluxes: {}'.format(trace_fluxes))
+    if verbose:    
+        if not ordered_sources:
+            print('No sources found.')
+        else:
+            print('Source positions ordered by flux: {}'.format(ordered_sources))
+            print('Trace fluxes: {}'.format(trace_fluxes))
     
     return ordered_sources, trace_fluxes
 
