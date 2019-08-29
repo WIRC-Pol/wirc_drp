@@ -7,7 +7,8 @@ from scipy.signal import fftconvolve
 from astropy.io import ascii as asci
 from astropy.io import fits 
 from wirc_drp.utils import spec_utils as su
-
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import matplotlib as mpl
 
 
 def plot_source_traces(source_list, cmap = None, figsize=(8,8), plot_lims = None):
@@ -538,7 +539,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     if all_theta:
         where_theta = p_mean > 0
     else:
-        where_theta = p_mean > 3*p_mean_err
+        where_theta = p_mean > 3*p_std
     axes[1,1].errorbar(wvs[where_theta],theta_mean[where_theta],yerr=theta_mean_err[where_theta],linestyle="None",marker='o',color='k')
     axes[2,1].errorbar(np.radians(theta_mean[where_theta]),wvs[where_theta],xerr=np.radians(theta_mean_err[where_theta]),linestyle="None",marker='o',color='k')
     #Fill in photon/ron error ranges from stds
@@ -552,7 +553,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     # axes[1,1].plot(wvs,theta_mean-theta_std,'k--',alpha=0.5)
 
     #3-sigma for p
-    axes[1,0].plot(inds,3*p_mean_err,'r')
+    axes[1,0].plot(inds,3*p_std,'r')
 
     #Axis plot ranges
     axes[0,0].set_xlim(xlow,xhigh)
@@ -597,8 +598,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     ## Put in the plot overlaid with the spectrum
     axes[2,0].plot(wvs,p_mean,'k')
     axes[2,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color='k',alpha=0.1)
-    axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
-    axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    axes[2,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
+    axes[1,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
     axes[2,0].legend(fontsize=14)
     if spec is not None:
         #Twin axis to show the mean spectrum
@@ -694,7 +695,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
 
 def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_bins=1,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
-    save_path=None,legend_loc ="bottom left",all_theta=False,cmap=None,dt=None,period=1.):
+    save_path=None,legend_loc ="bottom left",all_theta=False,cmap=None,dt=None,period=None):
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
@@ -713,8 +714,13 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
 
     #Cycle through the time bins
 
-    time_snip = spec_cube.shape[0] % n_time_bins
-    time_bin_size = spec_cube.shape[0]//n_time_bins
+    time_snip = spec_cube.shape[0] % n_time_bins*4
+    time_bin_size = (spec_cube.shape[0]-time_snip)//n_time_bins
+
+    good_wvs = (master_wvs > 1.175) & (master_wvs < 1.325)
+    spec_cube = copy.deepcopy(spec_cube[:,:,:,good_wvs])
+    master_wvs = copy.deepcopy(master_wvs[good_wvs])
+    master_spec = copy.deepcopy(master_spec[good_wvs])
 
     ### TODO: Add in something so that you can put in the rotational period here and have the colors be cyclic. 
     if dt is not None:
@@ -722,13 +728,17 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
             dt_bins = np.mean(np.reshape(dt[:-time_snip],(-1,time_bin_size)),axis=1)
         else:
             dt_bins = np.mean(np.reshape(dt,(-1,time_bin_size)),axis=1)
+
+        if period is None:
+            period = np.max(dt)
+
         phase = (dt_bins % period)/period
     else:
         phase = np.linspace(0,1.0,n_time_bins,endpoint=False)
 
     time_inds = np.arange(spec_cube.shape[0])
     if cmap is None:
-        colormapp = plt.get_cmap('hsv')
+        colormapp = mpl.colors.LinearSegmentedColormap.from_list("", ["k","firebrick","crimson","darkorchid","blueviolet","mediumblue","navy","k"])
     else:
         colormapp = plt.get_cmap(cmap) 
     print(phase)
@@ -880,7 +890,7 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         if all_theta:
             where_theta = p_mean > 0
         else:
-            where_theta = p_mean > 3*p_mean_err
+            where_theta = p_mean > 3*p_std
         axes[1,1].errorbar(wvs[where_theta],theta_mean[where_theta],yerr=theta_mean_err[where_theta],
             linestyle="None",marker='o',color=colors[k])
         axes[2,1].errorbar(np.radians(theta_mean[where_theta]),wvs[where_theta],xerr=np.radians(theta_mean_err[where_theta]),
@@ -896,7 +906,19 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         # axes[1,1].plot(wvs,theta_mean-theta_std,'k--',alpha=0.5)
 
         #3-sigma for p
-        axes[1,0].plot(inds,3*p_mean_err,'k')
+        # axes[1,0].plot(wvs,3*p_std,color='cyan')
+        # axes[1,0].plot(wvs,3*p_mean_err,'k--')
+
+        #Add a colormap:
+        # sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
+
+        cbaxes = inset_axes(axes[1,0], width="60%", height="7%", loc=9) 
+        cbar = mpl.colorbar.ColorbarBase(cbaxes, cmap = colormapp,norm = mpl.colors.Normalize(vmin=0,vmax=1.),ticks=[0.,0.5,1], orientation='horizontal')
+        if period is None:
+            cbar.set_label("Phase \n(Period = ??)")
+        else:
+            cbar.set_label("Phase \n(Period = {}h)".format(period))
+        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=300)
 
         #Axis plot ranges
         axes[0,0].set_xlim(xlow,xhigh)
@@ -939,8 +961,8 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         ## Put in the plot overlaid with the spectrum
         axes[2,0].plot(wvs,p_mean,color=colors[k])
         axes[2,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color=colors[k],alpha=0.1)
-        axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
-        axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+        axes[2,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
+        axes[1,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
         if k == 0:
             axes[2,0].legend(fontsize=14)
         #Twin axis to show the mean spectrum
