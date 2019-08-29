@@ -416,7 +416,7 @@ def compute_p_and_pa( q, u, q_err, u_err):
     theta = 1/2.*np.arctan2(u,q)
     dtheta = 1/(2*p**2) * np.sqrt( (q * u_err)**2 + (u * q_err)**2)
     
-    return p, p_corr dp, theta, dtheta
+    return p, p_corr, dp, theta, dtheta
 
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
