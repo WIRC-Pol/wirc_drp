@@ -165,8 +165,8 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             sampling_angles_0 = np.array([135, 45, 90, 0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
             sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
             sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
-            print(sampling_angles_1)
-            print(sampling_angles_2)
+            # print(sampling_angles_1)
+            # print(sampling_angles_2)
             #indices (non elegant solution...)
             ind0_0 =   np.where(sampling_angles_1 == 0)[0]
             ind0_90 =  np.where(sampling_angles_1 == 90)[0]
@@ -176,8 +176,8 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             ind1_90 =  np.where(sampling_angles_2 == 90)[0]
             ind1_45 =  np.where(sampling_angles_2 == 45)[0]
             ind1_135 = np.where(sampling_angles_2 == 135)[0]
-            print(ind0_0, ind0_90, ind0_45, ind0_135)
-            print(ind1_0, ind1_90, ind1_45, ind1_135)
+            # print(ind0_0, ind0_90, ind0_45, ind0_135)
+            # print(ind1_0, ind1_90, ind1_45, ind1_135)
 
             #q computation, 
             Rq_sq = (scaled_cube[0,ind0_0,1,:]/scaled_cube[0,ind0_90,1,:]) / (scaled_cube[1,ind1_90,1,:]/scaled_cube[1,ind1_0,1,:])
@@ -238,7 +238,7 @@ def group_HWP(HWP_set):
     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
     return pairs_0, pairs_225
 
-def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True):
+def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, method = 'flux_ratio'):
     """
     This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
     and call compute_qu to measure polarization q and u. 
@@ -276,7 +276,8 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     all_uind0 = []
 
     for i in pairs_0:
-        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], HWP_final[i[0]], HWP_final[i[1]], run_alignment)
+        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
+                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
         all_q0    += [q]
         all_u0    += [u]
         all_qerr0 += [q_err]
@@ -294,7 +295,8 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     all_uind225 = []
 
     for i in pairs_225:
-        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], HWP_final[i[0]], HWP_final[i[1]], run_alignment)
+        q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
+                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
         all_q225    += [q]
         all_u225    += [u]
         all_qerr225 += [q_err]
