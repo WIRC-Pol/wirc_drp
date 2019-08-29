@@ -278,12 +278,20 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     for i in pairs_0:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
                                                         HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
-        all_q0    += [q]
-        all_u0    += [u]
-        all_qerr0 += [q_err]
-        all_uerr0 += [u_err]
-        all_qind0 += [q_ind]
-        all_uind0 += [u_ind]
+        if method == 'flux_ratio':
+            all_q0    += [q[0]]
+            all_u0    += [u[0]]
+            all_qerr0 += [q_err[0]]
+            all_uerr0 += [u_err[0]]
+            all_qind0 += [q_ind]
+            all_uind0 += [u_ind]
+        elif method == 'double_difference':
+            all_q0    += [(q[0]+q[1])/2]
+            all_u0    += [(u[0]+u[1])/2]
+            all_qerr0 += [(q_err[0]+q_err[1])/(2*np.sqrt(2))]
+            all_uerr0 += [(u_err[0]+u_err[1])/(2*np.sqrt(2))]
+            all_qind0 += [q_ind]
+            all_uind0 += [u_ind]
 
     #Now deal with observations with HWP angles 22.5/67.5. 
 
@@ -297,12 +305,21 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     for i in pairs_225:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
                                                         HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
-        all_q225    += [q]
-        all_u225    += [u]
-        all_qerr225 += [q_err]
-        all_uerr225 += [u_err]
-        all_qind225 += [q_ind]
-        all_uind225 += [u_ind]
+        print(q[0].shape)
+        if method == 'flux_ratio':
+            all_q0    += [q[0]]
+            all_u0    += [u[0]]
+            all_qerr0 += [q_err[0]]
+            all_uerr0 += [u_err[0]]
+            all_qind0 += [q_ind]
+            all_uind0 += [u_ind]
+        elif method == 'double_difference':
+            all_q0    += [(q[0]+q[1])/2]
+            all_u0    += [(u[0]+u[1])/2]
+            all_qerr0 += [(q_err[0]+q_err[1])/(2*np.sqrt(2))]
+            all_uerr0 += [(u_err[0]+u_err[1])/(2*np.sqrt(2))]
+            all_qind0 += [q_ind]
+            all_uind0 += [u_ind]
 
 
     all_q       = np.array(all_q0 + all_q225    )
