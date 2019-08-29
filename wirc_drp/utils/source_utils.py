@@ -393,6 +393,31 @@ def find_best_background(list_of_headers, separation_threshold = 2):
     
     #     print(all_dist)
 
+def compute_p_and_pa( q, u, q_err, u_err):
+    """
+    Computes degree and angle of polarization with associated uncertainties
+    from given q and u. These should be corrected for instrumental polarization 
+    Input:
+        vectors q, u, and their uncertainties
+    Output: 
+        vector p, theta and their uncertainties
+    Formulae used:
+        p = sqrt(q^2 + u^2)
+        dp = 1/p sqrt( (q dq)^2 + (u du)^2)
+        theta = 1/2 atan(u/q)
+        dtheta = (28.65 dp)/p 
+    """
+    #Compute deg of polarization
+    p = np.sqrt(q**2 + u**2)
+    dp = 1/p * np.sqrt( (q * q_err)**2 + (u * u_err)**2)
+    p_corr = np.sqrt(p**2 - dp**2) #debiased deg of polarization
+    
+    #Compute angle of polarization
+    theta = 1/2.*np.arctan2(u,q)
+    dtheta = 1/(2*p**2) * np.sqrt( (q * u_err)**2 + (u * q_err)**2)
+    
+    return p, p_corr dp, theta, dtheta
+
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
     save_path=None,legend_loc ="bottom left",all_theta=False,
