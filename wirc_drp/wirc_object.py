@@ -841,7 +841,14 @@ class wirc_data(object):
                 self.cross_correlation_template = wircpol_masks.cross_correlation_template
             else:
                 self.cross_correlation_template = cross_correlation_template
-        self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
+        #self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
+		#make sure the source_list format is correct
+        loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
+
+        if len(loc_list) >= 1:
+            for loc in loc_list:
+                self.add_source(loc[0], loc[1])
+
 
         self.n_sources = len(self.source_list)
         self.header['NSOURCES'] = self.n_sources

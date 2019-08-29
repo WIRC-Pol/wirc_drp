@@ -138,8 +138,8 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
 
             #now determine which is which
             sampling_angles_0 = np.array([135, 45, 90, 0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
-            sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
-            sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
+            sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
+            sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
             signs = np.sign(sampling_angles_2 - sampling_angles_1) # 0 - 45 is +q, 22.5 - 67.5 is +u
 
             #q's are those with sampling_angles_1 = 0 or 90 and sampling_angles_2 = 90 or 0
@@ -162,9 +162,10 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
         elif method == 'flux_ratio':
             #First, figure out the sampling angles
             sampling_angles_0 = np.array([135, 45, 90, 0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
-            sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
-            sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
-
+            sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
+            sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
+            print(sampling_angles_1)
+            print(sampling_angles_2)
             #indices (non elegant solution...)
             ind0_0 =   np.where(sampling_angles_1 == 0)[0]
             ind0_90 =  np.where(sampling_angles_1 == 90)[0]
@@ -174,6 +175,8 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             ind1_90 =  np.where(sampling_angles_2 == 90)[0]
             ind1_45 =  np.where(sampling_angles_2 == 45)[0]
             ind1_135 = np.where(sampling_angles_2 == 135)[0]
+            print(ind0_0, ind0_90, ind0_45, ind0_135)
+            print(ind1_0, ind1_90, ind1_45, ind1_135)
 
             #q computation, 
             Rq_sq = (scaled_cube[0,ind0_0,1,:]/scaled_cube[0,ind0_90,1,:]) / (scaled_cube[1,ind1_90,1,:]/scaled_cube[1,ind1_0,1,:])
@@ -261,7 +264,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
     #Arrange the sequence into best pairs of 0/45 and 22.5/67.5 to compute qu
     pairs_0, pairs_225 = group_HWP(HWP_final)
-
+    print( pairs_0, pairs_225)
     #First deal with observations with HWP angles 0/45. Go through the list and compute q and u for each pair
 
     all_q0 = []

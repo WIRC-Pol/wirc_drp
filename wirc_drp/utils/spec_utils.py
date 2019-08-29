@@ -470,7 +470,7 @@ def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None
         
         #optimized variance 
         variance_opt = (read_out_noise/gain)**2 + (flux_0*P_0 + background)/gain
-
+	#revert to old variance
         #variance_opt = variance #try this for now
         #print('Extraction range is', extraction_range)
 
