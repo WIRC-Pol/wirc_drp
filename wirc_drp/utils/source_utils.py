@@ -439,6 +439,12 @@ def compute_p_and_pa( q, u, q_err, u_err):
     
     return p, p_corr, dp, theta, dtheta
 
+def serkowski_polarization(wl, wl_max, p_max, K):
+    """Compute the polarization spectrum expected from ISP Serkowski law
+    p_serk = p_max * exp(-K ln^2(wl_max/wl))
+    """
+    return p_max * np.exp( -K * (np.log(wl_max/wl))**2)
+
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
     save_path=None,legend_loc ="bottom left",all_theta=False,
