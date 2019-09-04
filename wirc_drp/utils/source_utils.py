@@ -315,7 +315,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
 
 
-def find_best_background(list_of_headers, separation_threshold = 2):
+def find_best_background(list_of_files, separation_threshold = 2):
     """
     find_best_background takes a list of headers from WIRC+Pol observations and find best background frame for each element. 
     Here are the conditions: 
@@ -332,9 +332,13 @@ def find_best_background(list_of_headers, separation_threshold = 2):
         list of the same length of list_of_headers giving the index of the best background for each frame in list_of_headers
         example: if the best background for file wirc0001 is wirc0005, then best_bkg[1] = 5 
     """
+    from astropy.io import fits
     from astropy.time import Time
     from astropy.coordinates import SkyCoord
     import astropy.units as u 
+    list_of_headers = []
+    for i in list_of_files:
+        list_of_headers += [fits.getheader(i)]
     #closest in time, some distance away, same HWP
     sep_threshold = separation_threshold 
     all_hdr = list_of_headers
