@@ -269,7 +269,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
     #Arrange the sequence into best pairs of 0/45 and 22.5/67.5 to compute qu
     pairs_0, pairs_225 = group_HWP(HWP_final)
-    #print( pairs_0, pairs_225)
+    # print( pairs_0, pairs_225)
     #First deal with observations with HWP angles 0/45. Go through the list and compute q and u for each pair
 
     all_q0 = []
@@ -287,15 +287,16 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
             all_u0    += [u[0]]
             all_qerr0 += [q_err[0]]
             all_uerr0 += [u_err[0]]
-            all_qind0 += [q_ind]
-            all_uind0 += [u_ind]
+            all_qind0 += [0]
+            all_uind0 += [1]
         elif method == 'double_difference':
             all_q0    += [(q[0]+q[1])/2]
             all_u0    += [(u[0]+u[1])/2]
             all_qerr0 += [(q_err[0]+q_err[1])/(2*np.sqrt(2))]
             all_uerr0 += [(u_err[0]+u_err[1])/(2*np.sqrt(2))]
-            all_qind0 += [q_ind]
-            all_uind0 += [u_ind]
+            all_qind0 += [0]
+            all_uind0 += [1]
+        all_uind0 += [u_ind]
 
     #Now deal with observations with HWP angles 22.5/67.5. 
 
@@ -315,23 +316,54 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
             all_u0    += [u[0]]
             all_qerr0 += [q_err[0]]
             all_uerr0 += [u_err[0]]
-            all_qind0 += [q_ind]
-            all_uind0 += [u_ind]
+            all_qind0 += [1]
+            all_uind0 += [0]
         elif method == 'double_difference':
             all_q0    += [(q[0]+q[1])/2]
             all_u0    += [(u[0]+u[1])/2]
             all_qerr0 += [(q_err[0]+q_err[1])/(2*np.sqrt(2))]
             all_uerr0 += [(u_err[0]+u_err[1])/(2*np.sqrt(2))]
-            all_qind0 += [q_ind]
-            all_uind0 += [u_ind]
+            all_qind0 += [1]
+            all_uind0 += [0]
 
+    #Original:
+    # all_q       = np.array(all_q0 + all_q225    )
+    # all_u       = np.array(all_u0 + all_u225     )
+    # all_qerr   = np.array(all_qerr0 + all_qerr225   )
+    # all_uerr   = np.array(all_uerr0 + all_uerr225   )
+    # all_qind   = np.array(all_qind0 + all_qind225   )
+    # all_uind   = np.array(all_uind0 + all_uind225   )
+    # import pdb; pdb.set_trace()
+    #Now we want to return to the original measurement order, so we interleave the two sets: 
+    #For now we do this by finding the indexes of the 0 and 22.5 waveplate positions. 
+    #If there's a screwy HWP Sequence this will get messed up. 
+    first_inds = np.where(HWP_set ==0 )[0]//2
+    second_inds = np.where(HWP_set == 22.5 )[0]//2
+    
+    all_q = np.empty((np.shape(all_q0)[0]+np.shape(all_q225)[0],1,np.shape(all_q0)[2]))
+    all_q[first_inds] = all_q0
+    all_q[second_inds] = all_q225
 
-    all_q       = np.array(all_q0 + all_q225    )
-    all_u       = np.array(all_u0 + all_u225     )
-    all_qerr   = np.array(all_qerr0 + all_qerr225   )
-    all_uerr   = np.array(all_uerr0 + all_uerr225   )
-    all_qind   = np.array(all_qind0 + all_qind225   )
-    all_uind   = np.array(all_uind0 + all_uind225   )
+    all_u = np.empty((np.shape(all_u0)[0]+np.shape(all_u225)[0],1,np.shape(all_u0)[2]))
+    all_u[first_inds] = all_u0
+    all_u[second_inds] = all_u225
+
+    all_qerr = np.empty((np.shape(all_qerr0)[0]+np.shape(all_qerr225)[0],1,np.shape(all_qerr0)[2]))
+    all_qerr[first_inds] = all_qerr0
+    all_qerr[second_inds] = all_qerr225
+
+    all_uerr = np.empty((np.shape(all_uerr0)[0]+np.shape(all_uerr225)[0],1,np.shape(all_uerr0)[2]))
+    all_uerr[first_inds] = all_uerr0
+    all_uerr[second_inds] = all_uerr225
+
+    #These next few lines are probably overkill, but copying and pasting is easier than thinking. 
+    all_qind = np.empty((np.shape(all_qind0)[0]+np.shape(all_qind225)[0]))
+    all_qind[first_inds] = all_qind0
+    all_qind[second_inds] = all_qind225   
+
+    all_uind = np.empty((np.shape(all_uind0)[0]+np.shape(all_uind225)[0]))
+    all_uind[first_inds] = all_uind0
+    all_uind[second_inds] = all_uind225  
 
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
 
@@ -418,6 +450,7 @@ def find_best_background(list_of_files, separation_threshold = 2):
     
     #     print(all_dist)
 
+<<<<<<< Updated upstream
 def compute_p_and_pa( q, u, q_err, u_err):
     """
     Computes degree and angle of polarization with associated uncertainties
@@ -453,6 +486,17 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
     save_path=None,legend_loc ="bottom left",all_theta=False,
     fig = None, axes = None,filename=None,figsize=(16,20),title=None):
+||||||| merged common ancestors
+def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
+    target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
+    save_path=None,legend_loc ="bottom left",all_theta=False,
+    fig = None, axes = None,filename=None,figsize=(16,20),title=None):
+=======
+def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xlow=1.15,xhigh=1.325,
+    ylow=-0.02,yhigh=0.02,target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,
+    ldwarf=False,show=True,save_path=None,legend_loc ="bottom left",all_theta=False,
+    fig = None, axes = None,filename=None,figsize=(16,20),title=None,tdwarf=False):
+>>>>>>> Stashed changes
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
@@ -479,6 +523,19 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     u_mean = np.zeros([u_dd.shape[1]])
     u_std = np.zeros([u_dd.shape[1]])
 
+    if qinds is not None:
+        q_mean_pair1 = np.zeros([q_dd.shape[1]])
+        q_mean_pair2 = np.zeros([q_dd.shape[1]])
+        q_std_pair1 = np.zeros([q_dd.shape[1]])
+        q_std_pair2 = np.zeros([q_dd.shape[1]])
+
+    if uinds is not None:
+        u_mean_pair1 = np.zeros([u_dd.shape[1]])
+        u_mean_pair2 = np.zeros([u_dd.shape[1]])
+        u_std_pair1 = np.zeros([u_dd.shape[1]])
+        u_std_pair2 = np.zeros([u_dd.shape[1]])
+
+
     for i in range(q_dd.shape[1]):
 
         mn,md,std = stats.sigma_clipped_stats(q_dd[:,i], sigma=3, maxiters=5)
@@ -487,12 +544,44 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
         else:
             q_mean[i] = mn
         q_std[i] = std/np.sqrt(q_dd.shape[0])
+        
+        if qinds is not None:
+            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==0,i], sigma=3, maxiters=5)
+            if mode == 'median':
+                q_mean_pair1[i] = md
+            else:
+                q_mean_pair1[i] = mn
+            q_std_pair1[i] = std/np.sqrt(q_dd[qinds==1].shape[0])
+
+            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==1,i], sigma=3, maxiters=5)
+            if mode == 'median':
+                q_mean_pair2[i] = md
+            else:
+                q_mean_pair2[i] = mn
+            q_std_pair2[i] = std/np.sqrt(q_dd[qinds==1].shape[0])
+        
         mn,md,std = stats.sigma_clipped_stats(u_dd[:,i], sigma=3, maxiters=5)
         u_std[i] = std/np.sqrt(q_dd.shape[0])
         if mode == 'median':
             u_mean[i] = md
         else:
             u_mean[i] = mn
+
+        if uinds is not None:
+            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==0,i], sigma=3, maxiters=5)
+            if mode == 'median':
+                u_mean_pair1[i] = md
+            else:
+                u_mean_pair1[i] = mn
+            u_std_pair1[i] = std/np.sqrt(u_dd[uinds==0].shape[0])
+
+            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==1,i], sigma=3, maxiters=5)
+            if mode == 'median':
+                u_mean_pair2[i] = md
+            else:
+                u_mean_pair2[i] = mn
+            u_std_pair2[i] = std/np.sqrt(u_dd[uinds==1].shape[0])
+
 
     p_mean = np.sqrt(q_mean**2+u_mean**2)
     theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
@@ -518,6 +607,18 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
             theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
             if spec is not None:
                 spec = np.mean(spec[:-snip].reshape(-1,binsize),axis=1)
+            
+            if qinds is not None:
+                q_mean_pair1 = np.mean(q_mean_pair1[:-snip].reshape(-1,binsize),axis=1)
+                q_mean_pair2 = np.mean(q_mean_pair2[:-snip].reshape(-1,binsize),axis=1)
+                q_std_pair1 = np.sqrt(np.sum(q_std_pair1[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+                q_std_pair2 = np.sqrt(np.sum(q_std_pair2[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+
+            if uinds is not None:
+                u_mean_pair1 = np.mean(u_mean_pair1[:-snip].reshape(-1,binsize),axis=1)
+                u_mean_pair2 = np.mean(u_mean_pair2[:-snip].reshape(-1,binsize),axis=1)
+                u_std_pair1 = np.sqrt(np.sum(u_std_pair1[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
+                u_std_pair2 = np.sqrt(np.sum(u_std_pair2[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
 
             q_mean_err = np.sqrt(np.sum(q_mean_err[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
             q_std = np.sqrt(np.sum(q_std[:-snip].reshape(-1,binsize)**2,axis=1))/binsize
@@ -549,8 +650,6 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     #Wrap theta about 180
     theta_mean[theta_mean>theta_wrap] -= 180
 
-
-
     ##Calculate the mean values
     low = 65
     high = 135
@@ -576,11 +675,14 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     ##### Plot Q, U, P and theta ######
     #The mean values
     if mode == "median":
-        axes[0,0].plot(wvs,q_mean,'k',label="Median")
+        axes[0,0].plot(wvs,q_mean,'k',label="Median",zorder=10)
     else:
-        axes[0,0].plot(wvs,q_mean,'k',label="Mean")    
-    axes[0,1].plot(wvs,u_mean,'k')   
-    axes[1,0].plot(wvs,p_mean,'k')
+        axes[0,0].plot(wvs,q_mean,'k',label="Mean",zorder=10)    
+    axes[0,1].plot(wvs,u_mean,'k',zorder=10)       
+    axes[1,0].plot(wvs,p_mean,'k',zorder=10)    
+
+    if qinds is not None:
+        axes[0,0].plot(wvs,q_mean)
     
 
     #Make a line at zero
@@ -588,10 +690,17 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     axes[0,1].axhline(0.,color='r',linestyle='--')
 
     #Fill in photon/ron error ranges
-    axes[0,0].fill_between(wvs,q_mean+q_mean_err,q_mean-q_mean_err,color='k',alpha=0.1,label="Propagated Noise")
-    axes[0,1].fill_between(wvs,u_mean+u_mean_err,u_mean-u_mean_err,color='k',alpha=0.1)
-    axes[1,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color='k',alpha=0.1)
+    axes[0,0].fill_between(wvs,q_mean+q_mean_err,q_mean-q_mean_err,color='k',alpha=0.1,label="Propagated Noise",zorder=10)    
+    axes[0,1].fill_between(wvs,u_mean+u_mean_err,u_mean-u_mean_err,color='k',alpha=0.1,zorder=10)    
+    axes[1,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color='k',alpha=0.1,zorder=10)    
     # axes[1,1].fill_between(wvs,theta_mean+theta_mean_err,theta_mean-theta_mean_err,color='k',alpha=0.1)
+    if qinds is not None:
+        # import pdb; pdb.set_trace()
+        axes[0,0].fill_between(wvs,q_mean_pair1+q_std_pair1,q_mean_pair1-q_std_pair1,color='tab:blue',alpha=0.1,label="Pair 1",zorder=0)
+        axes[0,0].fill_between(wvs,q_mean_pair2+q_std_pair2,q_mean_pair2-q_std_pair2,color='tab:orange',alpha=0.1,label="Pair 2",zorder=0)
+    if uinds is not None:
+        axes[0,1].fill_between(wvs,u_mean_pair1+u_std_pair1,u_mean_pair1-u_std_pair1,color='tab:blue',alpha=0.1,label="Pair 1",zorder=0)
+        axes[0,1].fill_between(wvs,u_mean_pair2+u_std_pair2,u_mean_pair2-u_std_pair2,color='tab:orange',alpha=0.1,label="Pair 1",zorder=0)
 
     #Only plot theta where > 3sigma
     if all_theta:
@@ -656,8 +765,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
     ## Put in the plot overlaid with the spectrum
     axes[2,0].plot(wvs,p_mean,'k')
     axes[2,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color='k',alpha=0.1)
-    axes[2,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
-    axes[1,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
+    axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
     axes[2,0].legend(fontsize=14)
     if spec is not None:
         #Twin axis to show the mean spectrum
@@ -741,6 +850,13 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,yl
         axes[2,0].plot((1.3,1.51),(0.85*yhigh,0.85*yhigh),'k',label=r"H$_2$0") #Changed from Mike's list below to be the range from Cushing
         axes[2,0].text(1.31,0.86*yhigh,r"H$_2$0",fontsize=14)
 
+    if tdwarf:
+        axes[2,0].plot([1.1,1.24],[0.80*yhigh,0.80*yhigh],color='k')
+        axes[2,0].text(1.20,0.825*yhigh, r'CH$_4$',fontsize=14,color='k')
+
+    # "\n",
+    # "plt.plot([1.28,1.44],[0.8,0.80],linestyle='-',lw=1.5,color='grey')\n",
+    # "plt.text(1.33,0.825, r'CH$_4$',fontsize=20,color='grey')\n",
     if save_path is not None:
         if filename is None:
             if binsize > 1:
@@ -772,7 +888,7 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
 
     #Cycle through the time bins
 
-    time_snip = spec_cube.shape[0] % n_time_bins*4
+    time_snip = spec_cube.shape[0] % (n_time_bins*4)
     time_bin_size = (spec_cube.shape[0]-time_snip)//n_time_bins
 
     good_wvs = (master_wvs > 1.175) & (master_wvs < 1.325)
@@ -780,7 +896,6 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
     master_wvs = copy.deepcopy(master_wvs[good_wvs])
     master_spec = copy.deepcopy(master_spec[good_wvs])
 
-    ### TODO: Add in something so that you can put in the rotational period here and have the colors be cyclic. 
     if dt is not None:
         if time_snip != 0:
             dt_bins = np.mean(np.reshape(dt[:-time_snip],(-1,time_bin_size)),axis=1)
@@ -809,6 +924,8 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
     for k in range(n_time_bins):
         # print("time_bin_size = {}".format(time_bin_size)) 
         good_inds = time_inds[np.where((time_inds >= k*time_bin_size) & (time_inds < (k+1)*time_bin_size))]
+
+        # import pdb; pdb.set_trace()
         # print("Using inds {}".format(good_inds))
         q,u,qerr,uerr,qind,uind = compute_qu_for_obs_sequence(spec_cube[good_inds],hwp_ang[good_inds],run_alignment=False)
 
@@ -972,7 +1089,7 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
 
         cbaxes = inset_axes(axes[1,0], width="60%", height="7%", loc=9) 
         cbar = mpl.colorbar.ColorbarBase(cbaxes, cmap = colormapp,norm = mpl.colors.Normalize(vmin=0,vmax=1.),ticks=[0.,0.5,1], orientation='horizontal')
-        if period is None:
+        if period == np.max(dt):
             cbar.set_label("Phase \n(Period = ??)")
         else:
             cbar.set_label("Phase \n(Period = {}h)".format(period))
@@ -1111,6 +1228,6 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
             fn = "{}_{}_Binned.png".format(target_name,date)
         plt.savefig(save_path+fn)
     if dt is not None:
-        return dt_bins,phase,qmeans,umeans,pmeans,theta_means
+        return dt_bins,phase,qmeans,umeans,pmeans,theta_means, phase
     else:
         return qmeans,umeans,pmeans,theta_means
