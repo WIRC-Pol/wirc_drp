@@ -147,10 +147,10 @@ class wirc_data(object):
 
 
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False,
-    report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False):
+                  report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None):
         '''
         Apply dark and flat-field correction
-
+    
         Background subtraction behavior (only when a background frame is provided)  
             If sub_bkg_now is True, then background subtraction is performed here and the subtracted image is saved. 
             If bkg_by_quadrants, then a scaling factor is applied to each quadrant separately
@@ -163,7 +163,8 @@ class wirc_data(object):
             if correct_nonlinearity:
                 n_coadds = self.header["COADDS"]
                 self.full_image = calibration.correct_nonlinearity(
-                                      self.full_image, n_coadds)
+                                      self.full_image, n_coadds,
+                                      nonlinearity_array)
 
             if self.dark_fn is not None:
                 #Open the master dark
@@ -284,7 +285,10 @@ class wirc_data(object):
             if report_median:
                 return med
             elif report_bkg_multiplier:
-                return scale_bkg
+                if multicomponent_frame is None:
+                    return scale_bkg
+                else:
+                    return scale_factors
         else:
             print("Data already calibrated")
 
@@ -1019,6 +1023,10 @@ class wirc_data(object):
         """trace_template is the template you want to align the new location to
         """
         if update_w_chi2_shift:
+            im = copy.deepcopy(self.full_image)
+
+            if self.bkg_fn is not None and sub_bkg:
+                im -= fits.open(self.bkg_fn)[0].data
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)

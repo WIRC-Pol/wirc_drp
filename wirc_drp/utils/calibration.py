@@ -1105,7 +1105,7 @@ def destripe_after_bkg_sub(image, sigma = 3, iters=5, mode = 'robust'):
         for i in range(1024):
 
             #Upper Left
-            to_sub = sigma_clipped_stats(mn_quad[:,i],sigma=sigma,iters=iters)[1] #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
+            to_sub = sigma_clipped_stats(mn_quad[:,i],sigma=sigma,maxiters=iters)[1] #Returns mean, median, stddev (default parameters are 5 iterations of 3-sigma clipping)
 
             clean_imm[:1024,i]  -= to_sub
             clean_imm[1024:,-i] -= to_sub
@@ -1215,7 +1215,96 @@ def remove_correlated_channel_noise(image,n_channels = 8, mask = None):
 
     return image_copy
 
+def PCA_subtraction(im, ref_lib, num_PCA_modes):
+    """
+    Does PCA subtraction of science frames using KLIP algorithm described in Soummer et al. (2012)
+    
+    im: 2-D np.array
+        2-D image to do PCA subtraction on
+    ref_lib: list of str
+        list of .fits files to serve as reference library for PCA subtraction
+    num_PCA_modes: np.array of int
+        1-D np.array listing number of PCA modes to calculate when doing subtraction
+        
+    return: 3-D np.array of fl
+        3-D datacube of PCA subtracted images. Should have shape (k, N_y, N_x) where k is the number
+        of different modes we calculated for the image (i.e. the size of num_PCA_modes) and N_y, N_x are the
+        input image dimensions in the y and x axes respectively
+    """
+    print('Performing PCA background subtraction using {} modes'.format(num_PCA_modes))
+    #concatenate input image into 1-D array
+    im_x = im.shape[1]
+    im_y = im.shape[0]
+    
+    im = im.ravel()
+    
+    # reads list of reference frames into data matrix by first concatenating the 2-D .fits images
+    # into 1-D arrays and then row stacking these images into a 2-D np.array
+    ref_frames = np.stack([fits.open(ref_lib[i])[0].data.ravel() for i in range(len(ref_lib))], axis=0)
+    
+    # subtracts the mean of each reference frame from each reference frame 
+    ref_frames_mean_sub = ref_frames - np.nanmean(ref_frames, axis=1)[:, None]
+    ref_frames_mean_sub[np.where(np.isnan(ref_frames_mean_sub))] = 0
+    
+    # creates covariance matrix from mean subtracted reference frames 
+    covar_psfs = np.cov(ref_frames_mean_sub)
+    tot_basis = covar_psfs.shape[0]
+    
+    num_PCA_modes = np.clip(num_PCA_modes - 1, 0, tot_basis-1)  # clip values, for output consistency we'll keep duplicates
+    max_basis = np.max(num_PCA_modes) + 1  # maximum number of eigenvectors/KL basis we actually need to use/calculate
+    
+    # calculates eigenvalues and eigenvectors of the covariance matrix, but only the ones we need (up to max basis)
+    evals, evecs = la.eigh(covar_psfs, eigvals=(tot_basis-max_basis, tot_basis-1))
+    
+    evals = np.copy(evals[::-1])
+    evecs = np.copy(evecs[:,::-1], order='F') 
+    
+    # calculates the PCA basis vectors
+    basis_vecs = np.dot(ref_frames_mean_sub.T, evecs)
+    basis_vecs = basis_vecs * (1. / np.sqrt(evals * (np.size(im) - 1)))[None, :]  #multiply a value for each row
+    
+    #subtract off the mean of the input frame
+    im_mean_sub = im - np.nanmean(im)
+    
+    # duplicate science image by the max_basis to do simultaneous calculation for different number of PCA modes
+    im_mean_sub_rows = np.tile(im_mean_sub, (max_basis, 1))
+    im_rows_selected = np.tile(im_mean_sub, (np.size(num_PCA_modes), 1)) # this is the output image which has less rows
+    
+    # bad pixel mask
+    # do it first for the image we're just doing computations on but don't care about the output
+    im_nanpix = np.where(np.isnan(im_mean_sub_rows))
+    im_mean_sub_rows[im_nanpix] = 0
+    # now do it for the output image
+    im_nanpix = np.where(np.isnan(im_rows_selected))
+    im_rows_selected[im_nanpix] = 0
+    
+    inner_products = np.dot(im_mean_sub_rows, np.require(basis_vecs, requirements=['F']))
+    # select the KLIP modes we want for each level of KLIP by multiplying by lower diagonal matrix
+    lower_tri = np.tril(np.ones([max_basis, max_basis]))
+    inner_products = inner_products * lower_tri
+    
+    # make a model background for each number of basis vectors we actually output
+    model = np.dot(inner_products[num_PCA_modes,:], basis_vecs.T)
+    
+    # subtract model from input frame for each number of PCA modes chosen
+    PCA_sub_images = (im_rows_selected - model).reshape(np.size(num_PCA_modes), im_y, im_x)
+    
+    if type(num_PCA_modes) is np.int64:
+        return PCA_sub_images[0]
 
+    else type(num_PCA_modes) is np.ndarray:
+        return PCA_sub_images
+
+
+       
+def correct_nonlinearity(image, n_coadd, nonlinearity_arr):
+    assert np.shape(nonlinearity_arr) == np.shape(image)
+
+    image_copy = np.array(image, dtype = float) #copy image
+    image_copy /= n_coadd
+    image_copy = (-1 + np.sqrt(1 + 4*nonlinearity_arr*image_copy)) / \
+                 (2*nonlinearity_arr) #quadratic formula with correct root
+    return image_copy * n_coadd
 
 def PCA_subtraction(im, ref_lib, num_PCA_modes):
     """
@@ -1306,12 +1395,3 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     
     else:
         print('Unsupported datatype for variable: num_PCA_modes. Variable must be either int or 1-D np.ndarray')
-
-
-        
-def correct_nonlinearity(image, n_coadd, nonlinearity_constant = -8e-7):
-    image_copy = np.array(image, dtype = float) #copy image
-    image_copy /= n_coadd
-    image_copy = (-1 + np.sqrt(1 + 4*nonlinearity_constant*image_copy)) / \
-                 (2*nonlinearity_constant) #quadratic formula with correct root
-    return image_copy * n_coadd
