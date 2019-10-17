@@ -973,7 +973,7 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
             method = 'optimal'
 
         if method == 'weightedSum':
-            #TODO: Incorporate new background subtraction
+
             #define PSF (Gaussian for now)
             psf = np.zeros((21,21))
             xx,yy = np.mgrid[0:np.shape(psf)[0], 0:np.shape(psf)[1]]
@@ -983,15 +983,24 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
             #psf = models.Gaussian2D(amplitude = 1, y_mean = psf.shape[0]//2, x_mean = psf.shape[1]//2, \
             #                       y_stddev = 2, x_stddev = 2)(yy,xx)
 
+            if bkg_thumbnails is not None:
+                bkg = bkg_thumbnails[j]
+            else:
+                bkg = bkg_sum*0
             #extract
-            spec_res, spec_var = weighted_sum_extraction(bkg_sub, trace, psf)
+            spec_res, spec_var = weighted_sum_extraction(bkg_sub-bkg, trace, psf)
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var))
 
-            thumbnails_to_extract.append(bkg_sub) #add background subtracted image
+            thumbnails_to_extract.append(bkg_sub-bkg) #add background subtracted image
 
         elif method == 'fit_across_trace':
-            #TODO: Incorporate new background subtraction
+            
+            if bkg_thumbnails is not None:
+                bkg = bkg_thumbnails[j]
+            else:
+                bkg = bkg_sum*0
+
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
             if trace_angle == None:
@@ -1001,7 +1010,7 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
                 if verbose:
                     print("use given ", trace_angle[j]," instead. change this by setting trace_angle to None")
             #start = time.time()
-            spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub, stddev_seeing = weight_width, plot =  False, return_residual = 1, \
+            spec_res, spec_var , residual= fitAcrossTrace_aligned(bkg_sub-bkg, stddev_seeing = weight_width, plot =  False, return_residual = 1, \
                                                                         fitfunction = fitfunction, box_size = box_size, poly_order = poly_order,
                                                                         sum_method = sum_method, trace_angle = rotate_spec_angle) #Do not use variance from this method
             #plt.imshow(residual, origin = 'lower',vmin = -200, vmax = 200)
@@ -1013,9 +1022,9 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
                 print('fit_across_trace takes {} s'.format(time.time()-start))
             spectra.append(spec_res)
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
-            thumbnails_to_extract.append(bkg_sub) #add background subtracted image
+            thumbnails_to_extract.append(bkg_sub-bkg) #add background subtracted image
         elif method == 'sum_across_trace':
-            #TODO: Incorporate new background subtraction
+
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
@@ -1026,17 +1035,20 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
                 if verbose:
                     print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
+            if bkg_thumbnails is not None:
+                bkg = bkg_thumbnails[j]
+            else:
+                bkg = bkg_sum*0
+
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = bkg_sub.shape[0]
-            sub_rotated = frame_rotate(bkg_sub, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+            sub_rotated = frame_rotate(bkg_sub-bkg, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
             #determine the extraction range based on the width parameter
             #first, find the peak
             ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
                 spatial_sigma = spatial_sigma, fixed_width = fixed_width)
-
-
 
             #call the optimal extraction method, remember it's sum_across_trace(bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range) 
