@@ -302,7 +302,6 @@ def fitAcrossTrace_aligned(cutout, stddev_seeing = 4, box_size = 1, plot =  Fals
     else:
         return np.array(flux[::-1]), np.array(flux[::-1])**2 #fake variance for now. 
 
-
 def weighted_sum_extraction(cutout, trace, psf, ron = 12, gain = 1.2):
     """
     weightedSum takes the original, background cutouts, and fit_result from
@@ -360,7 +359,6 @@ def sum_across_trace(data, variance, extraction_range):
     """
     extract spectrum by simply summing in the spatial direction
     This also serves as a helper function for 
-action
     Input:
         data: 2D numpy array of the data, background subtracted
         variance: 2D numpy array of the variance of the data
@@ -412,7 +410,6 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_
 
     return [lower, upper]
 
-# @profile
 def optimal_extraction(data, background, extraction_range, bad_pixel_mask = None, bad_pix_masking = 1, gain = 1.2, read_out_noise = 12, \
                         verbose = 0, plot = 0, niter = 1, sig_clip = 5,spatial_smooth=1,spectral_smooth=10):
 
@@ -677,11 +674,6 @@ def background_subtraction(thumbnails, sub_background_method = 'median',
 
     return bkg_sub, bkg
 
-
-
-
-
-# @profile
 def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = None, bkg_poly_order = 2, bkg_thumbnails = None, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
     bad_pix_masking = 0,skimage_order=4, width_scale=1., diag_mask = False, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', 
     box_size = 1, poly_order = 4, mode = 'pol', spatial_sigma = 5, fixed_width = None, verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
@@ -764,6 +756,11 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
             DQ_copy[1,:,:] = DQ_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
             DQ_copy[2,:,:] = DQ_copy[2,:,-1::-1] #flip x #Top-right
             DQ_copy[3,:,:] = DQ_copy[3,-1::-1, :] #flip y #Bottom-left
+
+        if bkg_thumbnails is not None:
+            bkg_thumbnails[1,:,:] = bkg_thumbnails[1,-1::-1,-1::-1]
+            bkg_thumbnails[2,:,:] = bkg_thumbnails[2,:,-1::-1]
+            bkg_thumbnails[3,:,:] = bkg_thumbnails[3,-1::-1,:]
 
         trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
 
@@ -895,15 +892,23 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
         start = time.time()            
         
         if trace_angle[j] is None:
-            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
+            if bkg_thumbnails is not None:
+                raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub-bkg_thumbnails[j], poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
+                                                                  fractional_fit_type=fractional_fit_type) #linear fit to the trace
+            else: 
+                raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
                                                                   fractional_fit_type=fractional_fit_type) #linear fit to the trace
             widths += [trace_width]
             angles += [measured_trace_angle]
             trace_angle[j] = measured_trace_angle
         else:
             angles += [trace_angle[j]] #use the given angle
-            raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
+            if bkg_thumbnails is not None:
+                raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub-bkg_thumbnails[j], poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
                                                           fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
+            else: 
+                raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
+                                                          fractional_fit_type = None) #for quickly getting trace width, which is 
             widths += [trace_width]
         
         # #After findTrace is run, we can do 2D polynomial background subtraction
@@ -968,6 +973,7 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
             method = 'optimal'
 
         if method == 'weightedSum':
+            #TODO: Incorporate new background subtraction
             #define PSF (Gaussian for now)
             psf = np.zeros((21,21))
             xx,yy = np.mgrid[0:np.shape(psf)[0], 0:np.shape(psf)[1]]
@@ -985,6 +991,7 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
             thumbnails_to_extract.append(bkg_sub) #add background subtracted image
 
         elif method == 'fit_across_trace':
+            #TODO: Incorporate new background subtraction
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
             if trace_angle == None:
@@ -1008,6 +1015,7 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
             spectra_std.append(np.sqrt(spec_var)) #again, don't rely on the variance here yet.
             thumbnails_to_extract.append(bkg_sub) #add background subtracted image
         elif method == 'sum_across_trace':
+            #TODO: Incorporate new background subtraction
             #First, determine the angle to rotate the spectrum, this can either be given or measured by findTrace
             if verbose:
                 print("trace angle is ", measured_trace_angle," deg")
@@ -1055,8 +1063,7 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
 
             #measure real_width after rotation. Now do this for polarimetric data too
             real_width = image_utils.traceWidth_after_rotation(sub_rotated)
-                
-
+            
             #plt.imshow(sub_rotated, origin = 'lower')
             #plt.show()
 
@@ -1084,18 +1091,19 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
             # lower = int(np.floor(vert_max - spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))))) #is this LISP or what?
             # upper = int(np.ceil(vert_max + spatial_sigma*trace_width/np.abs(np.cos(np.radians(rotate_spec_angle)))))
             
-            bkg = rotated-sub_rotated
+            if bkg_thumbnails is not None:
+                bkg = frame_rotate(bkg_thumbnails[j], rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+            else:
+                bkg = rotated-sub_rotated
 
             # #extraction range should come from findTrace output, not having to be found again!
 
-
-            
             if mode == 'spec':
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)
                 widths += [real_width]
             else:
                 #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
-                ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)                
+                ext_range = determine_extraction_range(sub_rotated-bkg, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)                
                 # fit_im = np.zeros(thumbnail.shape) 
                 # for i in range(fit_im.shape[1]):
                 #     #print(trace[i])
@@ -1142,14 +1150,20 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
                 vmin = np.nanmin(thumbnail[trace_inds])
                 vmax = np.nanmax(thumbnail[trace_inds])
 
-                vmin_bkg = np.nanmin( (thumbnail - bkg)[trace_inds] )
-                vmax_bkg = np.nanmax( (thumbnail - bkg)[trace_inds] )
+                if bkg_thumbnails is not None: 
+                    vmin_bkg = np.nanmin( (thumbnail - bkg_thumbnails[j])[trace_inds] )
+                    vmax_bkg = np.nanmax( (thumbnail - bkg_thumbnails[j])[trace_inds] )
+                else:
+                    vmin_bkg = np.nanmin( (thumbnail)[trace_inds] )
+                    vmax_bkg = np.nanmax( (thumbnail)[trace_inds] )
 
+            if bkg_thumbnails is not None:
+                bkg = bkg_thumbnails[j]
+            else:
+                bkg = thumbnail*0.
 
-            im1 = ax.imshow(thumbnail, origin = 'lower', cmap='YlGnBu', vmin=vmin, vmax=vmax,)# norm=LogNorm(vmin=vmin, vmax=vmax))
+            im1 = ax.imshow(thumbnail-bkg, origin = 'lower', cmap='YlGnBu', vmin=vmin, vmax=vmax,)# norm=LogNorm(vmin=vmin, vmax=vmax))
             
-
-
         if plot:
             ax2 = fig.add_subplot(2,ntraces,j+1+ntraces)    
 
@@ -1183,7 +1197,6 @@ def spec_extraction(thumbnails, filter_name = 'J', plot = True, output_name = No
             spectra_std[i] = spectra_std[i][0:min_len]
 
     return np.array(spectra), np.array(spectra_std), np.array(widths), np.array(angles), np.array(thumbnails_to_extract)  #res_spec is a dict, res_stddev and thumbnails are list
-
 
 def rough_wavelength_calibration_v1(trace, filter_name):
     """
@@ -1480,8 +1493,6 @@ def rough_lambda_and_filter_calibration(spectra, widths, xpos, ypos, band = "J",
 
     return spectra
 
-
-
 def align_set_of_traces(traces_cube, ref_trace, oversampling = 10, return_shift = False):
     """
     align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
@@ -1623,8 +1634,6 @@ def scale_and_combine_spectra(spec_cube, return_scaled_cube = False, smooth_size
     else:
         return np.median(scaled_specs, axis = 0)
 
-
-
 def get_spec_cube_from_wirc_obj( wirc_objs, source_num = 0):
     """
     extract a cube of spectra from a list of wirc objects with the given source number.
@@ -1640,10 +1649,6 @@ def get_spec_cube_from_wirc_obj( wirc_objs, source_num = 0):
             print("wirc object number {} doesn't have source number {}".format(j, source_num))
     spec_cube = np.array(spec_cube)
     return spec_cube
-
-
-
-
 
 def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3, rebin = False):
     """

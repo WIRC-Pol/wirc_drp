@@ -354,7 +354,7 @@ class wirc_data(object):
                 if verbose:
                     print('Subtracting background using scaled background frame.')
                 
-                background_hdu = fits.open(self.bkg_fn)
+                background_hdu = fits.open(bkg_fn)
                 background = background_hdu[0].data
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
                 
