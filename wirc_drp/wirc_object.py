@@ -1382,7 +1382,7 @@ class wircpol_source(object):
             print("Performing Spectral Extraction for source {}".format(self.index))
 
         #if background thumbnail is available   
-        if sub_background == 'bkg_image':   
+        if sub_background == 'bkg_image' and bkg_thumbnails is None:   
             try:    
                 bkg_thumbnails = self.trace_bkg 
             except: 
