@@ -524,7 +524,7 @@ def check_traces(full_image, wo_source_list, verbose = False):
 
 
 
-def mask_sources_in_direct_image(im, trace_template, source_list, trace_fluxes,
+def mask_sources_util(im, trace_template, source_list, trace_fluxes,
                                 lower_sigma=0, upper_sigma=2, boxsize=10, save_path=None, show_plot=True):
     """
     masks sources in source_list depending on brightness of traces for given source. 
@@ -603,25 +603,26 @@ def mask_sources_in_direct_image(im, trace_template, source_list, trace_fluxes,
     return im
 
 
-def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=1, grid_res=18,
-                    neighborhood_size=50, perc_threshold=98, bgd_subt_perc_threshold=98,
-                   mask_fp=None, boxsize=10, show_plots=True,verbose=True):
+
+def find_sources_util(im, ref_frame, out_fp=None, sigma_threshold=0, grid_res=18,
+                    neighborhood_size=50, perc_threshold=95, bgd_subt_perc_threshold=98,
+                   boxsize=10, show_plots=True):
     """
     cross correlates input WIRC+POL image with a reference template to look for sources in image.
     
     ARGS
     ----
-    in_fp: str
-        filepath to input image
-    
+    im: 2-D np.array
+        input image
+    ref_frame: 2-D np.array
+        reference template for cross correlation
+
     KWARGS
     ------
     out_fp: str
         filepath to save plots to
-    sigma: int
+    sigma_threshold: fl
         sigma cutoff for determining which maxima are sources
-    ref_fp: str
-        filepath to reference template for cross correlation
     grid_res: int
         pixel resolution for grid search
     neighborhood_size: fl
@@ -630,17 +631,13 @@ def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=
         percentile threshold for to be considered a potential source in cross correlation grid
     bgd_subt_perc_threshold: fl
         percentile for filtering background noise before searcing for maxima in image
-    mask_fp: str
-        filepath for saving masked image
     boxsize: int
         search box size for replacing masked sources with median of surrounding pixels
         
     OUTPUT
     ---
-    OUT:list of source positions ordered by brightest flux to least
-    
-    OUT (1): masked image
-    OUT (2): list of source positions ordered by brightest flux to least
+    OUT(1):list of source positions ordered by brightest flux to least
+    OUT(2):list of corresponding trace fluxes (taking 90th percentile flux pixel) ordered from highest to lowest
     """
     if verbose:
         print('Finding sources')
@@ -778,23 +775,24 @@ def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=
     ordered_sources = [pos for _,pos in sorted(zip(trace_fluxes, sources))]
     ordered_sources.reverse()
     trace_fluxes.sort(reverse=True)
-        
+
     if show_plots:
+        vmax = np.percentile(im, 98)
         #plots 
         f, ax = plt.subplots(2, 2, figsize=(10, 10))
         #input frame
         ax[0][0].set_title('Input frame', fontsize=15)
-        ax[0][0].imshow(im, origin='lower', vmin=0, vmax=1000)
+        ax[0][0].imshow(im, origin='lower', vmin=0, vmax=vmax)
         #background subtracted input frame
-        ax[0][1].set_title('Background subtracted input frame', fontsize=15)
-        ax[0][1].imshow(sub_im, origin='lower', vmin=0, vmax=1000)
+        ax[0][1].set_title('Filtered input frame', fontsize=15)
+        ax[0][1].imshow(sub_im, origin='lower', vmin=0, vmax=vmax)
         #cross correlation grid
         ax[1][0].set_title('Potential sources in CC Grid', fontsize=15)
         ax[1][0].imshow(grid, origin='lower')
         ax[1][0].plot(x, y, 'ro')
         #sources
         ax[1][1].set_title('Sources ordered by flux', fontsize=15)
-        cbar = ax[1][1].imshow(im, origin='lower', vmin=0, vmax=1000)
+        cbar = ax[1][1].imshow(im, origin='lower', vmin=0, vmax=vmax)
         for i in range(len(ordered_sources)):
             ax[1][1].plot(ordered_sources[i][0], ordered_sources[i][1], 'ro')
             ax[1][1].annotate(str(i+1), (ordered_sources[i][0]+21, ordered_sources[i][1]+21), color='r', fontsize=15)
@@ -1216,6 +1214,12 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
         cutouts.append(thumbnails)
 
     return cutouts
+
+
+
+
+
+
 
 def shift_and_subtract_background(cutout, obj_slit = 1,  slit_gap = 21, masked_slit = None, plot = False):
     """
