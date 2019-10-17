@@ -1309,18 +1309,26 @@ def correct_nonlinearity(image, n_coadd, nonlinearity_arr):
 def PCA_subtraction(im, ref_lib, num_PCA_modes):
     """
     Does PCA subtraction of science frames using KLIP algorithm described in Soummer et al. (2012)
-    
+
+    ARGS:
     im: 2-D np.array
         2-D image to do PCA subtraction on
     ref_lib: list of str
         list of .fits files to serve as reference library for PCA subtraction
-    num_PCA_modes: np.array of int
+    num_PCA_modes: int or np.array of int
         1-D np.array listing number of PCA modes to calculate when doing subtraction
         
-    return: 3-D np.array of fl
-        3-D datacube of PCA subtracted images. Should have shape (k, N_y, N_x) where k is the number
-        of different modes we calculated for the image (i.e. the size of num_PCA_modes) and N_y, N_x are the
-        input image dimensions in the y and x axes respectively
+
+    OUTPUT:
+    if num_PCA_modes is an int:
+        return: 2-D np.array of fl
+            2-D PCA subtracted image
+            
+    elif num_PCA_modes is an np.array of int
+        return: 3-D np.array of fl
+            3-D datacube of PCA subtracted images. Should have shape (k, N_y, N_x) where k is the number
+            of different modes we calculated for the image (i.e. the size of num_PCA_modes) and N_y, N_x are the
+            input image dimensions in the y and x axes respectively
     """
     print('Performing PCA background subtraction using {} modes'.format(num_PCA_modes))
     #concatenate input image into 1-D array
@@ -1379,12 +1387,11 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     
     # subtract model from input frame for each number of PCA modes chosen
     PCA_sub_images = (im_rows_selected - model).reshape(np.size(num_PCA_modes), im_y, im_x)
-    
-    if type(num_PCA_modes) is np.int64:
-        return PCA_sub_images[0]
 
+    if type(num_PCA_modes) is np.int64:
+        return PCA_sub_images[0], model.reshape(im_y, im_x)
     elif type(num_PCA_modes) is np.ndarray:
-        return PCA_sub_images
+        return PCA_sub_images, model.reshape(np.size(num_PCA_modes), im_y, im_x)
     
     else:
         print('Unsupported datatype for variable: num_PCA_modes. Variable must be either int or 1-D np.ndarray')
