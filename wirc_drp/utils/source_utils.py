@@ -296,7 +296,6 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
             all_uerr0 += [(u_err[0]+u_err[1])/(2*np.sqrt(2))]
             all_qind0 += [0]
             all_uind0 += [1]
-        all_uind0 += [u_ind]
 
     #Now deal with observations with HWP angles 22.5/67.5. 
 
@@ -312,19 +311,19 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
                                                         HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
         print(q[0].shape)
         if method == 'flux_ratio':
-            all_q0    += [q[0]]
-            all_u0    += [u[0]]
-            all_qerr0 += [q_err[0]]
-            all_uerr0 += [u_err[0]]
-            all_qind0 += [1]
-            all_uind0 += [0]
+            all_q225    += [q[0]]
+            all_u225    += [u[0]]
+            all_qerr225 += [q_err[0]]
+            all_uerr225 += [u_err[0]]
+            all_qind225 += [1]
+            all_uind225 += [0]
         elif method == 'double_difference':
-            all_q0    += [(q[0]+q[1])/2]
-            all_u0    += [(u[0]+u[1])/2]
-            all_qerr0 += [(q_err[0]+q_err[1])/(2*np.sqrt(2))]
-            all_uerr0 += [(u_err[0]+u_err[1])/(2*np.sqrt(2))]
-            all_qind0 += [1]
-            all_uind0 += [0]
+            all_q225    += [(q[0]+q[1])/2]
+            all_u225    += [(u[0]+u[1])/2]
+            all_qerr225 += [(q_err[0]+q_err[1])/(2*np.sqrt(2))]
+            all_uerr225 += [(u_err[0]+u_err[1])/(2*np.sqrt(2))]
+            all_qind225 += [1]
+            all_uind225 += [0]
 
     #Original:
     # all_q       = np.array(all_q0 + all_q225    )
@@ -333,26 +332,27 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     # all_uerr   = np.array(all_uerr0 + all_uerr225   )
     # all_qind   = np.array(all_qind0 + all_qind225   )
     # all_uind   = np.array(all_uind0 + all_uind225   )
-    # import pdb; pdb.set_trace()
+    # #import pdb; pdb.set_trace()
     #Now we want to return to the original measurement order, so we interleave the two sets: 
     #For now we do this by finding the indexes of the 0 and 22.5 waveplate positions. 
     #If there's a screwy HWP Sequence this will get messed up. 
     first_inds = np.where(HWP_set ==0 )[0]//2
     second_inds = np.where(HWP_set == 22.5 )[0]//2
     
-    all_q = np.empty((np.shape(all_q0)[0]+np.shape(all_q225)[0],1,np.shape(all_q0)[2]))
+   # import pdb;pdb.set_trace()
+    all_q = np.empty((np.shape(all_q0)[0]+np.shape(all_q225)[0],np.shape(all_q0)[1]))
     all_q[first_inds] = all_q0
     all_q[second_inds] = all_q225
 
-    all_u = np.empty((np.shape(all_u0)[0]+np.shape(all_u225)[0],1,np.shape(all_u0)[2]))
+    all_u = np.empty((np.shape(all_u0)[0]+np.shape(all_u225)[0],np.shape(all_u0)[1]))
     all_u[first_inds] = all_u0
     all_u[second_inds] = all_u225
 
-    all_qerr = np.empty((np.shape(all_qerr0)[0]+np.shape(all_qerr225)[0],1,np.shape(all_qerr0)[2]))
+    all_qerr = np.empty((np.shape(all_qerr0)[0]+np.shape(all_qerr225)[0],np.shape(all_qerr0)[1]))
     all_qerr[first_inds] = all_qerr0
     all_qerr[second_inds] = all_qerr225
 
-    all_uerr = np.empty((np.shape(all_uerr0)[0]+np.shape(all_uerr225)[0],1,np.shape(all_uerr0)[2]))
+    all_uerr = np.empty((np.shape(all_uerr0)[0]+np.shape(all_uerr225)[0],np.shape(all_uerr0)[1]))
     all_uerr[first_inds] = all_uerr0
     all_uerr[second_inds] = all_uerr225
 
@@ -450,7 +450,6 @@ def find_best_background(list_of_files, separation_threshold = 2):
     
     #     print(all_dist)
 
-<<<<<<< Updated upstream
 def compute_p_and_pa( q, u, q_err, u_err):
     """
     Computes degree and angle of polarization with associated uncertainties
@@ -482,21 +481,10 @@ def serkowski_polarization(wl, wl_max, p_max, K):
     """
     return p_max * np.exp( -K * (np.log(wl_max/wl))**2)
 
-def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
-    target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
-    save_path=None,legend_loc ="bottom left",all_theta=False,
-    fig = None, axes = None,filename=None,figsize=(16,20),title=None):
-||||||| merged common ancestors
-def plot_pol_summary(wvs,spec,q,u,qerr,uerr,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
-    target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
-    save_path=None,legend_loc ="bottom left",all_theta=False,
-    fig = None, axes = None,filename=None,figsize=(16,20),title=None):
-=======
 def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xlow=1.15,xhigh=1.325,
     ylow=-0.02,yhigh=0.02,target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,
     ldwarf=False,show=True,save_path=None,legend_loc ="bottom left",all_theta=False,
     fig = None, axes = None,filename=None,figsize=(16,20),title=None,tdwarf=False):
->>>>>>> Stashed changes
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
@@ -507,17 +495,31 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     '''
 
     #First calculate the double_difference values
-    q_dd = np.nanmean(q,axis=1)
-    u_dd = np.nanmean(u,axis=1)
+    # import pdb; pdb.set_trace()
+    q_dd = copy.deepcopy(q) #Doing it this way because the way q and u calculated changed. 
+    u_dd = copy.deepcopy(u)
+    # q_dd = np.nanmean(q,axis=1)
+    # u_dd = np.nanmean(u,axis=1)
+   # q_dd = q
+   # u_dd = u
     p_dd = np.sqrt(q_dd**2+u_dd**2)
     theta_dd = 0.5*np.degrees(np.arctan2(u_dd,q_dd))
     theta_dd[theta_dd < 0] +=180
+   # q_dd = q
+   # u_dd = u
 
-    q_dd_err = np.sqrt(np.sum((qerr**2),axis=1))/qerr.shape[1]
-    u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
+    #Doing this because of how things changed in computer polarization
+
+    q_dd_err = copy.deepcopy(qerr)
+    u_dd_err = copy.deepcopy(uerr)
+
+    #This was the old way. 
+    # q_dd_err = np.sqrt(np.sum((qerr**2),axis=1))/qerr.shape[1]
+    # u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
 
     #Now calculate the mean or median
     from astropy import stats
+    
     q_mean = np.zeros([q_dd.shape[1]]) #We name this mean, though it could either be Mean or Median
     q_std = np.zeros([q_dd.shape[1]])
     u_mean = np.zeros([u_dd.shape[1]])
@@ -684,6 +686,10 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     if qinds is not None:
         axes[0,0].plot(wvs,q_mean)
     
+    #### TEMPORARY! ####
+    # np.save("p",p_mean)
+    # np.save("wvs",wvs)
+    # np.save("perr",p_std)
 
     #Make a line at zero
     axes[0,0].axhline(0.,color='r',linestyle='--')
@@ -824,35 +830,53 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
         axes[2,0].plot((1.17,1.22),[0.93*yhigh,0.93*yhigh],'k',label="VO")
         axes[2,0].text((1.195),0.95*yhigh,"V0",fontsize=14)#H20 Range
 
-        axes[2,0].plot((1.1,1.2),(0.86*yhigh,0.86*yhigh),'k',label=r"H$_2$0")
-        axes[2,0].text(1.170,0.88*yhigh,r"H$_2$0",fontsize=14)
-
         #Na Line
-        axes[2,0].plot((1.14,1.14),(0.85*yhigh,0.95*yhigh),'k',label="Na")
+        axes[2,0].plot((1.138,1.138),(0.85*yhigh,0.95*yhigh),'k',label="Na")
+        axes[2,0].plot((1.141,1.141),(0.85*yhigh,0.95*yhigh),'k',label="Na")
         axes[2,0].text(1.141,0.9*yhigh, "Na",fontsize=14)
 
         #K lines
-        axes[2,0].plot((1.177,1.177),(0.75*yhigh,0.85*yhigh),'k',label="K")
-        axes[2,0].text(1.179,0.8*yhigh,"K",fontsize=14)
+        axes[2,0].plot((1.169,1.169),(0.75*yhigh,0.85*yhigh),'C1',label="K")
+        axes[2,0].plot((1.177,1.177),(0.75*yhigh,0.85*yhigh),'C1',label="K")
+        axes[2,0].text(1.171,0.8*yhigh,"K",fontsize=14,color='C1')
 
-
-        axes[2,0].plot((1.2485,1.2485),(0.75*yhigh,0.85*yhigh),'k',label="K")
-        axes[2,0].text(1.2505,0.8*yhigh,"K",fontsize=14)
+        axes[2,0].plot((1.252,1.252),(0.75*yhigh,0.85*yhigh),'C1',label="K")
+        axes[2,0].plot((1.243,1.243),(0.75*yhigh,0.85*yhigh),'C1',label="K")
+        axes[2,0].text(1.245,0.8*yhigh,"K",fontsize=14,color='C1')
 
         #FeH doublet
-        axes[2,0].plot((1.1939,1.1939),(0.75*yhigh,0.85*yhigh),"k",label="FeH")
-        axes[2,0].text(1.1955,0.8*yhigh,"FeH",fontsize=14)
+        axes[2,0].plot((1.1939,1.1939),(0.75*yhigh,0.85*yhigh),"C2",label="FeH")
+        axes[2,0].plot((1.210,1.210),(0.75*yhigh,0.85*yhigh),"C2",label="FeH")
+        axes[2,0].text(1.1955,0.8*yhigh,"FeH",fontsize=14,color='C2')
 
-        axes[2,0].plot((1.2389,1.2389),(0.75*yhigh,0.85*yhigh),"k",label="FeH")
-        axes[2,0].text(1.2282,0.8*yhigh,"FeH",fontsize=14)
+        axes[2,0].plot((1.2389,1.2389),(0.75*yhigh,0.85*yhigh),"C2",label="FeH")
+        axes[2,0].text(1.225,0.8*yhigh,"FeH",fontsize=14,color='C2')
+
+        #H20
+        axes[2,0].plot((1.3,1.51),(0.85*yhigh,0.85*yhigh),'c',label=r"H$_2$0") #Changed from Mike's list below to be the range from Cushing
+        axes[2,0].text(1.31,0.86*yhigh,r"H$_2$0",fontsize=14,color='c')
+
+        axes[2,0].plot((1.1,1.2),(0.86*yhigh,0.86*yhigh),'c',label=r"H$_2$0")
+        axes[2,0].text(1.170,0.88*yhigh,r"H$_2$0",fontsize=14,color='c')
+
+
+    if tdwarf:
+
+        #CH4
+        axes[2,0].plot([1.1,1.24],[0.80*yhigh,0.80*yhigh],color='k')
+        axes[2,0].text(1.20,0.825*yhigh, r'CH$_4$',fontsize=14,color='k')
+
+        axes[2,0].plot([1.28,1.44],[0.8*yhigh,0.8*yhigh],color='k')
+        axes[2,0].text(1.30,0.825*yhigh, r'CH$_4$',fontsize=14,color='k')
 
         #H20
         axes[2,0].plot((1.3,1.51),(0.85*yhigh,0.85*yhigh),'k',label=r"H$_2$0") #Changed from Mike's list below to be the range from Cushing
         axes[2,0].text(1.31,0.86*yhigh,r"H$_2$0",fontsize=14)
 
-    if tdwarf:
-        axes[2,0].plot([1.1,1.24],[0.80*yhigh,0.80*yhigh],color='k')
-        axes[2,0].text(1.20,0.825*yhigh, r'CH$_4$',fontsize=14,color='k')
+        #H20
+        axes[2,0].plot((1.1,1.2),(0.86*yhigh,0.86*yhigh),'k',label=r"H$_2$0")
+        axes[2,0].text(1.170,0.88*yhigh,r"H$_2$0",fontsize=14)
+
 
     # "\n",
     # "plt.plot([1.28,1.44],[0.8,0.80],linestyle='-',lw=1.5,color='grey')\n",

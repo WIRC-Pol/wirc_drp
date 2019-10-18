@@ -603,10 +603,9 @@ def mask_sources_util(im, trace_template, source_list, trace_fluxes,
     return im
 
 
-
-def find_sources_util(im, ref_frame, out_fp=None, sigma_threshold=0, grid_res=18,
+def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=1, grid_res=18,
                     neighborhood_size=50, perc_threshold=95, bgd_subt_perc_threshold=98,
-                   boxsize=10, show_plots=True):
+                   mask_fp=None, boxsize=10, show_plots=True,verbose=True):
     """
     cross correlates input WIRC+POL image with a reference template to look for sources in image.
     

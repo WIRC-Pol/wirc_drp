@@ -827,7 +827,8 @@ class wirc_data(object):
             hdulist.close()
             #print ("ending iteration #",i)
 
-    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True):
+
+    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
         """
         Finds the number of sources in the image.
 
@@ -843,9 +844,13 @@ class wirc_data(object):
                 self.cross_correlation_template = wircpol_masks.cross_correlation_template
             else:
                 self.cross_correlation_template = cross_correlation_template
+        #self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
+		#make sure the source_list format is correct
+        loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
 
-        #find (x,y) positions of sources and save to list ordered by trace fluxes (brightest to faintest)
-        self.source_positions, self.trace_fluxes = image_utils.find_sources_util(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
+        if len(loc_list) >= 1:
+            for loc in loc_list:
+                self.add_source(loc[0], loc[1],update_w_chi2_shift=update_w_chi2_shift)
 
         #take (x,y) positions of sources and create a corresponding list of wircpol_source objects in the same order  
         for source_index, source_pos in enumerate(self.source_positions):
