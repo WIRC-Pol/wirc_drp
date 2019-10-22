@@ -319,7 +319,7 @@ class wirc_data(object):
                         print('Subtracting background using PCA.')
 
                     #Do the PCA subtraction, save the model image to self.bkg_image. It also outputs a subtracted image, ignore that for now. 
-                    _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, ref_lib, num_PCA_modes)
+                    _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, ref_lib, num_PCA_modes,**kwargs)
                     
                 else:
                     print('Must provide a list of reference files to perform PCA subtraction, either as a keyword argument "ref_lib" or in self.ref_lib.')
@@ -855,7 +855,12 @@ class wirc_data(object):
                 self.cross_correlation_template = cross_correlation_template
         #self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 		#make sure the source_list format is correct
-        loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
+        if self.bkg_image is not None:
+            loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image-self.bkg_image, self.cross_correlation_template, 
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)    
+        else:
+            loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, 
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
 
 
         if len(loc_list) >= 1:

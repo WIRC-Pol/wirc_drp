@@ -1962,6 +1962,8 @@ vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=60):
     # import pdb;pdb.set_trace()
     bkg_image = copy.deepcopy(full_image)
     for i in range(4):
+        source_pos_list = [(1022, 1033),(1050, 1050),(1030, 1050),(1020, 1070)]
+        traceLocation = locationInIm(J_lam, source_pos_list[i]).astype(int)
         bkg_image[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
         traceLocation[i][0]-box_size:traceLocation[i][0]+box_size] = outputs[i]
     
@@ -2014,7 +2016,7 @@ def _smoothed_tophat(x,size):
     rangge = notch-end
     slope = -height/rangge
     
-#     print(notch, end, rangge)
+    # print(notch, end, rangge)
     tophat[end:notch] -= -slope*np.arange(rangge)
     
     tophat_sm = sn.gaussian_filter(tophat,smooth_size)
