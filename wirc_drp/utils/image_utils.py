@@ -25,17 +25,20 @@ from scipy.ndimage import gaussian_filter as gauss
 from scipy.ndimage import median_filter, shift, rotate
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
+import scipy.optimize as so
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
+import scipy.ndimage as sn
+
 import copy
 from image_registration import chi2_shift
 from wirc_drp import constants
 from photutils import RectangularAperture, aperture_photometry,make_source_mask
 from astropy.stats import sigma_clipped_stats
 from scipy import signal
+import multiprocessing as mp
 
 import cv2
-# import pyfftw
 
 def shift_figure(x_figs,y_figs=0):
     '''
@@ -48,10 +51,6 @@ def shift_figure(x_figs,y_figs=0):
     px = mgr.canvas.width()
     mgr.window.setGeometry(px*x_figs, py*y_figs, px, py)
 
-
-
-# @jit
-# @profile
 def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, use_full_frame_mask=True, force_figures = False, seeing = 0.75):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
@@ -423,10 +422,6 @@ def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, v
             print(e)
         return None
 
-
-
-
-
 def check_traces(full_image, wo_source_list, verbose = False):
 
     '''
@@ -522,8 +517,6 @@ def check_traces(full_image, wo_source_list, verbose = False):
         
     return(source_ok, source_brightness)
 
-
-
 def mask_sources_util(im, trace_template, source_list, trace_fluxes,
                                 lower_sigma=0, upper_sigma=2, boxsize=10, save_path=None, show_plot=True):
     """
@@ -601,7 +594,6 @@ def mask_sources_util(im, trace_template, source_list, trace_fluxes,
         plt.show()
         
     return im
-
 
 def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=1, grid_res=18,
                     neighborhood_size=50, perc_threshold=95, bgd_subt_perc_threshold=98,
@@ -809,8 +801,6 @@ def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=
             print('Trace fluxes: {}'.format(trace_fluxes))
     
     return ordered_sources, trace_fluxes
-
-
 
 def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seeing, plot = False):
     #Previously named coarse_regis
@@ -1034,7 +1024,6 @@ def fit_gaussian_to_cutout(cutout, seeing_pix):
     #print(res[0].amplitude.value, res[0].x_stddev.value)
     return res
 
-
 def pointFinder(image, seeing_pix, threshold):
     """Take an image file and identify where point sources are. This is done by utilizing
     Scipy maximum and minimum filters.
@@ -1213,12 +1202,6 @@ def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', su
         cutouts.append(thumbnails)
 
     return cutouts
-
-
-
-
-
-
 
 def shift_and_subtract_background(cutout, obj_slit = 1,  slit_gap = 21, masked_slit = None, plot = False):
     """
@@ -1478,7 +1461,6 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
         #return all_res_even, bkg, flux, var
     return cutout - bkg, bkg
 
-# @profile
 def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_mask=False,mode='pol',fractional_fit_type = None):
 
     """
@@ -1651,8 +1633,6 @@ def trace_location_along_x(thumbnail, angle, template_width = 70, plot = 0):
         plt.show()
 
     return np.nanargmax(corr) - int(length/2) +1 #the x center of the trace
-
-
 
 def fitFlux(flux_vec, seeing_pix = 4):
     """
@@ -1844,7 +1824,6 @@ def traceWidth(trace, location, fit_length):
         # return res[0].stddev.value
         return res.stddev.value
 
-
 def traceWidth_after_rotation(trace, fitlength = 10):
     collapsed = np.sum(trace, axis = 1)              #collapsing trace along x axis
     x = range(len(collapsed))
@@ -1893,7 +1872,6 @@ def clean_thumbnails_for_cosmicrays(thumbnails, method='lacosmic',thumbnails_dq=
             thumbnails[i,:,:] = ccdproc.cosmicray_lacosmic(thumbnails[i,:,:], sigclip=nsig)[0]
         return thumbnails, thumbnails_dq
 
-
 def smooth_cutouts(thumbnails,method='gaussian',width=3):
     '''
     A function to smooth the thumbnails
@@ -1921,5 +1899,190 @@ def smooth_cutouts(thumbnails,method='gaussian',width=3):
 
     return
 
+def subtract_slit_background(full_image,band='J',box_size=80, fit_width=3,
+trace_mask_width=16,comb_method='median',low_start = 30, high_end= 130,
+vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=60):
+    '''
+    A function to subtract the background from the slit and only the slit, 
+    by masking out the source and fitting the rest of the background. 
 
+    Inputs: 
+        full_image - A full WIRC+Pol data image. 
+    Keyword arguments:
+        band       - The observing band. Only J-band is implemented so far
+        box_size    - The size for the cutouts around the spectra
+        fid_width   - The vertical half-width that is used to estimate the background in each line
+        trace_mask_width - How much to mask out around the source - full width [pixels]
+        comb_method - How do you want to combine the rows vertically, options are 'median' or 'mean'
+        low_start  - Where do we want to start the background subtraction (row number in the box defined by box_size)
+        high_end - Where do we want to end the backgroudn subtraction (row number in the box defined by box_size)
+        tol - The tolerance for the fitting, passed to scipy.optimize.minimize
+    Outputs: 
+        bkg_image - A background image
 
+    
+    '''
+
+    #TODO: Try and somehow check the data and make sure we're not using old-slit data. 
+
+    if band != 'J':
+        raise ValueError("We can only do slit_background subtraction in the J-band for now")
+    
+    #Set up a mask to help us out here: 
+    mask = makeDiagMask(box_size*2,mask_size)
+    mask = np.array(mask,dtype=float)
+    mask[mask==0.] = np.nan
+
+    #The list of source positions we will use to make the background area we want is centered well
+    source_pos_list = [(1022, 1033),(1050, 1050),(1030, 1050),(1020, 1070)]
+
+    #Setup all the inputs for parallelizing
+    inputs = []
+    for i in range(4):
+
+        if (i<2):
+            this_mask = mask
+        else:
+            this_mask = mask[:,::-1]
+
+        traceLocation = locationInIm(J_lam, source_pos_list[i]).astype(int)
+ 
+        cutout = full_image[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
+                                    traceLocation[i][0]-box_size:traceLocation[i][0]+box_size]
+        
+        #Setup the inputs for the parallization
+        inputs.append((cutout,this_mask,low_start,high_end,comb_method,fit_width,trace_mask_width,tol))
+
+    
+    #Set up the parallelization
+    pool = mp.Pool(processes=4)
+
+    #Run the fitting
+    outputs = pool.map(_generate_one_slit_background,inputs)
+    # import pdb;pdb.set_trace()
+    bkg_image = copy.deepcopy(full_image)
+    for i in range(4):
+        bkg_image[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
+        traceLocation[i][0]-box_size:traceLocation[i][0]+box_size] = outputs[i]
+    
+    if plot: 
+        fig,axes = plt.subplots(3,4,figsize=(20,15))
+        for i in range(4):
+            axes[0,i].imshow(inputs[i][0],vmin=vmin,vmax=vmax,origin='lower')
+            axes[1,i].imshow(outputs[i],vmin=vmin,vmax=vmax,origin='lower')
+            axes[2,i].imshow(inputs[i][0]-outputs[i],vmin=vmin,vmax=vmax,origin='lower')
+        axes[0,0].set_ylabel("Data",fontsize=30)
+        axes[1,0].set_ylabel("Background Model",fontsize=30)
+        axes[2,0].set_ylabel("Residuals",fontsize=30)
+        plt.tight_layout()
+        plt.show()
+
+    return bkg_image
+
+def _smoothed_tophat(x,size):
+    '''
+    A helper function that helps fit to the background of subtract_slit_background 
+    '''
+    # print(size)
+    start = int(x[0]*size)
+    end = int(x[1]*size)
+    notch=int(x[2]*size)
+    
+    # print(start,end,notch)
+    smooth_size = x[3]
+    height=x[4]
+    offset = x[5]
+    
+    tophat = np.zeros([int(size)])
+    tophat += offset
+    tophat[start:notch] += height
+    
+    if start < 0:
+        start = 0
+        
+    if end >= notch:
+        end=notch-1
+    if end < 0:
+        end = 0
+    
+    if notch<0:
+        notch=0
+    
+    #Add in a notch
+    if notch > size:
+        notch=size
+    rangge = notch-end
+    slope = -height/rangge
+    
+#     print(notch, end, rangge)
+    tophat[end:notch] -= -slope*np.arange(rangge)
+    
+    tophat_sm = sn.gaussian_filter(tophat,smooth_size)
+    
+    return tophat_sm
+
+def _generate_one_slit_background(inputs):
+
+    cutout = inputs[0]
+    this_mask = inputs[1]
+    low_start = inputs[2]
+    high_end = inputs[3]
+    method = inputs[4]
+    fit_width = inputs[5]
+    trace_mask_width = inputs[6]
+    tol = inputs[7]
+    
+    bkg_cutout = copy.deepcopy(cutout)
+    
+    mask_bkg_cutout = this_mask*bkg_cutout
+    mask_cutout = this_mask*cutout
+    
+    #Get the median in the upper and lower areas - Assuming a half-box_size of 80
+    background_area = np.vstack([mask_bkg_cutout[:30],mask_bkg_cutout[130:]])
+
+    def resids(x,data,size):
+        residuals = data-_smoothed_tophat(x,size=size)
+        return residuals[residuals == residuals]
+
+    def to_minimize(x,data,size):
+        return np.nansum( 2*(1+resids(x,data,size)**2)**0.5-1) #Soft_l1 - This seems to work best so far. 
+        # return np.nansum(np.log(1+(resids(x,data,size)**2))) #Cauchy loss
+        # return np.nansum(np.arctan((resids(x,data,size)**2))) #Arctan loss
+
+    #Now loop!    
+    for i in range(low_start,high_end): 
+        
+        if method == 'mean':
+            cut = np.nanmean(mask_cutout[i-fit_width+1:i+fit_width],axis=0)
+        else:
+            cut = np.nanmedian(mask_cutout[i-fit_width+1:i+fit_width],axis=0)
+        
+        #Find the non-masked range
+        i0 = np.min(np.where(cut == cut))
+        iend = np.max(np.where(cut == cut))
+
+        #Cut it out
+        small_cut = cut[i0:iend]
+        cut_size = small_cut.shape[0]
+
+        #Mask out the source by finding the brightest pixel
+        source_mask = np.ones(cut_size)
+        source_pos = np.where(small_cut == np.max(small_cut))[0][0] #The maximum
+        source_low = source_pos-trace_mask_width//2
+        if source_low < 0:
+            source_low = 0
+        source_high = source_pos+trace_mask_width//2
+        if source_high > source_mask.shape[0]:
+            source_high = source_mask.shape[0]
+            
+        source_mask[source_low:source_high] = np.nan #Mask out the source
+        masked_cut = small_cut*source_mask
+
+        #First guess at this width. 
+        x0 = [0.2,0.67,0.84,8,np.nanmedian(small_cut[40:80])-np.nanmedian(small_cut[:20]),np.nanmedian(small_cut[:20])]
+        
+        #Now minimize
+        mini = so.minimize(to_minimize,x0,args=(masked_cut,masked_cut.size),method='Nelder-Mead',tol=1e-6)
+
+        bkg_cutout[i,i0:iend] = _smoothed_tophat(mini.x,masked_cut.size)
+    return bkg_cutout

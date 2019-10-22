@@ -141,6 +141,7 @@ class wirc_data(object):
             self.bkg_subbed = False
             self.n_sources = 0
             self.source_list = []
+            self.source_positions = []
 
 
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False,
@@ -290,7 +291,7 @@ class wirc_data(object):
 
     
     def generate_bkg(self, method='shift_and_subtract', bkg_fn=None, ref_lib=None, num_PCA_modes=None, bkg_by_quadrants=False, destripe=False,
-        shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False):
+        shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
         """
         Generates a model of the background using a variety of possible methods and then saves it to self.bkg_image:
 
@@ -423,6 +424,14 @@ class wirc_data(object):
             self.bkg_image = self.full_image*0.+med
             # self.full_image = self.full_image - med
             # self.bkg_subbed = True
+        
+        elif method == 'slit_background':
+            if verbose:
+                print("Subtracting the slit background only, this can sometimes take a few seconds")
+            #TODO: Check to make sure we're only operating in J-band
+            #TODO: Make sure we're in pol-mode
+        
+            self.bkg_image = image_utils.subtract_slit_background(self.full_image,**kwargs)
 
         if destripe:
             if verbose:
@@ -848,17 +857,14 @@ class wirc_data(object):
 		#make sure the source_list format is correct
         loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
 
+
         if len(loc_list) >= 1:
             for loc in loc_list:
-                self.add_source(loc[0], loc[1],update_w_chi2_shift=update_w_chi2_shift)
-
-        #take (x,y) positions of sources and create a corresponding list of wircpol_source objects in the same order  
-        for source_index, source_pos in enumerate(self.source_positions):
-            slit_dist = np.sqrt((source_pos[0] - constants.slit_position_x)**2 + (source_pos[1] - constants.slit_position_y)**2) # source distance to slit
-            if slit_dist < 20: # if distance to slit is less than 20 pix
-                self.source_list.append(wircpol_source([source_pos[1],source_pos[0]], 1, source_index)) # assume it's in slit, and add source to list
-            else: # if not
-                self.source_list.append(wircpol_source([source_pos[1],source_pos[0]], 'slitless', source_index)) # assume it's outside the slit ('slitless'), and add source to list
+                slit_dist = np.sqrt((loc[0] - constants.slit_position_x)**2 + (loc[1] - constants.slit_position_y)**2) 
+                if slit_dist < 20:
+                    self.add_source(loc[0], loc[1],update_w_chi2_shift=update_w_chi2_shift,slit_pos = "slitless")
+                else: 
+                    self.add_source(loc[0], loc[1],update_w_chi2_shift=update_w_chi2_shift,slit_pos = 1)
 
         self.n_sources = len(self.source_list)
         self.header['NSOURCES'] = self.n_sources
