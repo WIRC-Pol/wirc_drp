@@ -1634,6 +1634,18 @@ class wircpol_source(object):
 
             self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
             self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
+
+        elif mode=="aperture_photometry_new":
+
+            apertures, total_flux, noise = source_utils.fit_aperture(self, x_stretch=x_stretch, y_stretch=y_stretch, verbose=verbose, plot=plot)
+
+            bb_flux = []
+
+            for i in range(4):
+                bb_flux.append(np.nansum(apertures[i]))
+
+            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
+            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
             
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
