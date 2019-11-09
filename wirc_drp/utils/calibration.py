@@ -1292,7 +1292,7 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     if type(num_PCA_modes) is np.int64:
         return PCA_sub_images[0]
 
-    else type(num_PCA_modes) is np.ndarray:
+    elif type(num_PCA_modes) is np.ndarray:
         return PCA_sub_images
 
 

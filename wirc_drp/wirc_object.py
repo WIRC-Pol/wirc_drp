@@ -8,6 +8,7 @@ import warnings
 
 import wirc_drp.utils.image_utils as image_utils
 import wirc_drp.utils.spec_utils as spec_utils
+import wirc_drp.utils.source_utils as source_utils
 import wirc_drp.utils.calibration as calibration
 from wirc_drp import constants
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
@@ -1610,7 +1611,7 @@ class wircpol_source(object):
         if not show:
             plt.switch_backend(default_back)
 
-    def get_broadband_polarization(self, mode ='from_spectra',xlow=0, xhigh=-1, weighted=False):
+    def get_broadband_polarization(self, mode ='from_spectra',xlow=0, xhigh=-1, weighted=False, x_stretch=1, y_stretch=1, verbose=False, plot=False):
         '''
         A function to measure the broadband polarization from a source. 
         Modes: 
@@ -1671,7 +1672,20 @@ class wircpol_source(object):
 
             self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
             self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
-            
+
+
+        elif mode=="aperture_photometry_new":
+
+            apertures, total_flux, noise = source_utils.fit_aperture(self, x_stretch=x_stretch, y_stretch=y_stretch, verbose=verbose, plot=plot)
+
+            bb_flux = []
+
+            for i in range(4):
+                bb_flux.append(np.nansum(apertures[i]))
+
+            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
+            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
+
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
 
