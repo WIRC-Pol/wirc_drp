@@ -47,7 +47,8 @@ class wirc_data(object):
     """
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True, 
-        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, cross_correlation_template=None, trace_template=None, verbose = True):
+        dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, 
+        cross_correlation_template=None, trace_template=None, verbose = True):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file,
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once.
