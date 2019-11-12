@@ -140,16 +140,11 @@ class wirc_data(object):
             self.source_list = []
             self.source_positions = []
     
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = False, report_median = False,
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False,  report_median = False,
                   report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None):
         '''
         Apply dark and flat-field correction
     
-        Background subtraction behavior (only when a background frame is provided)  
-            If sub_bkg_now is True, then background subtraction is performed here and the subtracted image is saved. 
-            If bkg_by_quadrants, then a scaling factor is applied to each quadrant separately
-            If False, background subtraction is dealt with during spectral extraction. This is preferred (says Kaew) <- this has yet to be shown (says Max)        
-
         '''
         #TODO Add checks to make sure the flatnames are not none
 
