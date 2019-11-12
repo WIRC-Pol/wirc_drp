@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib
 import warnings
 
-import warnings
-
 import wirc_drp.utils.image_utils as image_utils
 import wirc_drp.utils.spec_utils as spec_utils
 import wirc_drp.utils.calibration as calibration
@@ -14,8 +12,6 @@ from wirc_drp import version # For versioning (requires gitpython 'pip install g
 from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 from astropy import time as ap_time, coordinates as coord, units as u
 from astropy.stats import sigma_clipped_stats
-
-
 
 import pdb
 import copy
@@ -143,8 +139,7 @@ class wirc_data(object):
             self.n_sources = 0
             self.source_list = []
             self.source_positions = []
-
-
+    
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False, sub_bkg_now = True, report_median = False,
                   report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None):
         '''
@@ -289,7 +284,6 @@ class wirc_data(object):
                     return scale_factors
         else:
             print("Data already calibrated")
-
     
     def generate_bkg(self, method='shift_and_subtract', bkg_fn=None, ref_lib=None, num_PCA_modes=None, bkg_by_quadrants=False, destripe=False,
         shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
@@ -437,7 +431,7 @@ class wirc_data(object):
         if destripe:
             if verbose:
                 print("Destriping the detector image")
-            self.full_image = calibration.destripe_after_bkg_sub(self.full_image)
+            self.full_image = calibration.destripe_after_bkg_sub(self.full_image-self.bkg_image)+self.bkg_image
 
     def make_triplet_table(self, array_in, c1list, c2list, c3list):
         #convert array to fits columns and then fits tables. returns a fits table with 3 columns.
@@ -837,7 +831,6 @@ class wirc_data(object):
             hdulist.close()
             #print ("ending iteration #",i)
 
-
     def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
         """
         Finds the number of sources in the image.
@@ -1086,6 +1079,7 @@ class wircpol_source(object):
         self.trace_images = None
         self.trace_images_extracted = None
         self.trace_images_DQ = None
+        self.trace_bkg = None
 
         #width and angle info
         self.spectra_widths = None
@@ -1260,6 +1254,33 @@ class wircpol_source(object):
             plt.show()
         else:
             plt.switch_backend(default_back)
+
+    def generate_cutout_backgrounds(self,update=False,method='median'):
+        '''
+        Generate or update cutout backgrounds.
+    
+        Currently the only support method is 'median'
+        '''
+        if self.trace_bkg is None:
+            self.trace_bkg=[None,None,None,None]
+    
+        #Cycle through the four traces
+        for i in range(4):
+            #Get the median
+            if update:
+                if self.trace_bkg[i] is not None:
+                    mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:]-self.trace_bkg[i], sigma=3.0)
+                    self.trace_bkg[i] += md
+                else:
+                    print("Can't update if there isn't already a trace_bkg")
+                    mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:], sigma=3.0)
+                    self.trace_bkg[i] = md
+            else:
+                mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:], sigma=3.0)
+                self.trace_bkg[i] = self.trace_images[i,:,:]*0. + md
+        
+        self.trace_bkg = np.array(self.trace_bkg)
+        #Done!
 
     def plot_extracted_cutouts(self, output_name='', show=True, **kwargs):
 
@@ -1611,6 +1632,18 @@ class wircpol_source(object):
                 this_trace_image = self.trace_images[i,:,:] - median
                 mask = make_source_mask(this_trace_image, snr=3, npixels=200, dilate_size=5)
                 bb_flux.append(np.sum(this_trace_image[mask]))
+
+            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
+            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
+
+        elif mode=="aperture_photometry_new":
+
+            apertures, total_flux, noise = source_utils.fit_aperture(self, x_stretch=x_stretch, y_stretch=y_stretch, verbose=verbose, plot=plot)
+
+            bb_flux = []
+
+            for i in range(4):
+                bb_flux.append(np.nansum(apertures[i]))
 
             self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
             self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
