@@ -556,6 +556,8 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
     Subtract dark; divide flat
     Bad pixels are masked out using the bad_pixel_map with 0 = bad and 1 = good pixels
 
+    ############TO BE DEPRECATED#################
+
     """
 
     #Get the list of science frames
@@ -617,20 +619,13 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
             redux -= background
 
         if clean_Bad_Pix:
-            # plt.plot(bad_pixel_map_bool)
             redux = cleanBadPix(redux, bad_pixel_map_bool)
-            #redux = ccdproc.cosmicray_lacosmic(redux, sigclip=5)[0]
-
-            # redux = ccdproc.cosmicray_median(redux, mbox=7, rbox=5, gbox=7)[0]
 
         #Mask the bad pixels if the flag is set
         if mask_bad_pixels:
             redux *= ~bad_pixel_map_bool
 
         if replace_nans:
-            # nan_map = ~np.isfinite(redux)
-            # redux = cleanBadPix(redux, nan_map)
-            # plt.imshow(redux-after)
             nanmask = np.isnan(redux) #nan = True, just in case this is useful
             redux = np.nan_to_num(redux)
 
