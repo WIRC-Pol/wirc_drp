@@ -20,6 +20,8 @@ import scipy.signal
 from wirc_drp.constants import *
 from wirc_drp.masks.wircpol_masks import *
 from wirc_drp.masks import *
+from wirc_drp.utils import calibration
+
 from scipy.ndimage import gaussian_filter as gauss
 # from scipy.ndimage.filters import median_filter, shift
 from scipy.ndimage import median_filter, shift, rotate
@@ -1899,9 +1901,9 @@ def smooth_cutouts(thumbnails,method='gaussian',width=3):
 
     return
 
-def subtract_slit_background(full_image,band='J',box_size=80, fit_width=3,
-trace_mask_width=16,comb_method='median',low_start = 30, high_end= 130,
-vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=60):
+def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size=80, fit_width=3,
+    trace_mask_width=16,comb_method='median',low_start = 30, high_end= 130,
+    vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=60):
     '''
     A function to subtract the background from the slit and only the slit, 
     by masking out the source and fitting the rest of the background. 
@@ -1949,6 +1951,11 @@ vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=60):
  
         cutout = full_image[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
                                     traceLocation[i][0]-box_size:traceLocation[i][0]+box_size]
+
+        if bad_pixel_mask is not None:
+            local_DQ = bad_pixel_mask[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
+                                    traceLocation[i][0]-box_size:traceLocation[i][0]+box_size]
+            cutout = calibration.cleanBadPix(cutout, local_DQ replacement_box = 5)
         
         #Setup the inputs for the parallization
         inputs.append((cutout,this_mask,low_start,high_end,comb_method,fit_width,trace_mask_width,tol))
