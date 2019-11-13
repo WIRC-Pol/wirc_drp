@@ -1955,7 +1955,7 @@ def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size
         if bad_pixel_mask is not None:
             local_DQ = bad_pixel_mask[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
                                     traceLocation[i][0]-box_size:traceLocation[i][0]+box_size]
-            cutout = calibration.cleanBadPix(cutout, local_DQ replacement_box = 5)
+            cutout = calibration.cleanBadPix(cutout, local_DQ, replacement_box = 5)
         
         #Setup the inputs for the parallization
         inputs.append((cutout,this_mask,low_start,high_end,comb_method,fit_width,trace_mask_width,tol))
