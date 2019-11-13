@@ -421,7 +421,7 @@ class wirc_data(object):
             #TODO: Check to make sure we're only operating in J-band
             #TODO: Make sure we're in pol-mode
         
-            self.bkg_image = image_utils.subtract_slit_background(self.full_image,**kwargs)
+            self.bkg_image = image_utils.subtract_slit_background(self.full_image, bad_pixel_mask = self.DQ_image, band = self.filter_name[0] ,**kwargs)
 
         if destripe:
             if verbose:
