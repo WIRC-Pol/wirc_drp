@@ -33,7 +33,6 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
                 global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
                 output_dir = None):
 
-
     """
     Create a master normalized flat file given a list of fits files of flat fields from
     WIRC.
@@ -130,6 +129,7 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
     #also set all 0 and negative pixels in flat as bad
     non_positive = flat <= 0
+
 
     #logic combine
     bad_px = np.logical_or(global_bad_px, local_bad_pix)

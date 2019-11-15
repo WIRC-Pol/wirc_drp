@@ -140,7 +140,7 @@ class wirc_data(object):
             self.source_list = []
             self.source_positions = []
     
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, destripe_raw = False, destripe=False, verbose=False,  report_median = False,
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, stable_bad_pix_map = 'default', destripe_raw = False, destripe=False, verbose=False,  report_median = False,
                   report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None):
         '''
         Apply dark and flat-field correction
@@ -219,6 +219,22 @@ class wirc_data(object):
                 if verbose:
                     print(("Using bad pixel map {}".format(self.bp_fn)))
 
+                #If stable bad pixel map is requested, find the file and include it
+                if stable_bad_pix_map == 'default':
+                    try:
+                        #read the file
+                        stable_bad_pix_list = np.load('bad_pix_mask/bad_pix_list.npy')
+                        #make a list with lenght = number of all pixels on H2 array
+                        recon_mask = np.zeros(2048*2048) ###ASSUMING 2k * 2k array
+                        #set pixels with index listed in the provided mask to 1
+                        recon_mask[[stable_bad_pix_list]] = 1
+                        #reshape it back to 2D
+                        stable_bad_pix = recon_mask.reshape((2048,2048))
+                        #logical_or it to the current map
+                        bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, stable_bad_pix)
+                    else:
+                        stable_bad_pix_map = 'failed'        
+
                 #if hot pixel map is also given
                 if self.hp_fn is not None:
                     hot_pixel_map = fits.open(self.hp_fn)[0].data
@@ -230,15 +246,17 @@ class wirc_data(object):
                         self.header['HISTORY'] = "Cleaned all bad/hot pixels found in {}, {} using a median filter".format(self.bp_fn, self.hp_fn)
                     else:
                         self.header['HISTORY'] = "Cleaned all bad pixels found in {} using a median filter".format(self.bp_fn)
+                    if stable_bad_pix_map == 'default':
+                        self.header['HISTORY'] = "Cleaned all stable bad pixels in bad_pix_mask/bad_pix_list.npy using a median filter")
                     self.header['CLEAN_BP'] = "True"
-
-
                 else:
                     redux = self.full_image
                     if self.hp_fn is not None:
                         self.header['HISTORY'] = "Bad/hot pixels mask found in {},{} are not cleaned. Do this in cutouts".format(self.bp_fn,self.hp_fn)
                     else:
                         self.header['HISTORY'] = "Bad pixels mask found in {} are not cleaned. Do this in cutouts".format(self.bp_fn)
+                    if stable_bad_pix_map == 'default':
+                        self.header['HISTORY'] = "Cleaned all stable bad pixels in bad_pix_mask/bad_pix_list.npy using a median filter")
                     self.header['CLEAN_BP'] = "False"
 
                 #Mask the bad pixels if the flag is set
@@ -253,6 +271,8 @@ class wirc_data(object):
                     else:
                         self.header['HISTORY'] = "Masking all bad pixels found in {}".format(self.bp_fn)
                         self.header['BP_FN'] = self.bp_fn
+                    if stable_bad_pix_map == 'default':
+                        self.header['HISTORY'] = "Masked all stable bad pixels in bad_pix_mask/bad_pix_list.npy using a median filter")
 
                 self.full_image = redux
                 #Data quality image: 0 = good, 1 = bad pixel from flat, 2 = hot pixel from dark, 3 in both bad/hot pixel maps
