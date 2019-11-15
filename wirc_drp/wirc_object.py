@@ -140,10 +140,16 @@ class wirc_data(object):
             self.source_list = []
             self.source_positions = []
     
-    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, stable_bad_pix_map = 'default', destripe_raw = False, destripe=False, verbose=False,  report_median = False,
+    def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, stable_bad_pix_map = 'default', get_bad_pix_from_master_dark = True,
+                  destripe_raw = False, destripe=False, verbose=False,  report_median = False,
                   report_bkg_multiplier = False, median_subtract = False, bkg_by_quadrants=False, correct_nonlinearity = False, nonlinearity_array = None, multicomponent_frame = None):
         '''
         Apply dark and flat-field correction
+
+        Dealing with bad pixels
+            (1) Use the given hot and bad pixel files created from dark and flat respectively (self.hp_fn and self.bp_fn)
+            (2) Use the stable bad pixel map stored in ./hot_pixel_map/bad_pix_list.npy (stable_bad_pix_map == 'default' parameter; in the future take arbitrary file)
+            (3) For long exposure, also use pixels with value = 0 in the master dark (get_bad_pix_from_master_dark parameter)
     
         '''
         #TODO Add checks to make sure the flatnames are not none
@@ -171,6 +177,10 @@ class wirc_data(object):
                     factor = total_exp_time/dark_exp_time
                 else:
                     factor = 1.
+
+                #For long exposure dark and if get_bad_pix_from_master_dark, create a map of pixels with 0
+                if master_dark_hdu[0].header['EXPTIME'] >= 30 and get_bad_pix_from_master_dark == True:
+                    long_exp_mask = master_dark == 0
 
                 #Subtract the dark
                 self.full_image = self.full_image-factor*master_dark
@@ -209,78 +219,88 @@ class wirc_data(object):
 
 
             #If a bad pixel map is provided then correct for bad pixels, taking into account the clean_bad_pix and mask_mad_pixels flags
-            bad_pixel_map = np.zeros(self.full_image.shape)
-            hot_pixel_map = np.zeros(self.full_image.shape) #start with zeros, if provided then change the values
+            bad_pixel_map_bool = np.zeros(self.full_image.shape).astype('bool')
+            hot_pixel_map_bool = np.zeros(self.full_image.shape).astype('bool') #start with zeros, if provided then change the values
             if self.bp_fn is not None:
                 #Open the bad pixel map
                 bp_map_hdu = fits.open(self.bp_fn)
-                bad_pixel_map = bp_map_hdu[0].data
-                bad_pixel_map_bool = np.array(bad_pixel_map, dtype=bool)
+                bad_pixel_map = (bp_map_hdu[0].data).astype('bool')
+                bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool , bad_pixel_map)
                 if verbose:
                     print(("Using bad pixel map {}".format(self.bp_fn)))
 
-                #If stable bad pixel map is requested, find the file and include it
-                if stable_bad_pix_map == 'default':
-                    try:
-                        #read the file
-                        stable_bad_pix_list = np.load('bad_pix_mask/bad_pix_list.npy')
-                        #make a list with lenght = number of all pixels on H2 array
-                        recon_mask = np.zeros(2048*2048) ###ASSUMING 2k * 2k array
-                        #set pixels with index listed in the provided mask to 1
-                        recon_mask[[stable_bad_pix_list]] = 1
-                        #reshape it back to 2D
-                        stable_bad_pix = recon_mask.reshape((2048,2048))
-                        #logical_or it to the current map
-                        bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, stable_bad_pix)
-                    else:
-                        stable_bad_pix_map = 'failed'        
+            #If stable bad pixel map is requested, find the file and include it
+            if stable_bad_pix_map == 'default':
+                try:
+                    #read the file
+                    stable_bad_pix_list = np.load('bad_pix_mask/bad_pix_list.npy')
+                    #make a list with lenght = number of all pixels on H2 array
+                    recon_mask = np.zeros(2048*2048) ###ASSUMING 2k * 2k array
+                    #set pixels with index listed in the provided mask to 1
+                    recon_mask[[stable_bad_pix_list]] = 1
+                    #reshape it back to 2D
+                    stable_bad_pix = recon_mask.reshape((2048,2048))
+                    #logical_or it to the current map
+                    bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, stable_bad_pix)
+                except:
+                    stable_bad_pix_map = 'failed'
 
-                #if hot pixel map is also given
+            #This is for long exposure frames
+            if master_dark_hdu[0].header['EXPTIME'] >= 30 and get_bad_pix_from_master_dark == True:
+                bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, long_exp_mask) 
+
+            #if hot pixel map is also given
+            if self.hp_fn is not None:
+                hot_pixel_map = fits.open(self.hp_fn)[0].data
+                bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, hot_pixel_map.astype(bool)) #combine two maps
+
+            if clean_bad_pix:
+                redux = calibration.cleanBadPix(self.full_image, bad_pixel_map_bool)
                 if self.hp_fn is not None:
-                    hot_pixel_map = fits.open(self.hp_fn)[0].data
-                    bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, hot_pixel_map.astype(bool)) #combine two maps
-
-                if clean_bad_pix:
-                    redux = calibration.cleanBadPix(self.full_image, bad_pixel_map_bool)
-                    if self.hp_fn is not None:
-                        self.header['HISTORY'] = "Cleaned all bad/hot pixels found in {}, {} using a median filter".format(self.bp_fn, self.hp_fn)
-                    else:
-                        self.header['HISTORY'] = "Cleaned all bad pixels found in {} using a median filter".format(self.bp_fn)
-                    if stable_bad_pix_map == 'default':
-                        self.header['HISTORY'] = "Cleaned all stable bad pixels in bad_pix_mask/bad_pix_list.npy using a median filter")
-                    self.header['CLEAN_BP'] = "True"
+                    self.header['HISTORY'] = "Cleaned all bad/hot pixels found in {}, {} using a median filter".format(self.bp_fn, self.hp_fn)
                 else:
-                    redux = self.full_image
-                    if self.hp_fn is not None:
-                        self.header['HISTORY'] = "Bad/hot pixels mask found in {},{} are not cleaned. Do this in cutouts".format(self.bp_fn,self.hp_fn)
-                    else:
-                        self.header['HISTORY'] = "Bad pixels mask found in {} are not cleaned. Do this in cutouts".format(self.bp_fn)
-                    if stable_bad_pix_map == 'default':
-                        self.header['HISTORY'] = "Cleaned all stable bad pixels in bad_pix_mask/bad_pix_list.npy using a median filter")
-                    self.header['CLEAN_BP'] = "False"
-
-                #Mask the bad pixels if the flag is set
-                if mask_bad_pixels:
-                    redux = self.full_image*~bad_pixel_map_bool
-
-                    #Update the header
-                    if self.hp_fn is not None:
-                        self.header['HISTORY'] = "Masking all bad/hot pixels found in {},{}".format(self.bp_fn, self.hp_fn)
-                        self.header['BP_FN'] = self.bp_fn
-                        self.header['HP_FN'] = self.hp_fn
-                    else:
-                        self.header['HISTORY'] = "Masking all bad pixels found in {}".format(self.bp_fn)
-                        self.header['BP_FN'] = self.bp_fn
-                    if stable_bad_pix_map == 'default':
-                        self.header['HISTORY'] = "Masked all stable bad pixels in bad_pix_mask/bad_pix_list.npy using a median filter")
-
-                self.full_image = redux
-                #Data quality image: 0 = good, 1 = bad pixel from flat, 2 = hot pixel from dark, 3 in both bad/hot pixel maps
-
-                self.DQ_image = np.ndarray.astype(bad_pixel_map + 2*hot_pixel_map,int)
-
+                    self.header['HISTORY'] = "Cleaned all bad pixels found in {} using a median filter".format(self.bp_fn)
+                if stable_bad_pix_map == 'default':
+                    self.header['HISTORY'] = "Cleaned all stable bad pixels in bad_pix_mask/bad_pix_list.npy using a median filter"
+                if master_dark_hdu[0].header['EXPTIME'] >= 30 and get_bad_pix_from_master_dark == True:
+                    self.header['HISTORY'] = "Cleaned all pixels with value = 0 in long exposure dark using a median filter"
+                self.header['CLEAN_BP'] = "True"
             else:
-                print("No Bad pixel map filename found, continuing without correcting bad pixels")
+                redux = self.full_image
+                if self.hp_fn is not None:
+                    self.header['HISTORY'] = "Bad/hot pixels mask found in {},{} are not cleaned. Do this in cutouts".format(self.bp_fn,self.hp_fn)
+                else:
+                    self.header['HISTORY'] = "Bad pixels mask found in {} are not cleaned. Do this in cutouts".format(self.bp_fn)
+                if stable_bad_pix_map == 'default':
+                    self.header['HISTORY'] = "Stable bad pixels in bad_pix_mask/bad_pix_list.npy included, not cleaned"
+                if master_dark_hdu[0].header['EXPTIME'] >= 30 and get_bad_pix_from_master_dark == True:
+                    self.header['HISTORY'] = "All pixels with value = 0 in long exposure dark included, not cleaned"
+                self.header['CLEAN_BP'] = "False"
+
+            #Mask the bad pixels if the flag is set
+            if mask_bad_pixels:
+                redux = self.full_image*~bad_pixel_map_bool
+
+                #Update the header
+                if self.hp_fn is not None:
+                    self.header['HISTORY'] = "Masking all bad/hot pixels found in {},{}".format(self.bp_fn, self.hp_fn)
+                    self.header['BP_FN'] = self.bp_fn
+                    self.header['HP_FN'] = self.hp_fn
+                else:
+                    self.header['HISTORY'] = "Masking all bad pixels found in {}".format(self.bp_fn)
+                    self.header['BP_FN'] = self.bp_fn
+                if stable_bad_pix_map == 'default':
+                    self.header['HISTORY'] = "Masked all stable bad pixels in bad_pix_mask/bad_pix_list.npy using a median filter"
+                if master_dark_hdu[0].header['EXPTIME'] >= 30 and get_bad_pix_from_master_dark == True:
+                    self.header['HISTORY'] = "All pixels with value = 0 in long exposure dark masked"
+
+            self.full_image = redux
+            #Data quality image: 0 = good, 1 = bad pixel from flat, 2 = hot pixel from dark, 3 in both bad/hot pixel maps
+
+            self.DQ_image = np.ndarray.astype(bad_pixel_map + 2*hot_pixel_map,int)
+
+            # else:
+            #     print("No Bad pixel map filename found, continuing without correcting bad pixels")
 
             #Replace the nans if the flag is set.
             if replace_nans:
