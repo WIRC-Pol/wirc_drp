@@ -3,10 +3,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 from scipy.ndimage import shift
+from scipy.ndimage import map_coordinates
 from scipy.signal import fftconvolve 
 from astropy.io import ascii as asci
 from astropy.io import fits 
 from wirc_drp.utils import spec_utils as su
+from wirc_drp.utils.image_utils import findTrace
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib as mpl
 
@@ -1344,26 +1346,45 @@ def perp_fit(fit, ctr):
     
     return pfit
 
-def fit_aperture(source, x_stretch=1, y_stretch=1, interp_factor=10, verbose=False, plot=False, savefig=None):
+
+def truncate(value, limits=[0, 160]):
+    if value <= limits[0]:
+        value = limits[0]
+    elif value >= limits[1]:
+        value = limits[1]
+    return value
+
+
+def fit_aperture(source, exp_time, x_stretch=1, y_stretch=1, interp_factor=10, verbose=True, plot=True, savefig=None):
     """
     fits racetrack aperture to trace cutouts from a WIRC+Pol source.
     
-    returns: list of nan masked apertures 
+    returns list of nan masked apertures 
     """
+    gain = 1.2 #[e-/ADU]. 
+    read_noise = 12 #[e-]
+    dark_current = 1 #[e-/s]
+    dark_current_noise = dark_current*exp_time
+
     apertures = []
+    bkg_masks = []
     total_flux = []
-    noise = []
+    bkg_noise = []
+    SNRs = []
     trace_labels = ['UL', 'LR', 'UR', 'LL']
     
     for k in range(4):
         interp_factor = 10
         im = source.trace_images[k]
+        bkg = source.trace_bkg[k]
+        
+        im = im - bkg
 
         peak, fit, width, angle = findTrace(im, weighted=True, plot=False)
 
         angle=angle*np.pi/180
 
-        trace = np.array([im[fit.astype(int)[i]][i] for i in range(len(fit))])
+        trace = np.array([im[truncate(fit.astype(int)[i])][i] for i in range(len(fit))])
 
         yy, xx = np.indices(im.shape)
 
@@ -1448,7 +1469,7 @@ def fit_aperture(source, x_stretch=1, y_stretch=1, interp_factor=10, verbose=Fal
 
         circ1 = (xx-x_ctr-x_stretch*FWHM/2)**2+(yy-y_ctr)**2
         circ2 = (xx-x_ctr+x_stretch*FWHM/2)**2+(yy-y_ctr)**2
-        ends = np.logical_or((circ1<y_stretch*p_FWHM/2), (circ2<y_stretch*p_FWHM/2)).astype(float)
+        ends = np.logical_or((circ1<p_FWHM*y_stretch**2), (circ2<p_FWHM*y_stretch**2)).astype(float)
         
         box_x = np.logical_and((xx>x_ctr-x_stretch*FWHM/2), (xx<x_ctr+x_stretch*FWHM/2))
         box_y = np.logical_and((yy>y_ctr-y_stretch*p_FWHM/2),(yy<y_ctr+y_stretch*p_FWHM/2))
@@ -1459,10 +1480,13 @@ def fit_aperture(source, x_stretch=1, y_stretch=1, interp_factor=10, verbose=Fal
         xp = (xx-x_ctr)*np.cos(angle) + (yy-y_ctr)*np.sin(angle) + x_ctr
         yp = -(xx-x_ctr)*np.sin(angle) + (yy-y_ctr)*np.cos(angle) + y_ctr
 
-        racetrack = np.nan_to_num(np.round(ndimage.map_coordinates(racetrack, (yp, xp), cval=np.nan))).astype(bool)
+        racetrack = np.nan_to_num(np.round(map_coordinates(racetrack, (yp, xp), cval=np.nan))).astype(bool)
 
         aperture = np.copy(im.astype(float))
         aperture[~racetrack] = np.nan
+        
+        bkg_mask = np.copy(bkg.astype(float))
+        bkg_mask[~racetrack] = np.nan
 
         f, ax = plt.subplots(1, 2, figsize=(6, 3))
         f.suptitle(trace_labels[k], fontsize=25)
@@ -1472,14 +1496,25 @@ def fit_aperture(source, x_stretch=1, y_stretch=1, interp_factor=10, verbose=Fal
         ax[0].set_xlim(0, im.shape[1])
         ax[0].set_ylim(0, im.shape[0])
         ax[1].imshow(aperture, origin='lower', vmin=0, vmax=np.nanmax(aperture))
-        ax[1].set_xlabel('Total flux = %.2E' % Decimal(str(np.nansum(aperture))))
+        ax[1].set_xlabel('Total flux = {}'.format(np.round(np.nansum(aperture),2)))
         if savefig:
             plt.savefig('{}.pdf'.format(trace_labels[k]), dpi=300, bbox_inches='tight')
-        plt.show()
+        if plot:
+            plt.show()
         plt.close()
         
-        apertures.append(aperture)
-        total_flux.append(np.nansum(aperture))
-        noise.append(np.nanstd(aperture))
+        N_flux = np.round(np.nansum(aperture),2)
+        N_noise = np.round(np.nansum(bkg_mask),2)
         
-    return apertures, total_flux, noise
+        apertures.append(aperture)
+        bkg_masks.append(bkg_mask)
+        total_flux.append(N_flux)
+        bkg_noise.append(N_noise)
+        
+        n_pix = np.count_nonzero(~np.isnan(aperture))
+        SNR = N_flux/np.sqrt(N_flux+N_noise+n_pix*read_noise+n_pix*dark_current_noise)
+        
+        SNRs.append(np.round(SNR, 2))
+        
+    return apertures, bkg_masks, total_flux, bkg_noise, SNRs
+
