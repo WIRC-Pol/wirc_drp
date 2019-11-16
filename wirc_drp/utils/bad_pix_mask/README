@@ -1,0 +1,3 @@
+This bad pixel mask .npy file is an array of indices of stable bad pixels (0 in all long exposure darks). 
+This mask is used in utils.calibrations, and has to be read in to a 1D array of length 2048*2048, then 
+reshaped into the 2D image. 
