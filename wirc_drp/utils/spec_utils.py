@@ -877,7 +877,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
                     print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
             #rotate the spectrum here. rotation axis is the middle of the image
-            width_thumbnail = bkg_sub.shape[0]
+            width_thumbnail = thumbnail.shape[0]
             sub_rotated = frame_rotate(thumbnail-bkg, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
             rotated = frame_rotate(thumbnail, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
 
@@ -987,7 +987,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
         if plot_result:
             ax2 = fig.add_subplot(2,ntraces,j+1+ntraces)    
 
-            im2 = ax2.imshow(bkg_sub, origin = 'lower', cmap='YlGnBu', vmin = vmin_bkg, vmax = vmax_bkg)#norm=LogNorm(vmin=vmin_bkg, vmax=vmax_bkg))
+            im2 = ax2.imshow(thumbnail, origin = 'lower', cmap='YlGnBu', vmin = vmin_bkg, vmax = vmax_bkg)#norm=LogNorm(vmin=vmin_bkg, vmax=vmax_bkg))
             #ax2.plot(loc[:,0],loc[:,1])
             # if j == ntraces-1:
             #     plt.colorbar(im2, ax=ax2)
