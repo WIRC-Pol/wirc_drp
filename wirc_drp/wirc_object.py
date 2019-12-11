@@ -1365,10 +1365,12 @@ class wircpol_source(object):
         self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,
             thumbnails_dq=self.trace_images_DQ, nsig=nsig, method=method)
 
-    def extract_spectra(self, bkg_poly_order = 2, plot=False, plot_optimal_extraction = False, plot_findTrace = False,
-        method = 'optimal_extraction', spatial_sigma = 5, fixed_width = None, lamda_sigma=10, width_scale=1., diag_mask=False, bad_pix_masking = 0, niter = 2,
-        sig_clip = 5, trace_angle = None, fitfunction = 'Moffat', sum_method = 'weighted_sum', box_size = 1, poly_order = 4, align = True, verbose=True,
-        use_DQ=True, debug_DQ=False, s=1, spectral_smooth=10, spatial_smooth=1):
+    def extract_spectra(self, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
+                        bad_pix_masking = 0, width_scale=1., diag_mask=False, trace_angle = None, mode = 'pol', 
+                        spatial_sigma = 5, fixed_width = None,
+                        use_DQ=True, debug_DQ=False,
+                        spatial_smooth=1, spectral_smooth=10, fractional_fit_type = False,
+                        verbose=True, plot_result = False,  plot_optimal_extraction = False, plot_findTrace = False, align = True):
         """
         *method:        method for spectral extraction. Choices are
         (i) skimage: this is just the profile_line method from skimage. Order for interpolation
@@ -1389,11 +1391,19 @@ class wircpol_source(object):
             print("Performing Spectral Extraction for source {}".format(self.index))
 
         #call spec_extraction to actually extract spectra
-        spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, plot=plot, bkg_poly_order = bkg_poly_order, 
-            bkg_thumbnails = self.trace_bkg, plot_optimal_extraction = plot_optimal_extraction , plot_findTrace = plot_findTrace, method=method,
-            width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction,
-            sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
-            use_DQ = use_DQ, debug_DQ=debug_DQ,spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth,spatial_sigma=spatial_sigma, fixed_width = fixed_width)
+        # spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract = spec_utils.spec_extraction(self.trace_images, plot=plot, bkg_poly_order = bkg_poly_order, 
+        #     bkg_thumbnails = self.trace_bkg, plot_optimal_extraction = plot_optimal_extraction , plot_findTrace = plot_findTrace, method=method,
+        #     width_scale=width_scale, diag_mask=diag_mask, niter = niter, sig_clip = sig_clip, bad_pix_masking = bad_pix_masking, fitfunction = fitfunction,
+        #     sum_method = sum_method, box_size = box_size, poly_order = poly_order, trace_angle = trace_angle, verbose=verbose, DQ_thumbnails=self.trace_images_DQ,
+        #     use_DQ = use_DQ, debug_DQ=debug_DQ,spatial_smooth=spatial_smooth,spectral_smooth=spectral_smooth,spatial_sigma=spatial_sigma, fixed_width = fixed_width)
+
+        spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract =  \
+            spec_utils.spec_extraction(self.trace_images, bkg_thumbnails = self.trace_bkg, method = method, niter = niter, sig_clip = sig_clip, 
+                bad_pix_masking = bad_pix_masking, width_scale=width_scale, diag_mask = diag_mask, trace_angle = trace_angle, mode = mode, 
+                spatial_sigma = spatial_sigma, fixed_width = fixed_width, 
+                DQ_thumbnails = self.trace_images_DQ, use_DQ=use_DQ, debug_DQ=debug_DQ, 
+                spatial_smooth=spatial_smooth, spectral_smooth=spectral_smooth, fractional_fit_type=fractional_fit_type, 
+                verbose = verbose, plot_optimal_extraction = plot_optimal_extraction, plot_findTrace = plot_findTrace, plot_result = plot_result)
         #if align, then call align_set_of_traces to align 4 traces to the Q plus, using cross-correlation
 
         if align:
@@ -1830,8 +1840,8 @@ class wircspec_source(object):
 
     def extract_spectra(self, sub_background = False, plot=False, plot_optimal_extraction = False, plot_findTrace = False,
                          method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, filter_bkg_size = None,\
-                        fitfunction = 'Moffat', sum_method = 'weighted_sum', trace_angle = None, box_size = 1, poly_order = 4, align = True, verbose = True,
-                        fractional_fit_type = None, bkg_sub_shift_size = 21, bkg_poly_order = 0, spatial_sigma = 3):
+                        trace_angle = None, align = True, verbose = True,
+                        fractional_fit_type = None,  spatial_sigma = 3):
         """
         *method:        method for spectral extraction. Choices are
         (i) skimage: this is just the profile_line method from skimage. Order for interpolation
