@@ -1642,30 +1642,30 @@ def compute_stokes_from_traces(trace_plus, trace_plus_err,trace_minus, trace_min
 ################To be deprecated#########################
 #########################################################
 
-def compute_p_and_pa( q, q_err, u, u_err):
-    """
-    Computes degree and angle of polarization with associated uncertainties
-    from given q and u. These should be corrected for instrumental polarization 
-    Input:
-        vectors q, u, and their uncertainties
-    Output: 
-        vector p, theta and their uncertainties
-    Formulae used:
-        p = sqrt(q^2 + u^2)
-        dp = 1/p sqrt( (q dq)^2 + (u du)^2)
-        theta = 1/2 atan(u/q)
-        dtheta = (28.65 dp)/p 
-    """
-    #Compute deg of polarization
-    p = np.sqrt(q**2 + u**2)
-    dp = 1/p * np.sqrt( (q * q_err)**2 + (u * u_err)**2)
-    p = np.sqrt(p**2 - dp**2) #debiased deg of polarization
+# def compute_p_and_pa( q, q_err, u, u_err):
+#     """
+#     Computes degree and angle of polarization with associated uncertainties
+#     from given q and u. These should be corrected for instrumental polarization 
+#     Input:
+#         vectors q, u, and their uncertainties
+#     Output: 
+#         vector p, theta and their uncertainties
+#     Formulae used:
+#         p = sqrt(q^2 + u^2)
+#         dp = 1/p sqrt( (q dq)^2 + (u du)^2)
+#         theta = 1/2 atan(u/q)
+#         dtheta = (28.65 dp)/p 
+#     """
+#     #Compute deg of polarization
+#     p = np.sqrt(q**2 + u**2)
+#     dp = 1/p * np.sqrt( (q * q_err)**2 + (u * u_err)**2)
+#     p = np.sqrt(p**2 - dp**2) #debiased deg of polarization
     
-    #Compute angle of polarization
-    theta = 1/2.*np.arctan2(u,q)
-    dtheta = 28.65*dp/p
+#     #Compute angle of polarization
+#     theta = 1/2.*np.arctan2(u,q)
+#     dtheta = 28.65*dp/p
     
-    return p, dp, theta, dtheta
+#     return p, dp, theta, dtheta
 
 def compute_polarization(trace_spectra, filter_name = 'J', plot=False, cutmin=0, cutmax=190):
     """
