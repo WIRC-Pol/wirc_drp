@@ -1489,7 +1489,7 @@ def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3, rebin = False)
         else:
             out_spectra = np.zeros(spectra.shape)
             for i in range(spectra.shape[0]):
-                out_spectra[i] = convolve(spectra,smooth_ker)
+                out_spectra[i] = convolve(spectra[i],smooth_ker)
         #deal with rebinning        
         if rebin:
             out_spectra = out_spectra[::smooth_size]
