@@ -1492,7 +1492,10 @@ def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3, rebin = False)
                 out_spectra[i] = convolve(spectra[i],smooth_ker)
         #deal with rebinning        
         if rebin:
-            out_spectra = out_spectra[::smooth_size]
+            if len(spectra.shape) ==1 : #just one spectrum
+                out_spectra = out_spectra[::smooth_size]
+            else:
+                out_spectra = out_spectra[:,::smooth_size]
         
     else:
         out_spectra = spectra
