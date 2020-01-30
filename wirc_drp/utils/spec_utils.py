@@ -1016,7 +1016,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
 
     return np.array(spectra), np.array(spectra_std), np.array(widths), np.array(angles), np.array(thumbnails_to_extract)  #res_spec is a dict, res_stddev and thumbnails are list
 
-def rough_wavelength_calibration_v1(trace, filter_name):
+def rough_wavelength_calibration_v1(trace, filter_name, top_threshold = 0.5):
     """
     roughWaveCal does rough wavelength calibration by comparing the extracted profile
     to the filter transmission function. It is assumed that the continuum trace 
@@ -1039,7 +1039,7 @@ def rough_wavelength_calibration_v1(trace, filter_name):
    # plt.plot(trace)
    # plt.show()
     #flatten the top of the trace to remove spectral features
-    trace = np.array( [  max( min(x, 0.5*np.max(trace)), 0.05*np.max(trace)) for x in trace] )
+    trace = np.array( [  max( min(x, top_threshold*np.max(trace)), 0.05*np.max(trace)) for x in trace] )
     x = np.arange(len(trace)) #pixel index
     # wl0 = lb-dlb+0.05
     def pixToWl(y):
