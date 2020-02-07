@@ -31,7 +31,8 @@ from astropy.stats import sigma_clipped_stats
 
 def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
                 global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
-                output_dir = None):
+                output_dir = None,min_flux=1000):
+
 
     """
     Create a master normalized flat file given a list of fits files of flat fields from
@@ -87,6 +88,9 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
             #subtract dark for each file, then normalize by mode
             hdu = f.open(flat_list[i],ignore_missing_end=True)
             d_sub = hdu[0].data  - factor*master_dark
+            if np.nanmedian(d_sub) < min_flux:
+                #print("Skipping file {}, because its flux is lower than {}".format(flat_list[i],min_flux))
+                continue
             #normalize
             if normalize == 'mode':
                 d_sub = d_sub/mode(d_sub, axis = None, nan_policy = 'omit')
@@ -129,7 +133,6 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
     #also set all 0 and negative pixels in flat as bad
     non_positive = flat <= 0
-
 
     #logic combine
     bad_px = np.logical_or(global_bad_px, local_bad_pix)
@@ -469,16 +472,20 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5, output_dir = 
     #Open all files into a 3D array
     print("Creating a master dark")
     dark_cube = np.empty((len(dark_list),2048,2048))
+    num=0
     for i in range(len(dark_list)):
         try:
             hdu = f.open(dark_list[i])
             dark_cube[i,:,:] = hdu[0].data
             hdu.close()
+            num += 1
         except:
             print('File Error; moving on to next file.')
             dark_cube[i,:,:] = [([0]*2048)]*2048
             continue
 
+    if num == 0:
+        return None,None
     #Create the master dark
     master_dark = np.median(dark_cube, axis = 0)
 
@@ -556,8 +563,6 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
     Subtract dark; divide flat
     Bad pixels are masked out using the bad_pixel_map with 0 = bad and 1 = good pixels
 
-    ############TO BE DEPRECATED#################
-
     """
 
     #Get the list of science frames
@@ -619,13 +624,20 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
             redux -= background
 
         if clean_Bad_Pix:
+            # plt.plot(bad_pixel_map_bool)
             redux = cleanBadPix(redux, bad_pixel_map_bool)
+            #redux = ccdproc.cosmicray_lacosmic(redux, sigclip=5)[0]
+
+            # redux = ccdproc.cosmicray_median(redux, mbox=7, rbox=5, gbox=7)[0]
 
         #Mask the bad pixels if the flag is set
         if mask_bad_pixels:
             redux *= ~bad_pixel_map_bool
 
         if replace_nans:
+            # nan_map = ~np.isfinite(redux)
+            # redux = cleanBadPix(redux, nan_map)
+            # plt.imshow(redux-after)
             nanmask = np.isnan(redux) #nan = True, just in case this is useful
             redux = np.nan_to_num(redux)
 
@@ -1337,6 +1349,7 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     ref_frames_mean_sub = ref_frames - np.nanmean(ref_frames, axis=1)[:, None]
     ref_frames_mean_sub[np.where(np.isnan(ref_frames_mean_sub))] = 0
     
+    # import pdb; pdb.set_trace()
     # creates covariance matrix from mean subtracted reference frames 
     covar_psfs = np.cov(ref_frames_mean_sub)
     tot_basis = covar_psfs.shape[0]
