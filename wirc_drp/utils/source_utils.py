@@ -311,7 +311,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     for i in pairs_225:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
                                                         HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
-        print(q[0].shape)
+        # print(q[0].shape)
         if method == 'flux_ratio':
             all_q225    += [q[0]]
             all_u225    += [u[0]]
@@ -483,7 +483,7 @@ def serkowski_polarization(wl, wl_max, p_max, K):
     """
     return p_max * np.exp( -K * (np.log(wl_max/wl))**2)
 
-def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xlow=1.15,xhigh=1.325,
+def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xlow=1.15,xhigh=1.325,
     ylow=-0.02,yhigh=0.02,target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,
     ldwarf=False,show=True,save_path=None,legend_loc ="bottom left",all_theta=False,
     fig = None, axes = None,filename=None,figsize=(16,20),title=None,tdwarf=False):
@@ -501,6 +501,14 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     q_dd = copy.deepcopy(q) #Doing it this way because the way q and u calculated changed. 
     u_dd = copy.deepcopy(u)
     # q_dd = np.nanmean(q,axis=1)
+
+    good_wvs = (master_wvs > 1.175) & (master_wvs < 1.325)
+    q_dd = q_dd[:,good_wvs]
+    u_dd = u_dd[:,good_wvs]
+    qerr = qerr[:,good_wvs]
+    uerr = uerr[:,good_wvs]
+    wvs = master_wvs[good_wvs]
+    spec = spec[good_wvs]
     # u_dd = np.nanmean(u,axis=1)
    # q_dd = q
    # u_dd = u
@@ -510,7 +518,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
    # q_dd = q
    # u_dd = u
 
-    #Doing this because of how things changed in computer polarization
+    #Doing this because of how things changed in compute polarization
 
     q_dd_err = copy.deepcopy(qerr)
     u_dd_err = copy.deepcopy(uerr)
@@ -547,23 +555,26 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
             q_mean[i] = md
         else:
             q_mean[i] = mn
+
         q_std[i] = std/np.sqrt(q_dd.shape[0])
         
         if qinds is not None:
-            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==0,i], sigma=3, maxiters=5)
+            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==0,i][q_dd[qinds==0,i] == q_dd[qinds==0,i]], sigma=3, maxiters=5)
             if mode == 'median':
                 q_mean_pair1[i] = md
             else:
                 q_mean_pair1[i] = mn
             q_std_pair1[i] = std/np.sqrt(q_dd[qinds==1].shape[0])
 
-            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==1,i], sigma=3, maxiters=5)
+            # import pdb;pdb.set_trace()
+
+            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==1,i][q_dd[qinds==1,i]==q_dd[qinds==1,i]], sigma=3, maxiters=5)
             if mode == 'median':
                 q_mean_pair2[i] = md
             else:
                 q_mean_pair2[i] = mn
             q_std_pair2[i] = std/np.sqrt(q_dd[qinds==1].shape[0])
-        
+
         mn,md,std = stats.sigma_clipped_stats(u_dd[:,i], sigma=3, maxiters=5)
         u_std[i] = std/np.sqrt(q_dd.shape[0])
         if mode == 'median':
@@ -572,19 +583,20 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
             u_mean[i] = mn
 
         if uinds is not None:
-            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==0,i], sigma=3, maxiters=5)
+            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==0,i][u_dd[uinds==0,i] == u_dd[uinds==0,i]], sigma=3, maxiters=5)
             if mode == 'median':
                 u_mean_pair1[i] = md
             else:
                 u_mean_pair1[i] = mn
             u_std_pair1[i] = std/np.sqrt(u_dd[uinds==0].shape[0])
 
-            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==1,i], sigma=3, maxiters=5)
+            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==1,i][u_dd[uinds==1,i] == u_dd[uinds==1,i]], sigma=3, maxiters=5)
             if mode == 'median':
                 u_mean_pair2[i] = md
             else:
                 u_mean_pair2[i] = mn
             u_std_pair2[i] = std/np.sqrt(u_dd[uinds==1].shape[0])
+
 
 
     p_mean = np.sqrt(q_mean**2+u_mean**2)
@@ -597,8 +609,6 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
     theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
     theta_std = 0.5*np.degrees( np.sqrt( (u_mean**2*q_std**2+q_mean**2*u_std**2)/(q_mean**2+u_mean**2)**2))
-
-
 
     ### Implement Binning
     if binsize != 1:
@@ -704,11 +714,11 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     # axes[1,1].fill_between(wvs,theta_mean+theta_mean_err,theta_mean-theta_mean_err,color='k',alpha=0.1)
     if qinds is not None:
         # import pdb; pdb.set_trace()
-        axes[0,0].fill_between(wvs,q_mean_pair1+q_std_pair1,q_mean_pair1-q_std_pair1,color='tab:blue',alpha=0.1,label="Pair 1",zorder=0)
-        axes[0,0].fill_between(wvs,q_mean_pair2+q_std_pair2,q_mean_pair2-q_std_pair2,color='tab:orange',alpha=0.1,label="Pair 2",zorder=0)
+        axes[0,0].fill_between(wvs,q_mean_pair1+q_std_pair1,q_mean_pair1-q_std_pair1,color='tab:blue',alpha=0.4,label="Pair 1",zorder=0)
+        axes[0,0].fill_between(wvs,q_mean_pair2+q_std_pair2,q_mean_pair2-q_std_pair2,color='tab:orange',alpha=0.4,label="Pair 2",zorder=0)
     if uinds is not None:
-        axes[0,1].fill_between(wvs,u_mean_pair1+u_std_pair1,u_mean_pair1-u_std_pair1,color='tab:blue',alpha=0.1,label="Pair 1",zorder=0)
-        axes[0,1].fill_between(wvs,u_mean_pair2+u_std_pair2,u_mean_pair2-u_std_pair2,color='tab:orange',alpha=0.1,label="Pair 1",zorder=0)
+        axes[0,1].fill_between(wvs,u_mean_pair1+u_std_pair1,u_mean_pair1-u_std_pair1,color='tab:blue',alpha=0.4,label="Pair 1",zorder=0)
+        axes[0,1].fill_between(wvs,u_mean_pair2+u_std_pair2,u_mean_pair2-u_std_pair2,color='tab:orange',alpha=0.4,label="Pair 1",zorder=0)
 
     #Only plot theta where > 3sigma
     if all_theta:
@@ -728,7 +738,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     # axes[1,1].plot(wvs,theta_mean-theta_std,'k--',alpha=0.5)
 
     #3-sigma for p
-    axes[1,0].plot(inds,3*p_std,'r')
+    # axes[1,0].plot(wvs,3*p_std,'r')
+    # axes[1,0].plot(wvs,3*p_mean_err,'r')
 
     #Axis plot ranges
     axes[0,0].set_xlim(xlow,xhigh)
@@ -773,8 +784,10 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     ## Put in the plot overlaid with the spectrum
     axes[2,0].plot(wvs,p_mean,'k')
     axes[2,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color='k',alpha=0.1)
-    axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
-    axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    # axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    # axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    axes[2,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
+    axes[1,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
     axes[2,0].legend(fontsize=14)
     if spec is not None:
         #Twin axis to show the mean spectrum
@@ -940,7 +953,7 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         colormapp = mpl.colors.LinearSegmentedColormap.from_list("", ["k","firebrick","crimson","darkorchid","blueviolet","mediumblue","navy","k"])
     else:
         colormapp = plt.get_cmap(cmap) 
-    print(phase)
+    # print(phase)
     colors = colormapp(phase)
     
     pmeans = []
@@ -962,25 +975,27 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         theta_dd = 0.5*np.degrees(np.arctan2(u_dd,q_dd))
         theta_dd[theta_dd < 0] +=180
 
-        q_dd_err = np.sqrt(np.sum((qerr**2),axis=1))/qerr.shape[1]
-        u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
+        # q_dd_err = np.sqrt(np.sum((qerr**2),axis=1))/qerr.shape[1]
+        q_dd_err = qerr
+        # u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
+        u_dd_err = uerr
 
         #Now calculate the mean or median
         from astropy import stats
-        q_mean = np.zeros([q_dd.shape[1]]) #We name this mean, though it could either be Mean or Median
-        q_std = np.zeros([q_dd.shape[1]])
-        u_mean = np.zeros([u_dd.shape[1]])
-        u_std = np.zeros([u_dd.shape[1]])
+        q_mean = np.zeros([q.shape[1]]) #We name this mean, though it could either be Mean or Median
+        q_std = np.zeros([q.shape[1]])
+        u_mean = np.zeros([u.shape[1]])
+        u_std = np.zeros([u.shape[1]])
 
-        for i in range(q_dd.shape[1]):
-
-            mn,md,std = stats.sigma_clipped_stats(q_dd[:,i], sigma=3, maxiters=5)
+        for i in range(q.shape[1]):
+            # import pdb; pdb.set_trace()
+            mn,md,std = stats.sigma_clipped_stats(q[:,i], sigma=3, maxiters=5)
             if mode == 'median':
                 q_mean[i] = md
             else:
                 q_mean[i] = mn
             q_std[i] = std/np.sqrt(q_dd.shape[0])
-            mn,md,std = stats.sigma_clipped_stats(u_dd[:,i], sigma=3, maxiters=5)
+            mn,md,std = stats.sigma_clipped_stats(u[:,i], sigma=3, maxiters=5)
             u_std[i] = std/np.sqrt(q_dd.shape[0])
             if mode == 'median':
                 u_mean[i] = md
@@ -1109,17 +1124,41 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         #3-sigma for p
         # axes[1,0].plot(wvs,3*p_std,color='cyan')
         # axes[1,0].plot(wvs,3*p_mean_err,'k--')
+        
+        ####Add the colormaps to show the phase colors
+        #Top left
+        cbaxes = inset_axes(axes[0,0], width="60%", height="7%", loc=9) 
+        cbar = mpl.colorbar.ColorbarBase(cbaxes, cmap = colormapp,norm = mpl.colors.Normalize(vmin=0,vmax=1.),ticks=[0.,0.5,1], orientation='horizontal')
+        if period == np.max(dt):
+            cbar.set_label("Phase (Period = ??)")
+        else:
+            cbar.set_label("Phase (Period = {}h)".format(period))
+        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=900)
 
-        #Add a colormap:
-        # sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
+        for i,p in enumerate(phase):
+            cbaxes.text(p-0.015,0.075,"{:d}".format(i),weight="bold")
 
+        #Top Right
+        cbaxes = inset_axes(axes[0,1], width="60%", height="7%", loc=9) 
+        cbar = mpl.colorbar.ColorbarBase(cbaxes, cmap = colormapp,norm = mpl.colors.Normalize(vmin=0,vmax=1.),ticks=[0.,0.5,1], orientation='horizontal')
+        if period == np.max(dt):
+            cbar.set_label("Phase (Period = ??)")
+        else:
+            cbar.set_label("Phase (Period = {}h)".format(period))
+        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=900)
+        for i,p in enumerate(phase):
+            cbaxes.text(p-0.015,0.075,"{:d}".format(i),weight="bold")
+
+        #Center Left
         cbaxes = inset_axes(axes[1,0], width="60%", height="7%", loc=9) 
         cbar = mpl.colorbar.ColorbarBase(cbaxes, cmap = colormapp,norm = mpl.colors.Normalize(vmin=0,vmax=1.),ticks=[0.,0.5,1], orientation='horizontal')
         if period == np.max(dt):
-            cbar.set_label("Phase \n(Period = ??)")
+            cbar.set_label("Phase (Period = ??)")
         else:
-            cbar.set_label("Phase \n(Period = {}h)".format(period))
-        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=300)
+            cbar.set_label("Phase (Period = {}h)".format(period))
+        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=700)
+        for i,p in enumerate(phase):
+            cbaxes.text(p-0.015,0.075,"{:d}".format(i),weight="bold")
 
         #Axis plot ranges
         axes[0,0].set_xlim(xlow,xhigh)
@@ -1180,9 +1219,11 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         axes[1,1].set_ylabel(r"$\theta$",fontsize=24)
         axes[1,1].set_xlabel(r"$\theta$",fontsize=24)
 
-        axes[1,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
-        axes[1,1].set_xlabel("Wavelength [arb units.]",fontsize=24)
-        axes[2,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
+        axes[0,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+        axes[0,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+        axes[1,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+        axes[1,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+        axes[2,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
         twin.set_ylabel("Uncalibrated Spectrum",color=p_right.get_color())
 
         #Shrink the space for the title
@@ -1245,18 +1286,18 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
             axes[2,0].plot((1.3,1.51),(0.85*yhigh,0.85*yhigh),'k',label=r"H$_2$0") #Changed from Mike's list below to be the range from Cushing
             axes[2,0].text(1.31,0.86*yhigh,r"H$_2$0",fontsize=14)
 
-    if show:
-        plt.show()
     if save_path is not None:
         if binsize > 1:
             fn = "{}_{}_Binned.png".format(target_name,date,binsize)
         else: 
             fn = "{}_{}_Binned.png".format(target_name,date)
         plt.savefig(save_path+fn)
+
+    if show:
+        plt.show()
     if dt is not None:
-        return dt_bins,phase,qmeans,umeans,pmeans,theta_means, phase
-    else:
-        return qmeans,umeans,pmeans,theta_means
+        return dt_bins,phase,qmeans,umeans,pmeans,theta_means, phase, wvs
+        return qmeans,umeans,pmeans,theta_means, wvs
 
 
 def thresholding_algo(y, lag, threshold, influence):
