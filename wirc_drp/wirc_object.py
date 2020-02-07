@@ -1081,8 +1081,8 @@ class wirc_data(object):
         if update_w_chi2_shift:
             im = copy.deepcopy(self.full_image)
 
-            if self.bkg_fn is not None and sub_bkg:
-                im -= fits.open(self.bkg_fn)[0].data
+            if self.bkg_image is not None and sub_bkg:
+                im -= bkg_image
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)
