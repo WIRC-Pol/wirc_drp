@@ -6,3 +6,8 @@ DS_Store
 .vscode/settings.json
 Tutorial/.ipynb_checkpoints/WIRC+Pol_Data_Reduction_Tutorial-checkpoint.ipynb
 Tutorial/.ipynb_checkpoints/WIRC+Pol_Dataset_Reduction_Tutorial-checkpoint.ipynb
+build/*
+*.orig
+*__pycache__*
+*egg-info*
+dist/*
