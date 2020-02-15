@@ -88,7 +88,7 @@ bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_medi
                     update_cutout_backgrounds=True)
             
 def extract_single_file(filename,source_pos, bkg_fnames,output_path = "./",output_suffix="",verbose=True,
-bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False):
+bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_image = False):
     '''
     Opens a file, generates a background image, extracts the source spectra and then saves them to the output path
 
@@ -124,7 +124,7 @@ bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False):
 
     # import pdb; pdb.set_trace()
     output_fname = output_path+filename.rsplit(".fits")[0].split("/")[-1]+output_suffix+".fits"
-    tmp_data.save_wirc_object(output_fname)
+    tmp_data.save_wirc_object(output_fname,save_full_image = save_full_image)
 
 def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
