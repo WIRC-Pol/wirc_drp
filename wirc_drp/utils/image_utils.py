@@ -1490,7 +1490,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
 
 
     if diag_mask and mode=='pol':
-        mask = makeDiagMask(np.shape(thumbnail)[0],100)
+        mask = makeDiagMask(np.shape(thumbnail)[0],70)
         thumbnail[~mask] = 0.0
         # plt.imshow(thumbnail)
     
@@ -1520,6 +1520,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
         width = thumbnail.shape[1] #x size of thumbnail
         if mode=='pol':
             weights[(xinds < width/2 - 15) | (xinds > width/2+15)] = 0.
+            p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
         if mode=='spec':
             #we shoot outward from the column with the maximal peak
             #the second we drop below 50% of that value, set a cutoff
@@ -1564,10 +1565,10 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
                     coeff, cov = curve_fit(gauss, x, y, p0=[np.max(y),i,5], maxfev = 15000)
                     ynew = gauss(xnew, *coeff)
                 peaks_spline[i] = xnew[np.argmax(ynew)]
-        if fractional_fit_type is not None:
-            p = np.polyfit(range(np.shape(thumbnail)[1]), peaks_spline, poly_order, w = weights)
-        else:
-            p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
+            if fractional_fit_type is not None:
+                p = np.polyfit(range(np.shape(thumbnail)[1]), peaks_spline, poly_order, w = weights)
+            else:
+                p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
     else:
         weights = np.ones(len(peaks))
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order)
@@ -1705,6 +1706,26 @@ def sub_bkg_shift_and_mask(source, plot=False):
             ax1.imshow(~n_mask, alpha=0.3)
         
     return source
+
+def recenter_traces(source, plot=False,diag_mask = False):
+    '''
+    Cross correlate the thumbnails to a mask then shift the traces to the center
+    '''
+
+    for i in range(4):
+        mask = np.ndarray.astype(trace_masks[i],bool)
+
+        image = source.trace_images[i]
+        mask = makeDiagMask(np.shape(thumbnail)[0],70)
+        
+        thumbnail[~mask] = 0.0
+        shift_vals = chi2_shift(image, mask, zeromean=False, verbose=False, return_error=True)
+        source.trace_images[i] = shift(source.trace_images[i], (shift_vals[1],shift_vals[0]))
+        if source.trace_bkg is not None:
+            source.trace_bkg[i] = shift(source.trace_bkg[i], (shift_vals[1],shift_vals[0]))
+    
+    return source
+
 
 def mask_and_sub_bkg(thumbnail, index, plot=False, xlow=30,xhigh=130,ylow=30,yhigh=130):
     '''

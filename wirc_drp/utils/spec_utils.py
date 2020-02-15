@@ -876,6 +876,16 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
                 if verbose:
                     print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
+            if diag_mask and mode=='pol':
+                mask = makeDiagMask(np.shape(thumbnail)[0],70)
+                thumbnail[~mask] = 0.0
+                bkg[~mask] = 0.0
+                DQ_copy[j,:,:][~mask] = 0.0
+                # plt.imshow(thumbnail)
+                mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
+
+            
+            
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = thumbnail.shape[0]
             sub_rotated = frame_rotate(thumbnail-bkg, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])

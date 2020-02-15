@@ -92,13 +92,14 @@ def makeDiagMask(size, width):
         mask[int(size-i-1),int( max(i-width,0)): int(min(i+width, size)) ] = 1
     return mask.astype("bool")
 
-def make_mask_from_findTrace(fit, width, angle):
+def make_mask_from_findTrace(fit, angle, width=None):
     """
     Create a diagonal mask based on the output from findTrace 
     """
+    if width is None:
     #actual width
-    width = width/np.cos(np.radians(angle))**2 #cos^2 because one factor from rotation, another from the smaller pixel
-
+        width = width/np.cos(np.radians(angle))**2 #cos^2 because one factor from rotation, another from the smaller pixel
+    
     size = len(fit)
     mask = np.zeros((size,size))
 
