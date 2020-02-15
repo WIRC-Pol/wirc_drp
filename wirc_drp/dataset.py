@@ -4,6 +4,9 @@ import warnings
 import os
 import wirc_drp.wirc_object as wo
 from wirc_drp.utils import calibration, spec_utils as su, image_utils as iu
+from astropy.io import fits
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 def reduce_dataset(filelist, source_pos, bkg_fnames = None, output_path = "./",verbose=True, 
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
@@ -84,8 +87,6 @@ bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_medi
                     extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
                     update_cutout_backgrounds=True)
             
-        
-
 def extract_single_file(filename,source_pos, bkg_fnames,output_path = "./",output_suffix="",verbose=True,
 bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False):
     '''
@@ -125,7 +126,8 @@ bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False):
     output_fname = output_path+filename.rsplit(".fits")[0].split("/")[-1]+output_suffix+".fits"
     tmp_data.save_wirc_object(output_fname)
 
-def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
+def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
+bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
 "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False):
     '''
     A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
@@ -150,15 +152,17 @@ def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, 
 
     #Reduce them all with all the possible background subtraction methods - Dither position 1
     reduce_dataset(filelist[groupA], source_pos, bkg_fnames = filelist[groupB], 
+                            bkg_methods = bkg_methods,
                             output_path = output_path,
                             verbose=verbose,
-                            less_verbose=less_verbsee,
+                            less_verbose=less_verbose,
                             n_pca=n_pca, in_slit=in_slit)
 
     #Reduce them all with all the possible background subtraction methods - Dither position 2
     reduce_dataset(filelist[groupB], [691,1071], bkg_fnames = filelist[groupA], 
-                           output_path = output_path,
+                            bkg_methods = bkg_methods,
+                            output_path = output_path,
                             verbose=verbose,
-                            less_verbose=less_verbsee,
+                            less_verbose=less_verbose,
                             n_pca=n_pca, in_slit=in_slit)
 
