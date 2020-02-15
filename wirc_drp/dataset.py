@@ -7,7 +7,7 @@ from wirc_drp.utils import calibration, spec_utils as su, image_utils as iu
 
 def reduce_dataset(filelist, source_pos, bkg_fnames = None, output_path = "./",verbose=True, 
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
-"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,less_verbose=True,):
+"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,less_verbose=True):
     '''
     A function that reduces a dataset given a list of calibrated science and background files
 
@@ -125,7 +125,8 @@ bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False):
     output_fname = output_path+filename.rsplit(".fits")[0].split("/")[-1]+output_suffix+".fits"
     tmp_data.save_wirc_object(output_fname)
 
-def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=True):
+def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
+"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False):
     '''
     A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
     It uses each position as backgrond for the other. 
@@ -135,9 +136,29 @@ def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=True):
         background_list -   A python list of background files (this can be one file)
     '''
 
-    #Set up all the directories and filenames: 
-    fnames = np.sort(glob.glob(filelist))
-    if len(fnames) < 1:
-        raise ValueError("I couldn't find any files!")
-    if verbose:
-        print("Found {:d} science files".format(len(fnames)))
+    #Separate them into two dithers - Assuming dither only in the RA direction
+    list_of_headers = []
+    for i in filelist:
+        list_of_headers += [fits.getheader(i)]
+    #closest in time, some distance away, same HWP
+    all_hdr = list_of_headers
+    #get some useful quantities
+    coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
+    ras = np.array([x.ra.degree for x in coords])
+    groupA = np.where(ras-np.mean(ras)<0)
+    groupB = np.where(ras-np.mean(ras)>0)
+
+    #Reduce them all with all the possible background subtraction methods - Dither position 1
+    reduce_dataset(filelist[groupA], source_pos, bkg_fnames = filelist[groupB], 
+                            output_path = output_path,
+                            verbose=verbose,
+                            less_verbose=less_verbsee,
+                            n_pca=n_pca, in_slit=in_slit)
+
+    #Reduce them all with all the possible background subtraction methods - Dither position 2
+    reduce_dataset(filelist[groupB], [691,1071], bkg_fnames = filelist[groupA], 
+                           output_path = output_path,
+                            verbose=verbose,
+                            less_verbose=less_verbsee,
+                            n_pca=n_pca, in_slit=in_slit)
+
