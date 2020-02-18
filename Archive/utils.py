@@ -4,14 +4,14 @@ Created on Fri June 2 2017
 
 @author: Kaew Tinyanont, Max Millar-Blanchaer, Ricky Nilsson
 
-Imaging Utilities for the WIRC+Pol DRP
+Imaging Utilities for the WIRC-POL DRP
 
 This file contains functions used to extract spectra from a cutout. 
 
 """
-import time
+
 import numpy as np
-from astropy.io import fits
+from astropy.io import fits as f
 from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
 from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
@@ -19,41 +19,53 @@ from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects
 import scipy.signal
 from wirc_drp.constants import *
 from wirc_drp.masks.wircpol_masks import *
-from wirc_drp.masks import *
-from wirc_drp.utils import calibration
-
 from scipy.ndimage import gaussian_filter as gauss
 # from scipy.ndimage.filters import median_filter, shift
 from scipy.ndimage import median_filter, shift, rotate
-from scipy.interpolate import interp1d
-from scipy.optimize import curve_fit
-import scipy.optimize as so
+
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
-import scipy.ndimage as sn
-
 import copy
 from image_registration import chi2_shift
-from wirc_drp import constants
-from photutils import RectangularAperture, aperture_photometry,make_source_mask
-from astropy.stats import sigma_clipped_stats
-from scipy import signal
-import multiprocessing as mp
 
 import cv2
+# import pyfftw
+# from numba import jit
 
-def shift_figure(x_figs,y_figs=0):
+def move_figure(position="top-right"):
     '''
-    This function sets the position of the current figure on the screen. 
-    Currently it just works by shifting the figure by integer numbers (x_figs, y_figs) of the figure width/height. 
+    Move and resize a window to a set of standard positions on the screen.
+    Possible positions are:
+    top, bottom, left, right, top-left, top-right, bottom-left, bottom-right
     '''
 
     mgr = plt.get_current_fig_manager()
+    mgr.full_screen_toggle()  # primitive but works to get screen size
     py = mgr.canvas.height()
     px = mgr.canvas.width()
-    mgr.window.setGeometry(px*x_figs, py*y_figs, px, py)
 
-def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, im_package = 'cv2', max_sources=5, use_full_frame_mask=True, force_figures = False, seeing = 0.75):
+    d = 10  # width of the window border in pixels
+    if position == "top":
+        # x-top-left-corner, y-top-left-corner, x-width, y-width (in pixels)
+        mgr.window.setGeometry(d, 4*d, px - 2*d, py/2 - 4*d)
+    elif position == "bottom":
+        mgr.window.setGeometry(d, py/2 + 5*d, px - 2*d, py/2 - 4*d)
+    elif position == "left":
+        mgr.window.setGeometry(d, 4*d, px/2 - 2*d, py - 4*d)
+    elif position == "right":
+        mgr.window.setGeometry(px/2 + d, 4*d, px/2 - 2*d, py - 4*d)
+    elif position == "top-left":
+        mgr.window.setGeometry(d, 4*d, px/2 - 2*d, py/2 - 4*d)
+    elif position == "top-right":
+        mgr.window.setGeometry(px/2 + d, 4*d, px/2 - 2*d, py/2 - 4*d)
+    elif position == "bottom-left":
+        mgr.window.setGeometry(d, py/2 + 5*d, px/2 - 2*d, py/2 - 4*d)
+    elif position == "bottom-right":
+        mgr.window.setGeometry(px/2 + d, py/2 + 5*d, px/2 - 2*d, py/2 - 4*d)
+
+# @jit
+# @profile
+def locate_traces(science, sky, sigmalim = 5, plot = False, verbose = False, brightness_sort=True, update_w_chi2_shift=True, max_sources=5, use_full_frame_mask=True):
     """
     This is a function that finds significant spectral traces in WIRC+Pol science images. Search is performed in the upper left quadrant of image, and location of corresponding traces (and 0th order) in other three quadrants are calculated from assumed fixed distances. The function saves trace locations and thumbnail cutouts of all traces.
     Input:
@@ -64,38 +76,44 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
                     traces found. Thumbnail cutouts of all traces are also plotted in a separate figure.
         brightness_sort: if True, then sort the sources according to their brightness. 
         update_w_chi2_shift: if True, then update the positions using the chi2_shift algo. The main reason for this is to get sub-pixel resolution. 
-        use_full_frame_mas: If True then mask out the areas covered by the focal plane mask and by the bars of doom. 
-        force_figures: if True, then when plotting it forces the first plot to be in Figure 1 and the second in Figure 2. 
-        seeing: An estimate of the seeing in arcseconds. We will blur the template trace by this value. NOTE: This will have to be an odd multiple of 0.25. TODO make a check for this. 
                     
     Output: Dictionary of objects found. Each item contains of five keys with pairs of x and y coordinates (index starts at 0) of upper left, upper right, lower right, and lower left trace, and 0th order locations, as well as a flag set to True if trace is very noisy or crossing quadrant limit. The last item in the dictionary always contains the central hole/slit and trace locations 
     """    
 
     # TODO:
-    # - Reactivate sort after brightest trace
     # - Implement for H images too
+    # - Include location of the two sky background holes/slits and traces
 
+    # Mean location of traces in reference sequence (x1,y1),(x2,y2)
+    # This was measured for a bright unpolarized standard 
+    UL_trace = [(553.48, 1726.52), (619, 1661)] 
+    LR_trace = [(1442.25, 814.25), (1500.25, 754.25)]
+    LL_trace = [(544.2, 763.55), (608, 826.75)]
+    UR_trace = [(1451.5, 1655.75), (1510.3, 1713.35)]
+    spot0 = (1029, 1242)
     UL_slit_trace = (573, 1024+500) # This should always be the same. Added even if not found.
-
     # Distance of 0th order, UR, LR, and LL traces to UL traces
-    UR_diff = np.asarray(constants.dUR) - np.asarray(constants.dUL)
-    LR_diff = np.asarray(constants.dLR) - np.asarray(constants.dUL)
-    LL_diff = np.asarray(constants.dLL) - np.asarray(constants.dUL)
-    spot0_diff = -np.asarray(constants.dUL)
-
+    UL = ((UL_trace[0][0]+UL_trace[1][0])/2, (UL_trace[0][1]+UL_trace[1][1])/2)
+    LR = ((LR_trace[0][0]+LR_trace[1][0])/2, (LR_trace[0][1]+LR_trace[1][1])/2)
+    LL = ((LL_trace[0][0]+LL_trace[1][0])/2, (LL_trace[0][1]+LL_trace[1][1])/2)
+    UR = ((UR_trace[0][0]+UR_trace[1][0])/2, (UR_trace[0][1]+UR_trace[1][1])/2)
+    UR_diff = (UR[0]-UL[0], UR[1]-UL[1])
+    LR_diff = (LR[0]-UL[0], LR[1]-UL[1])
+    LL_diff = (LL[0]-UL[0], LL[1]-UL[1]) 
+    spot0_diff = (spot0[0]-UL[0], spot0[1]-UL[1])
     ############
 
     # MAIN CODE ###########
 
     # Load cropped and centered trace template image
-    template_fn = constants.wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
+    template_fn = wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
     
     if verbose:
         print("Loading Template from {}".format(template_fn))
 
-    trace_template_hdulist = fits.open(template_fn)
+    trace_template_hdulist = f.open(template_fn)
     trace_template = trace_template_hdulist[0].data
-    trace_template = ndimage.median_filter(trace_template,int(seeing/constants.plate_scale))
+
     # # Plot trace template image
     # fig = plt.figure()
     # plt.imshow(trace_template, origin='lower')
@@ -111,41 +129,28 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
 
     # Load sky (offset) image, either from file or as np array
     if isinstance(sky, str):
-        sky_image_hdulist = fits.open(sky) 
+        sky_image_hdulist = f.open(sky) 
         sky_image = sky_image_hdulist[0].data
         if verbose:
-            print('Loading sky background '+ sky + ' ...')
-    elif type(sky) == np.ndarray: #if array
+            print('Processing science file '+ science + ' ...')
+    else:
         sky_image = sky.copy()
-        if verbose:
-            print('Using supplied sky background array ...')
-    else: # sky == None:
-        if verbose:
-            print('No sky background image given. Assuming it has already been subtracted.')
     # Filter sky image to remove bad pixels
-    if (im_package =='scipy') and (type(sky)==np.ndarray):
-        sky_image_filt = ndimage.median_filter(sky_image,3) 
-    elif (im_package =='cv2') and (type(sky)==np.ndarray):
-        sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
-   # plt.imshow(sky_image_filt)
+    # sky_image_filt = ndimage.median_filter(sky_image,3)    
+    sky_image_filt = cv2.medianBlur(np.ndarray.astype(sky_image,'f'),3)    
+    # plt.imshow(sky_image_filt)
     # plt.show()
 
     # Load science image, either from file or as np array
     if isinstance(science, str):
-        science_image_hdulist = fits.open(science)
+        science_image_hdulist = f.open(science)
         science_image = science_image_hdulist[0].data
-        if verbose:
-            print('Loading science image '+ science + ' ...')
     else:
         science_image = science.copy()
-        if verbose:
-            print('Using supplied science array ...')
 
     # Filter science image to remove bad pixels
-    if im_package == 'scipy':
-        science_image_filt = ndimage.median_filter(science_image,3)
-    elif im_package == 'cv2': #use cv2.
-        science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'f'),3)    
+    # science_image_filt = ndimage.median_filter(science_image,3)
+    science_image_filt = cv2.medianBlur(np.ndarray.astype(science_image,'f'),3)    
     # # Plot science image
     # fig = plt.figure()
     # plt.imshow(science_image_filt, origin='lower')
@@ -154,14 +159,11 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
 
      # # If use_full_frame_mask
     if use_full_frame_mask:
-        ffmask = fits.open(constants.wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
+        ffmask = fits.open(wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
         fftmask = np.ndarray.astype(ffmask,bool)
         fftmask = fftmask[::-1,:]
-        # science_image_filt[np.where(~fftmask)] = 0.
-        # sky_image_filt[np.where(~fftmask)] = 0.
-        science_image_filt[np.where(~fftmask)] = np.median(science_image_filt)
-        if type(sky)==np.ndarray:
-            sky_image_filt[np.where(~fftmask)] = np.median(sky_image_filt)
+        science_image_filt[np.where(~fftmask)] = 0.
+        sky_image_filt[np.where(~fftmask)] = 0.
     #     med_sci = np.nanmedian(science_image_filt[fftmask])
     #     med_sky = np.nanmedian(sky_image_filt[fftmask])
 
@@ -169,22 +171,11 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
     #     med_sci = np.nanmedian(science_image_filt)
     #     med_sky = np.nanmedian(sky_image_filt)
         
-    # Subtract sky image from science image -> Scale the sky so the medians of the two images match.
-    if type(sky)==np.ndarray:
-        stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
-        if verbose:
-            print('Subtracting sky image from science image ...')
-    else:
-        stars_image = science_image_filt
+    # Subtract sky image from science image -> Scale the sky so the medians of the two images match. 
+    stars_image = science_image_filt - sky_image_filt #*med_sci/med_sky
 
     # Cut out upper left quadrant of stars_image
-    # stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
-    ylow = 924
-    yhigh=2048
-    xlow = 0
-    xhigh = 1123
-
-    stars_image_UL = np.array(stars_image[ylow::,xlow:xhigh], copy=True)
+    stars_image_UL = np.array(stars_image[1024::,0:1023], copy=True)
 
     # Cross-correlate trace template image with stars_image_UL
     corr_image_UL = scipy.signal.fftconvolve(stars_image_UL, trace_template, mode='same')
@@ -212,10 +203,10 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
     # Get trace coordinates and add to x and y lists
     for dy,dx in traces:
         x_center = (dx.start + dx.stop - 1)/2
-        y_center = (dy.start + dy.stop - 1)/2 + ylow
+        y_center = (dy.start + dy.stop - 1)/2 + 1024 # or 1023?
 
         size = trace_template.shape[0]/2
-        cutout = stars_image_UL[int(y_center-size-ylow):int(y_center+size-ylow),int(x_center-size):int(x_center+size)]
+        cutout = stars_image_UL[int(y_center-size-1024):int(y_center+size-1024),int(x_center-size):int(x_center+size)]
         
         if update_w_chi2_shift:
             try:
@@ -248,9 +239,8 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
 
     # Trace locations array with all coordinates
     locs_UL = np.array([x_locs, y_locs])
-
-    # Add slit trace position to trace locations. RN: Not adding slit trace per default anymore. If source is there, locate_traces() should pick it up. 
-    #locs_UL = np.append(locs_UL, np.swapaxes(np.array([UL_slit_trace]),0,1), 1)
+    # Add slit trace position to trace locations
+    locs_UL = np.append(locs_UL, np.swapaxes(np.array([UL_slit_trace]),0,1), 1)
 
     # Calculate location of corresponding traces (and 0th order) in other three quadrants
     locs_UR = locs_UL + np.swapaxes(np.array([UR_diff]),0,1)
@@ -258,14 +248,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
     locs_LL = locs_UL + np.swapaxes(np.array([LL_diff]),0,1)
     locs_spot0 = locs_UL + np.swapaxes(np.array([spot0_diff]),0,1)
 
-    n_sources = len(locs_spot0.T)
-    trace_diag_flag = [False] * n_sources
-
-    if verbose:
-        print('Found ' + str(n_sources) + ' sources')
-    #source_ok = trace_checker(stars_image, source_list_pre, verbose = True)
-
-    pix_vals_UL=[] 
+    pix_vals_UL=[]
     #Do we want to sort the sources by their brightness? 
     if brightness_sort: 
         # Now we'll calculate the pixel value at each x,y value
@@ -283,7 +266,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         locs_LR = np.array([[locs_LR[0,i],locs_LR[1,i]] for i in pix_vals_argsort]).T
         locs_spot0 = np.array([[locs_spot0[0,i],locs_spot0[1,i]] for i in pix_vals_argsort]).T
 
-    # Flag suspicious traces by checking mid-diagonals. This currently only checks diagonals of UL trace. Check UL, UR, LL, and LR by running trace_checker() separately instead!
+    # Flag suspicious traces by checking mid-diagonals
     trace_diag_val = []
     trace_diag_flag = []
     
@@ -308,9 +291,9 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
         else:
             trace_diag_flag.append(True)
             
-    print(trace_diag_val, '\n', trace_diag_flag)
+    #print(trace_diag_val, '\n', trace_diag_flag)
 
-    # Put all the good traces at the top.
+    #Put all the good traces at the to
     args = np.argsort(trace_diag_flag)
     locs_UL = locs_UL[:,args][:,:max_sources]
     locs_UR = locs_UR[:,args][:,:max_sources]
@@ -319,490 +302,99 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
     locs_spot0 = locs_spot0[:,args][:,:max_sources]
     trace_diag_flag = np.array(trace_diag_flag)[args][:max_sources]
 
+    if verbose:
+        for i in range(len(trace_diag_flag)):
+            if verbose:
+                    print('Trace', str(i+1), 'too noisy or crossing quadrant limit. Flagging!') 
+        # Print list of trace location coordinates in UL quadrant
+        print('Found '+str(len(x_locs))+' sources in UL quadrant. Trace '+str(len(x_locs)+1)+' is assumed for source in slit.')
+        for tr in range(0,locs_UL.shape[1]):
+            print('Trace', str(tr+1), ': (', locs_UL[:,tr][0], locs_UL[:,tr][1], ')')
 
-    # Gather all trace and 0th order locations in a dictionary
+
+    # Gather all trace and 0th order locations (and flags) in dictionary
     locs = {'UL': locs_UL, 'UR': locs_UR, 'LR': locs_LR, 'LL': locs_LL, 'spot0': locs_spot0, 'flag': trace_diag_flag}
 
-    # # Show location of all found traces in stars_image
+    # Show cutout of all traces in stars_image
     if plot == True:
-        plt.ion() # Turning on interactive mode for plotting (shows figure and releases terminal prompt) 
-        
-        # Plot UL quadrant of sky subtracted science image with found traces labelled
-        if force_figures:
-            f = plt.figure(2, figsize=(6.4,4.8))
-            plt.clf()
-        else:
-            f = plt.figure()
-
-        plt.imshow(stars_image, origin='lower', clim=(0,np.median(stars_image_UL)+sigmalim*np.std(stars_image_UL)))
-        plt.colorbar()
-        plt.xlim(xlow,xhigh)
-        plt.ylim(ylow,yhigh)
+        plt.ion() # Turning on interactive mode for plotting (shows figure and releases terminal prompt)
+        fig, axes = plt.subplots(nrows=locs_UL.shape[1], ncols=5)
         for n in range(0,locs_UL.shape[1]):
+            #plt.subplot(peaks.shape[1]+1,5,n*5+1)
+            axes[n,0].imshow(stars_image[int(round(locs_UL[1,n])-50):int(round(locs_UL[1,n])+50), int(round(locs_UL[0,n])-50):int(round(locs_UL[0,n])+50)], origin='lower')
+            axes[n,0].set_yticks([])
+            axes[n,0].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,0].spines[pos].set_color('red')
+            #plt.subplot(peaks.shape[1]+1,5,n*5+2)
+            axes[n,1].imshow(stars_image[int(round(locs_UR[1,n])-50):int(round(locs_UR[1,n])+50), int(round(locs_UR[0,n])-50):int(round(locs_UR[0,n])+50)], origin='lower')
+            axes[n,1].set_yticks([])
+            axes[n,1].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,1].spines[pos].set_color('red')
+            #plt.subplot(peaks.shape[1]+1,5,n*5+3)
+            axes[n,2].imshow(stars_image[int(round(locs_LR[1,n])-50):int(round(locs_LR[1,n])+50), int(round(locs_LR[0,n])-50):int(round(locs_LR[0,n])+50)], origin='lower')
+            axes[n,2].set_yticks([])
+            axes[n,2].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,2].spines[pos].set_color('red')
+            #plt.subplot(peaks.shape[1]+1,5,n*5+4)
+            axes[n,3].imshow(stars_image[int(round(locs_LL[1,n])-50):int(round(locs_LL[1,n])+50), int(round(locs_LL[0,n])-50):int(round(locs_LL[0,n])+50)], origin='lower')
+            axes[n,3].set_yticks([])
+            axes[n,3].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,3].spines[pos].set_color('red')
+            #plt.subplot(peaks.shape[1]+1,5,n*5+5)
+            axes[n,4].imshow(stars_image[int(round(locs_spot0[1,n])-50):int(round(locs_spot0[1,n])+50), int(round(locs_spot0[0,n])-50):int(round(locs_spot0[0,n])+50)], origin='lower')
+            axes[n,4].set_yticks([])
+            axes[n,4].set_xticks([])
+            if trace_diag_flag[n] == True:
+                for pos in ['top', 'bottom', 'right', 'left']:
+                    axes[n,4].spines[pos].set_color('red')
+        plt.suptitle('Thumbnail cutouts of found sources', size='large')
+        for row in range(0,locs_UL.shape[1]-1):
+            axes[row,0].set_ylabel('Source '+str(row+1))
+        axes[locs_UL.shape[1]-1,0].set_ylabel('Source in slit')
+        ytitle = ['UL', 'UR', 'LR', 'LL', '0th order']
+        for col in range(0,5):
+            axes[0,col].set_title(ytitle[col], size='medium')
+        #fig.savefig(target_file[0:target_file.find('.fits')]+'.pdf', format='pdf')
+
+        move_figure(fig,'top-left')
+
+        # Plot UL quadrant of sky subtracted science image with found traces labelled
+        f = plt.figure()
+        plt.imshow(stars_image, origin='lower', clim=(0,np.median(stars_image_UL)+sigmalim*np.std(stars_image_UL)))
+        plt.xlim(0,1023)
+        plt.ylim(1024,2047)
+        for n in range(0,locs_UL.shape[1]-1):
             if trace_diag_flag[n] == True:
                 #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
                 plt.annotate('Trace '+str(n+1), (locs_UL[0,n],locs_UL[1,n]),color='red')
             else:
                 #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
                 plt.annotate('Trace '+str(n+1), (locs_UL[0,n],locs_UL[1,n]),color='white')
-        # if trace_diag_flag[locs_UL.shape[1]-1] == True:
-        #     #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
-        #     plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='red')
-        # else:
-        #     #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
-        #     plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='white')
+        if trace_diag_flag[locs_UL.shape[1]-1] == True:
+            #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
+            plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='red')
+        else:
+            #plt.scatter(locs_UL[0,n],locs_UL[1,n],color='white',marker='o')
+            plt.annotate('Slit trace', (locs_UL[0,locs_UL.shape[1]-1],locs_UL[1,locs_UL.shape[1]-1]),color='white')
+        print('\n')
 
-        plt.draw()
+        move_figure(f,'top')
 
     if verbose:
-        print('\n')
         print('UL quadrant trace locations:\n',locs['UL'].T,'\n')
         print('UR quadrant trace locations:\n',locs['UR'].T,'\n')
         print('LR quadrant trace locations:\n',locs['LR'].T,'\n')
         print('LL quadrant trace locations:\n',locs['LL'].T,'\n')
 
-    # Number of sources
-    n_sources = len(locs['UL'][0])
-
     return locs
-
-def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, verbose = False, cutout_size = None, slit_pos = 'slitless', trace_template = None,max_offset=10):
-    """
-    This function grabs the upper left cutout from given x,y location of the zeroth order, then uses chi2_shift to align it
-    with a trace template, then spits out the new x, y location that will center the trace. 
-
-    If template == None, use the default 150x150 px template. 
-    """
-    # Load cropped and centered trace template image
-
-    if trace_template is None:
-        template_fn = constants.wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
-        
-        if verbose:
-            print("Loading Template from {}".format(template_fn))
-
-        trace_template_hdulist = fits.open(template_fn)
-        trace_template = trace_template_hdulist[0].data[:-1,:-1] #trim one to satisfy cutout_trace_thumbnails
-        trace_template = ndimage.median_filter(trace_template,int(seeing/constants.plate_scale))
-    else:
-        pass
-
-    if cutout_size is not None:
-        if cutout_size > trace_template.shape[0]:
-            trace_template = np.pad(trace_template,cutout_size-trace_template.shape[0],'edge')
-    cutout_size = int(trace_template.shape[0]/2)
-    # Grab top left trace cutout
-    UL_trace = cutout_trace_thumbnails(image, np.expand_dims([[y,x], slit_pos],axis=0) , flip = False, filter_name = 'foo',
-            cutout_size = cutout_size, sub_bar = False, mode = 'pol', verbose = False)[0][0] #just take the first ones
-	
-    try:
-        shifts = chi2_shift(median_filter(UL_trace,3),trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
-        if verbose:
-            print("Shfits are x,y = ", shifts)
-        #Sometimes if it's too big the whole thing gets shifted out and it breaks things. 
-        if (np.abs(shifts[0]) < max_offset and np.abs(shifts[1]) < max_offset):
-            print("Applying shifts")
-            x -= shifts[0]
-            y -= shifts[1]
-        
-        ## Debugging plots
-        # fig = plt.figure(figsize=(7,7))
-        # ax1 = fig.add_subplot(141)
-        # plt.imshow(cutout)
-        # ax2 = fig.add_subplot(142)
-        # plt.imshow(trace_template)
-        # ax3 = fig.add_subplot(143)
-        # cutout2 = stars_image_UL[np.floor(y_center-size-1024).astype(int):np.floor(y_center+size-1024).astype(int),np.floor(x_center-size).astype(int):np.floor(x_center+size).astype(int)]
-        # plt.imshow(cutout2,alpha=0.5,cmap='magma')
-        # ax4 = fig.add_subplot(144)
-        # plt.imshow(shift(cutout,(shifts[1],shifts[0])))
-
-        return x, y
-
-    except Exception as e:
-        if verbose:
-            print(e)
-        return None
-
-def check_traces(full_image, wo_source_list, verbose = False):
-
-    '''
-    Flag sources with suspicious traces by checking mid-diagonals.
-
-        Input:
-            full_image: full calibrated science (PG) image
-            wo_source_list: wircpol_object source list OR locs list
-        Output:
-            (source_ok, source_brightness): tuple containing a list (source_ok) with True for sources with good traces and False for sources with bad traces, and a list (source_brightness) with a brighness metric for the sources.
-    '''
-
-    if isinstance(wo_source_list, dict):
-            nsources = len(wo_source_list['spot0'].T)
-    else:
-            nsources = len(wo_source_list)
-    quads_diff = [constants.dUL, constants.dUR, constants.dLR, constants.dLL] # offsets from zeroth order
-    quads = ['UL', 'UR', 'LR', 'LL']
-    trace_count = 0
-    plt.ion()
-
-    source_brightness = []
-    source_ok = [] # True/False list for nsources
-    for source in range(nsources):
-        if isinstance(wo_source_list, dict):
-            zeroth_loc = wo_source_list['spot0'][:,source]
-        else:
-            zeroth_loc = wo_source_list[source].pos
-        if verbose:
-            print('Checking traces for source '+ str(source+1) + ' at location ' + str(zeroth_loc))
-            plt.figure(figsize=(8,8))
-        # for UL
-        trace_diag_val = [] # Value list for trace in each quad
-        trace_diag_ok = [] # True/False list for trace in each quad
-        for quad in range(len(quads)):
-            trace_count += 1
-            trace_loc = (zeroth_loc[0] + quads_diff[quad][0], zeroth_loc[1] + quads_diff[quad][1]) # trace locs with rounded offsets
-            thumbn = full_image[int(round(trace_loc[1]-50)):int(round(trace_loc[1]+50)), int(round(trace_loc[0]-50)):int(round(trace_loc[0]+50))]
-            if quads[quad] == 'UL':
-                thumbn_orient = np.flipud(thumbn)
-            elif quads[quad] == 'UR':
-                thumbn_orient = np.fliplr(np.flipud(thumbn))
-            elif quads[quad] == 'LR':
-                thumbn_orient = np.fliplr(thumbn)
-            elif quads[quad] == 'LL':
-                thumbn_orient = thumbn
-            diag_val = []
-            for diag_offset in range(-10,11):
-                diag = np.diagonal(thumbn_orient, diag_offset).copy()
-                diag_val.append(np.sum(diag))
-                opt_diag_offset = diag_val.index(max(diag_val)) - 10
-                #print(opt_diag_offset)
-                diag0 = np.diagonal(thumbn_orient, opt_diag_offset).copy()
-                diag_plus = np.diagonal(thumbn_orient, opt_diag_offset+1).copy()
-                diag_minus = np.diagonal(thumbn_orient, opt_diag_offset-1).copy()
-                full_diag = np.concatenate((diag0[20:-20], diag_plus[20:-20], diag_minus[20:-20]), axis=0)
-                #norm_diag = full_diag / np.max(full_diag)
-                full_diag_med = np.median(full_diag)
-                trace_diag_val.append(full_diag_med)
-                td_sig = 3
-                td_thres = np.median(thumbn)+td_sig*np.std(thumbn)
-            if (full_diag_med > td_thres) & (np.median(thumbn_orient[0:19,80:99].diagonal(opt_diag_offset).copy()) < td_thres) & (np.median(thumbn_orient[80:99,0:19].diagonal(opt_diag_offset).copy()) < td_thres):
-                trace_diag_ok.append(True)
-                framecol = 'green'
-                if verbose:
-                    print('Looks alright!')
-            else:
-                trace_diag_ok.append(False)
-                framecol = 'red'
-                if verbose:
-                    print('No good!')
-            if verbose:
-                print('Checking diagonal for '+ quads[quad] + ' trace ...')
-                plt.subplot(nsources,5,trace_count)
-                plt.imshow(thumbn, origin='lower')
-                ax = plt.gca()
-                #plt.setp(ax.spines.values(), color=framecol, linewidth=3)
-                plt.title('Source ' + str(source+1) + ' ' + quads[quad])
-        trace_count += 1
-        thumb0 = full_image[int(round(zeroth_loc[1]-50)):int(round(zeroth_loc[1]+50)), int(round(zeroth_loc[0]-50)):int(round(zeroth_loc[0]+50))]
-        if verbose:
-            plt.subplot(nsources,5,trace_count)
-            plt.imshow(thumb0, origin='lower')
-            ax = plt.gca()
-            #plt.setp(ax.spines.values(), color=framecol, linewidth=3)
-            plt.title('Source ' + str(source+1) + ' 0th')
-            print('\n')
-        if all(trace_diag_ok):
-            source_ok.append(True)
-        else:
-            source_ok.append(False)
-        source_brightness.append(np.sum(trace_diag_val))
-        
-    return(source_ok, source_brightness)
-
-def mask_sources_util(im, trace_template, source_list, trace_fluxes,
-                                lower_sigma=0, upper_sigma=2, boxsize=10, save_path=None, show_plot=True):
-    """
-    masks sources in source_list depending on brightness of traces for given source. 
-
-    For bright sources (>upper sigma cutoff), we nan all pixels brighter than a lower sigma cutoff and then fill the nans
-    with the median pixel flux of a box stamp of neighboring pixels.
-
-    For dim sources (<upper sigma cutoff), we use the dim template to simply nan and then median fill all pixels
-    that overlap with the dim template.
-
-    ARGS
-    ---
-    im: 2-D np.array
-        direct image
-    dim_template: 2-D np.array
-        template for masking dim traces
-    bright_template: 2-D np.array
-        template for masking bright traces 
-    source_list: list of tuples
-        list of source positions
-    trace_fluxes: list
-        list of typical trace fluxes to get a sense of how bright each source/trace is (takes 95th percentile flux of trace)
-
-    KWARGS
-    ---
-    lower_sigma: fl
-        lower sigma cutoff for filling in pixels with nans using bright template
-    upper_sigma: fl
-        upper sigma cutoff for determining which traces are bright vs dim
-    boxsize: int
-        size of box to do median fill of sources/traces
-    save_path: str
-        if not None, the filepath to save a .fits file of masked image to. default is None
-    show_plot: bool
-        if True, shows plot of masked image. default is True
-    
-    output: 2-D np.array
-        returns masked image
-    """
-    print('Masking sources.')
-    traces = np.where(trace_template==1)
-    
-    lower_sigma_cutoff = np.median(im)+lower_sigma*np.std(im)
-    upper_sigma_cutoff = np.median(im)+upper_sigma*np.std(im)
-
-    #for dim traces, we use the source template. for bright traces, we use the bigger mask template
-    trace_x = np.array([], dtype=int)
-    trace_y = np.array([], dtype=int)
-
-    #we create two separate lists of traces based on trace flux
-    for i in range(len(source_list)):
-        trace_x = np.append(trace_x, traces[1]+source_list[i][0]-500)
-        trace_y = np.append(trace_y, traces[0]+source_list[i][1]-500)
-
-
-    #we replace pixels that overlap with the trace template that are brigher than a lower sigma cutoff with nans 
-    for i in range(len(trace_x)):
-        if im[trace_y[i]][trace_x[i]] > lower_sigma_cutoff:
-            im[trace_y[i]][trace_x[i]] = np.nan
-    #then we fill in these nans with the median of a box stamp centered on the pixel
-    for i in range(len(trace_x)):
-        if np.isnan(im[trace_y[i]][trace_x[i]]):
-            im[trace_y[i]][trace_x[i]] = np.nanmedian(im[trace_y[i]-boxsize//2:trace_y[i]+boxsize//2,
-                                                                  trace_x[i]-boxsize//2:trace_x[i]+boxsize//2])
-    
-    if save_path is not None:
-        fits.writeto(save_path, im, overwrite=True)
-    
-    if show_plot:
-        plt.figure(figsize=(5, 5))
-        plt.title('Masked image', fontsize=15)
-        plt.imshow(im, origin='lower', vmin=0, vmax=1000)
-        plt.colorbar()
-        plt.show()
-        
-    return im
-
-def find_sources_in_direct_image_v2(im, ref_frame, out_fp=None, sigma_threshold=1, grid_res=18,
-                    neighborhood_size=50, perc_threshold=95, bgd_subt_perc_threshold=98,
-                   mask_fp=None, boxsize=10, show_plots=True,verbose=True):
-    """
-    cross correlates input WIRC+POL image with a reference template to look for sources in image.
-    
-    ARGS
-    ----
-    im: 2-D np.array
-        input image
-    ref_frame: 2-D np.array
-        reference template for cross correlation
-
-    KWARGS
-    ------
-    out_fp: str
-        filepath to save plots to
-    sigma_threshold: fl
-        sigma cutoff for determining which maxima are sources
-    grid_res: int
-        pixel resolution for grid search
-    neighborhood_size: fl
-        search radius size in which to look for maxima in image
-    perc_threshold: fl
-        percentile threshold for to be considered a potential source in cross correlation grid
-    bgd_subt_perc_threshold: fl
-        percentile for filtering background noise before searcing for maxima in image
-    boxsize: int
-        search box size for replacing masked sources with median of surrounding pixels
-        
-    OUTPUT
-    ---
-    OUT(1):list of source positions ordered by brightest flux to least
-    OUT(2):list of corresponding trace fluxes (taking 90th percentile flux pixel) ordered from highest to lowest
-    """
-    if verbose:
-        print('Finding sources')
-    im_x = im.shape[1]
-    im_y = im.shape[0]
-    ref_x = ref_frame.shape[1]
-    ref_y = ref_frame.shape[0]
-    #modeling four quadrants of image
-    bar_width=120
-    im_ctr = (1024, 1070) #(x, y)
-    
-    upper_left = np.zeros((2048, 2048), dtype=bool)
-    upper_right = np.zeros((2048, 2048), dtype=bool)
-    lower_left = np.zeros((2048, 2048), dtype=bool)
-    lower_right= np.zeros((2048, 2048), dtype=bool)
-
-    upper_left[1070+bar_width//2:,:1024-bar_width//2]=True # (x, y) = (964,918)
-    upper_right[1070+bar_width//2:,1024+bar_width//2:]=True # (x, y) = (964, 918)
-    lower_left[:1070-bar_width//2,:1024-bar_width//2]=True # (x, y) = (964, 1010)
-    lower_right[:1070-bar_width//2,1024+bar_width//2:]=True # (x, y) = (964, 1010)
-
-    #modeling four different sections of bar
-    top_bar = np.zeros((2048, 2048), dtype=bool)
-    right_bar = np.zeros((2048, 2048), dtype=bool)
-    left_bar = np.zeros((2048, 2048), dtype=bool)
-    bottom_bar = np.zeros((2048, 2048), dtype=bool)
-
-    top_bar[1070+bar_width//2:,1024-bar_width//2:1024+bar_width//2]=True
-    right_bar[1070-bar_width//2:1070+bar_width//2, 1024+bar_width//2:]=True
-    left_bar[1070-bar_width//2:1070+bar_width//2, :1024-bar_width//2]=True
-    bottom_bar[:1070-bar_width//2,1024-bar_width//2:1024+bar_width//2]=True
-
-    center = np.zeros((2048, 2048), dtype=bool)
-    center[1070-bar_width//2:1070+bar_width//2, 1024-bar_width//2:1024+bar_width//2]=True
-    
-    #reshaping models to correct dimensions
-    UL = im[upper_left].reshape(918, 964)
-    UR = im[upper_right].reshape(918, 964)
-    LL = im[lower_left].reshape(1010, 964)
-    LR = im[lower_right].reshape(1010, 964)
-
-    TB = im[top_bar].reshape(918,bar_width)
-    RB = im[right_bar].reshape(bar_width, 964)
-    LB = im[left_bar].reshape(bar_width, 964)
-    BB = im[bottom_bar].reshape(1010,bar_width)
-
-    ctr = im[center].reshape(bar_width, bar_width)
-    
-    #subtract off median bar value for determining accurate flux of traces that overlap with the bar
-    TB = TB - np.median(TB)
-    RB = RB - np.median(RB)
-    LB = LB - np.median(LB)
-    BB = BB - np.median(BB)
-    
-    #set all pixels with flux less than a set percentile threshold to zero to eliminate mask and bar background
-    UL[np.where(UL<np.percentile(UL,bgd_subt_perc_threshold))]=0
-    UR[np.where(UR<np.percentile(UR,bgd_subt_perc_threshold))]=0
-    LL[np.where(LL<np.percentile(LL,bgd_subt_perc_threshold))]=0
-    LR[np.where(LR<np.percentile(LR,bgd_subt_perc_threshold))]=0
-    
-    TB[np.where(TB<np.percentile(TB,bgd_subt_perc_threshold))]=0
-    RB[np.where(RB<np.percentile(RB,bgd_subt_perc_threshold))]=0
-    LB[np.where(LB<np.percentile(LB,bgd_subt_perc_threshold))]=0
-    BB[np.where(BB<np.percentile(BB,bgd_subt_perc_threshold))]=0
-    
-    ctr[np.where(ctr<np.percentile(ctr,bgd_subt_perc_threshold))]=0
-    
-    #recombine image segments together to produce background subtracted image
-    top = np.hstack((UL, TB, UR))
-    middle = np.hstack((LB, ctr, RB))
-    bottom = np.hstack((LL, BB, LR))
-    
-    sub_im = np.vstack((bottom, middle, top))
-    
-    y, x = np.indices(im.shape)
-    
-    #do a grid search cross correlation between reference and percentile cut input frame
-    #grid = np.asarray([[np.correlate(sub_im[0+grid_res*y:ref_y+grid_res*y, 0+grid_res*x:ref_x+grid_res*x].ravel(), 
-    #                                ref_frame.ravel())[0] for x in range((im_x-ref_x)//grid_res)] for y in range((im_y-ref_y)//grid_res)])
-    #fftconvolve is way faster than the last step
-    grid = signal.fftconvolve(sub_im,ref_frame,mode='valid')
-    #zoom interpolates grid by grid_res factor
-    ##grid = scipy.ndimage.zoom(grid, grid_res)
-    
-    #find local maxima in cross correlation grid
-    grid_max = filters.maximum_filter(grid, neighborhood_size)
-    maxima = (grid == grid_max)
-    grid_min = filters.minimum_filter(grid, neighborhood_size)
-    diff = ((grid_max - grid_min) > np.percentile(grid_max-grid_min, perc_threshold))
-    maxima[diff == 0] = 0
-
-    #convert these local maxima to source positions in input image
-    labeled, num_objects = ndimage.label(maxima)
-    slices = ndimage.find_objects(labeled)
-    x, y = [], []
-    for dy,dx in slices:
-        x_center = (dx.start + dx.stop - 1)/2
-        x.append(x_center)
-        y_center = (dy.start + dy.stop - 1)/2    
-        y.append(y_center)
-    
-    sources_x = [(i + ref_frame.shape[1]//2 - ((im_x-ref_x) % grid_res)) for i in x]
-    sources_y = [(j + ref_frame.shape[0]//2 - ((im_y-ref_y) % grid_res)) for j in y]
-    
-    sources_x_UL = np.asarray(sources_x)+constants.dUL[0]
-    sources_y_UL = np.asarray(sources_y)+constants.dUL[1]
-    
-    sources_x_UR = np.asarray(sources_x)+constants.dUR[0]
-    sources_y_UR = np.asarray(sources_y)+constants.dUR[1]
-    
-    sources_x_LL = np.asarray(sources_x)+constants.dLL[0]
-    sources_y_LL = np.asarray(sources_y)+constants.dLL[1]
-    
-    sources_x_LR = np.asarray(sources_x)+constants.dLR[0]
-    sources_y_LR = np.asarray(sources_y)+constants.dLR[1]
-        
-    #time to sort through potential sources and keep ones that satisfy sigma cutoff
-    sources = []
-    trace_fluxes = []
-    ref_traces = np.where(ref_frame==1)
-    
-    for i in range(len(sources_x)):    
-        trace_x = ref_traces[1]+sources_x[i]-ref_frame.shape[1]//2
-        trace_y = ref_traces[0]+sources_y[i]-ref_frame.shape[0]//2
-        
-        #estimates trace flux using background subtracted image
-        trace_flux = int(np.percentile((sub_im[(trace_y.astype(int), trace_x.astype(int))]), 95))
-        
-        #we only keep sources greater than sigma cutoff
-        if trace_flux>(np.median(im)+sigma_threshold*np.std(im)):
-            sources.append((int(sources_x[i]), int(sources_y[i])))
-            trace_fluxes.append(trace_flux)
-    
-    #sort sources by flux from brightest to faintest
-    ordered_sources = [pos for _,pos in sorted(zip(trace_fluxes, sources))]
-    ordered_sources.reverse()
-    trace_fluxes.sort(reverse=True)
-
-    if show_plots:
-        vmax = np.percentile(im, 98)
-        #plots 
-        f, ax = plt.subplots(2, 2, figsize=(10, 10))
-        #input frame
-        ax[0][0].set_title('Input frame', fontsize=15)
-        ax[0][0].imshow(im, origin='lower', vmin=0, vmax=vmax)
-        #background subtracted input frame
-        ax[0][1].set_title('Filtered input frame', fontsize=15)
-        ax[0][1].imshow(sub_im, origin='lower', vmin=0, vmax=vmax)
-        #cross correlation grid
-        ax[1][0].set_title('Potential sources in CC Grid', fontsize=15)
-        ax[1][0].imshow(grid, origin='lower')
-        ax[1][0].plot(x, y, 'ro')
-        #sources
-        ax[1][1].set_title('Sources ordered by flux', fontsize=15)
-        cbar = ax[1][1].imshow(im, origin='lower', vmin=0, vmax=vmax)
-        for i in range(len(ordered_sources)):
-            ax[1][1].plot(ordered_sources[i][0], ordered_sources[i][1], 'ro')
-            ax[1][1].annotate(str(i+1), (ordered_sources[i][0]+21, ordered_sources[i][1]+21), color='r', fontsize=15)
-        f.subplots_adjust(right=0.92)
-        cbar_ax = f.add_axes([0.95, 0.1, 0.03, 0.8])
-        f.colorbar(cbar, cax=cbar_ax)
-        if out_fp is not None:
-            plt.savefig(out_fp, bbox_inches = 'tight')
-        plt.show()
-    if verbose:    
-        if not ordered_sources:
-            print('No sources found.')
-        else:
-            print('Source positions ordered by flux: {}'.format(ordered_sources))
-            print('Trace fluxes: {}'.format(trace_fluxes))
-    
-    return ordered_sources, trace_fluxes
 
 def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seeing, plot = False):
     #Previously named coarse_regis
@@ -823,7 +415,7 @@ def find_sources_in_direct_image(direct_image, mask, threshold_sigma, guess_seei
     """    
 
     locations = []
-    if type(direct_image) == np.ndarray:
+    if direct_image != None:
         
         #First find sources in the slitless area        
         
@@ -1026,6 +618,7 @@ def fit_gaussian_to_cutout(cutout, seeing_pix):
     #print(res[0].amplitude.value, res[0].x_stddev.value)
     return res
 
+
 def pointFinder(image, seeing_pix, threshold):
     """Take an image file and identify where point sources are. This is done by utilizing
     Scipy maximum and minimum filters.
@@ -1049,7 +642,7 @@ def pointFinder(image, seeing_pix, threshold):
     cutouts = find_objects(labeled) #get cutouts of area with objects    
     return cutouts
 
-def locationInIm(wl, location_in_fov, filter_name = 'J'):
+def locationInIm(wl, location_in_fov):
     """compute for a source at the location_in_fov (y,x) in pixel scale, where
     4 traces would land in the actual detector.
     Outputs: A list of [x,y] location for [Q1, Q2, U1, U2], rounded
@@ -1057,50 +650,38 @@ def locationInIm(wl, location_in_fov, filter_name = 'J'):
     Used by cutout_trace_thumbnails
     """
     #Use measured values from test data
-    if filter_name == 'J':
-        l0 = 1.2483
-    elif filter_name == 'H':
-        l0 = 1.6313
-    dwl = wl-l0 #This compute the deviation from J band where the offsets were measured
+    dwl = wl-1.25 #This compute the deviation from J band where the offsets were mesured
     dpx = round(dwl/(wlPerPix))
 
     traceLocation = [ [ 453+location_in_fov[0]+dpx, -435 + location_in_fov[1]-dpx],\
-                    [  -455+location_in_fov[0]-dpx,  455+ location_in_fov[1]+dpx], \
-                    [   450+location_in_fov[0]+dpx,  455+location_in_fov[1]+dpx], \
+                    [  -465+location_in_fov[0]-dpx,  445+ location_in_fov[1]+dpx], \
+                    [   440+location_in_fov[0]+dpx,  449+location_in_fov[1]+dpx], \
                     [  -445+location_in_fov[0]-dpx, -455+location_in_fov[1]-dpx]]
     return np.array(traceLocation)
 
     #Functions for spectral image
 
-def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = None, verbose=False):
+def cutout_trace_thumbnails(image, locations, flip = True, filter_name = 'J', sub_bar = True, mode = 'pol', cutout_size = 80, verbose=False):
     '''
     This function Extracts the thumbnails of each trace for a given image give a locations list. 
     image - the image where you want to extract the traces
-    locations - the locations in the image that you want to use as a basis for extraction [y,x] format
+    locations - the locations in the image that you want to use as a basis for extraction
     flip - An optional switch that allows you to flip all the trace thumbnails to be orientated in the same direction 
             (i.e. wavelength increasing in the same direction)
     filter_name  - the filter. This determines the cutout size.
     mode - use either 'pol' or 'spec'.  If set to spec, return cutouts at positions of input positions
-    cutout_size - instead of auto-selecting cutout size, allow this as input. Leave as None if you want this auto-selected
+    cutout_size - instead of auto-selecting cutout size, allow this as input 
     '''
-
 
     if mode == 'pol':
         if filter_name == 'J':
-            if cutout_size == None:
-                cutout_size = 80 #Make cutout of each trace. This has to chage for J/H bands: was 80, then 150, now 80 agian.
-            lb = J_lam
+            cutout_size = 150 #Make cutout of each trace. This has to chage for J/H bands: was 80
         elif filter_name == 'H':
-            if cutout_size == None:
-                cutout_size = 200 #was 150
-            lb = H_lam
+            cutout_size = 200 #was 150
         else:
-            if verbose:
-                print('Filter name %s not recognized, assuming J, and use given cutout_size' %filter_name)
-            if cutout_size == None:
+            if Verbose:
+                print('Filter name %s not recognized, assuming J' %filter_name)
                 cutout_size = 80
-            lb = J_lam
-
 
     if mode == 'spec':
         if cutout_size is None:
@@ -1463,8 +1044,8 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
         #return all_res_even, bkg, flux, var
     return cutout - bkg, bkg
 
-def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_mask=False,mode='pol',fractional_fit_type = None):
-
+# @profile
+def findTrace(thumbnail, poly_order = 2, weighted = False, plot = False, diag_mask=False,mode='pol'):
     """
     mode='pol' or 'spec'
     
@@ -1477,7 +1058,6 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
     At the location of maximum flux, it calls traceWidth to get the stddev of 
     the gaussian fit to the trace at that location.
     """
-
     peaks = []
     peak_size = []
     
@@ -1490,7 +1070,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
 
 
     if diag_mask and mode=='pol':
-        mask = makeDiagMask(np.shape(thumbnail)[0],70)
+        mask = makeDiagMask(np.shape(thumbnail)[0],25)
         thumbnail[~mask] = 0.0
         # plt.imshow(thumbnail)
     
@@ -1498,7 +1078,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
         peaks +=[ np.argmax(thumbnail[:,i]) ] 
         peak_size += [np.max(thumbnail[:,i])]
         bkg += [np.std(np.concatenate((thumbnail[:bkg_length,i],thumbnail[-bkg_length:,i])))]
-      
+
     bkg = np.array(bkg)
     # print np.shape(bkg)
     # print np.shape(peak_size)
@@ -1520,122 +1100,33 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
         width = thumbnail.shape[1] #x size of thumbnail
         if mode=='pol':
             weights[(xinds < width/2 - 15) | (xinds > width/2+15)] = 0.
-            p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
         if mode=='spec':
-            #we shoot outward from the column with the maximal peak
-            #the second we drop below 50% of that value, set a cutoff
-            #then, only fit the trace between the cutoffs
-            max_peak = np.max(peak_size)
-            max_ind = np.argmax(peak_size)
-            upper_x = width
-            lower_x = 0
-            for i in range(max_ind, width):
-                if peak_size[i] < 0.5 * max_peak:
-                    upper_x = i
-                    break
-            for i in range(max_ind, 0, -1):
-                if peak_size[i] < 0.5 * max_peak:
-                    lower_x = i
-                    break
-            weights[:lower_x] = 0
-            weights[upper_x:] = 0
             #If the peaks are less than 10% of the brightest peak, set their weight to zero. 
-            #weights[weights < 0.5* np.max(weights)] = 0.
-            peaks_spline = copy.deepcopy(peaks)
-            #getting the spline interpolated positions
-            #fit each column from lower_x to upper_x with a spline and use the spline maxima for fitting peak_size
-            for i in range(lower_x, upper_x):
-                x = np.arange(0, len(thumbnail[:,i]), 1)
-                y = thumbnail[:,i]
-                #throwing out the negative values from shift and subtract to make interpolation better
-                inds = np.where(y > 0.1 * np.max(y))
-                x = x[inds]
-                y = y[inds]
-                xnew = np.arange(np.min(x), np.max(x), 0.1)
-                ynew = np.zeros(len(xnew))
-                if fractional_fit_type == 'spline':
-                    f = interp1d(x, y, kind = 'cubic')
-                    ynew = f(xnew)
-                elif fractional_fit_type == 'cubic':
-                    p = np.polyfit(x, y, 3)
-                    ynew = np.polyval(p, xnew)
-                elif fractional_fit_type =='gaussian':
-                    def gauss(x, A, mu, sigma):
-                        return A*np.exp(-(x-mu)**2/(2.*sigma**2))
-                    coeff, cov = curve_fit(gauss, x, y, p0=[np.max(y),i,5], maxfev = 15000)
-                    ynew = gauss(xnew, *coeff)
-                peaks_spline[i] = xnew[np.argmax(ynew)]
-            if fractional_fit_type is not None:
-                p = np.polyfit(range(np.shape(thumbnail)[1]), peaks_spline, poly_order, w = weights)
-            else:
-                p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
+            weights[weights < 0.1* np.max(weights)] = 0.
+            if plot:  #print out locations of masked pixels when making plots
+                print(np.where(weights==0))
+
+        p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order, w = weights)
     else:
-        weights = np.ones(len(peaks))
         p = np.polyfit(range(np.shape(thumbnail)[1]), peaks, poly_order)
 
     fit = np.polyval(p,range(np.shape(thumbnail)[1]))
+    
+    if plot:
+        plt.plot(peaks)
+        plt.plot(fit)
 
-    #now the angle
-    #second to last element of p is the linear order.
-   # print(p[-2])
-    angle = np.degrees(np.arctan(p[-2]))
 
-    #Now for the trace width, mask irrelevent area to prevent traceWidth trying to fit weird places in the image
-    on_trace = np.abs(fit-peaks) < 5 #5 pixels
-    x_bigpeak = np.nanargmax(peak_size*on_trace) #set "peaks" that are not on trace to zero
+    #Now for the trace width
+    x_bigpeak = np.argmax(peak_size)
     y_bigpeak = peaks[x_bigpeak]
     width = traceWidth(thumbnail, (y_bigpeak, x_bigpeak), bkg_length)
 
-
-
-    if plot:
-        # to_plot = np.where(weights == 0, 0, 1)
-        #print('Plotting')
-        #plt.plot(peaks_spline*to_plot)
-        plt.imshow(thumbnail, origin = 'lower')
-        #plt.plot(to_plot)
-        plt.plot(fit)
-        plt.plot(peaks)
-        try:
-            plt.title('Width = %.2f, angle = %.2f'%(width, angle))
-        except:
-            plt.title('Error in width or angle')
-        plt.show()
-
+    #now the angle
+    #second to last element of p is the linear order.
+    angle = np.degrees(np.arctan(p[-2]))
 
     return peaks, fit, width, angle
-
-def trace_location_along_x(thumbnail, angle, template_width = 70, plot = 0):
-    """
-    find the location of the trace along the x axis. This is to automate
-    the broadband aperture photometry in spec_utils
-    Inputs: thumbnail: a 2D array of the image
-    Output: x_loc: the x locaiton of the center of the trace
-    """
-
-    sum_im = np.sum(thumbnail, axis = 0) #sum the image along the y axis
-
-    #create a template
-    length= len(sum_im)
-    width = template_width #* np.abs(np.cos(np.radians(angles)))
-    template = np.zeros(length) 
-    template[ int(length/2 - width/2) : int(length/2 + width/2)] = 1 #1's in the center
-    # print(np.sum(template))
-
-    #cross correlation
-    corr = scipy.signal.fftconvolve(sum_im, template)
-
-
-    if plot:
-        fig,ax = plt.subplots(1,2)
-        ax[0].plot(shift(sum_im/np.max(sum_im), -(np.nanargmax(corr) - int(length) +1)))
-        ax[0].plot(template)
-        ax[1].plot(np.arange(-length+1, length), corr)
-	#ax[1].plot(corr)
-
-        plt.show()
-
-    return np.nanargmax(corr) - int(length/2) +1 #the x center of the trace
 
 def fitFlux(flux_vec, seeing_pix = 4):
     """
@@ -1706,26 +1197,6 @@ def sub_bkg_shift_and_mask(source, plot=False):
             ax1.imshow(~n_mask, alpha=0.3)
         
     return source
-
-def recenter_traces(source, plot=False,diag_mask = False):
-    '''
-    Cross correlate the thumbnails to a mask then shift the traces to the center
-    '''
-
-    for i in range(4):
-        mask = np.ndarray.astype(trace_masks[i],bool)
-
-        image = source.trace_images[i]
-        mask = makeDiagMask(np.shape(thumbnail)[0],70)
-        
-        thumbnail[~mask] = 0.0
-        shift_vals = chi2_shift(image, mask, zeromean=False, verbose=False, return_error=True)
-        source.trace_images[i] = shift(source.trace_images[i], (shift_vals[1],shift_vals[0]))
-        if source.trace_bkg is not None:
-            source.trace_bkg[i] = shift(source.trace_bkg[i], (shift_vals[1],shift_vals[0]))
-    
-    return source
-
 
 def mask_and_sub_bkg(thumbnail, index, plot=False, xlow=30,xhigh=130,ylow=30,yhigh=130):
     '''
@@ -1804,6 +1275,7 @@ def mask_and_2d_fit_bkg(thumbnail, index, polynomial_order = 2, plot=False, xlow
     #Return and image of the same size as thumbnail, only containing the measured background level
     return thumbnail*0.+bkg_est
 
+
 def traceWidth(trace, location, fit_length):
     """
     traceWidth fits a Gaussian across the trace (in the spatial direction) at the given location 
@@ -1823,296 +1295,16 @@ def traceWidth(trace, location, fit_length):
         print('Given location and fit_length fall of the trace image.')
         return None
     else:
-        #create a flux vector
-        ypos = []
-        xpos = []
+        #create a flux vector 
         flux = np.zeros(2*fit_length)
         for i in range(2*fit_length):
-            ypos.append(location[0] - fit_length + i)
-            xpos.append(location[1] - fit_length + i)
             flux[i] = trace[location[0] - fit_length + i , location[1] - fit_length + i ]
-    #    plt.show()
-    #    plt.imshow(trace, origin = 'lower')
-    #    plt.plot(xpos, ypos, 'r-')
-    #    plt.show()
         #fit parameters
         x = range(len(flux))
         gauss = models.Gaussian1D(mean = np.argmax(flux), stddev = 4, amplitude = np.max(flux))#, bounds = {'stddev':[-5,5]}) 
         poly = models.Polynomial1D(2)  
         f = fitting.LevMarLSQFitter()
 
-        # res = f(gauss+poly, x, flux)
-        res = f(gauss, x, flux)
+        res = f(gauss+poly, x, flux)
 
-        # return res[0].stddev.value
-        return res.stddev.value
-
-def traceWidth_after_rotation(trace, fitlength = 10):
-    collapsed = np.sum(trace, axis = 1)              #collapsing trace along x axis
-    x = range(len(collapsed))
-    
-    gauss = models.Gaussian1D(mean = np.argmax(collapsed), stddev = 3, amplitude = np.max(collapsed))
-    f = fitting.LevMarLSQFitter()
-    res = f(gauss, x, collapsed)                     #fitting collapsed trace to a gaussian
-    return res.stddev.value                          #returning standard deviation
-       
-def clean_thumbnails_for_cosmicrays(thumbnails, method='lacosmic',thumbnails_dq=None, nsig=3):
-    '''
-    Tries to identify cosmic rays, by looking for pixels 5-sigma about the background, after masking out the trace. 
-    It then adds them to the DQ frame
-    Note, this doesn't do anything for cosmic rays very close to the trace. 
-
-    Inputs: 
-        thumbnails - a [4,n,n]  array that has 4 thumbnails, each of dimension n x n pixels. 
-        thumbnails_dq  - a [4,n,n] shaped array that has 4 thumbnails representing the dataquality frame of each thumbnail
-        nsig - pixels above this many sigma away from the median will be rejected. 
-    '''
-    if method == 'old':
-    
-        bp_masks = []
-        for i in range(4):
-            mask = make_source_mask(thumbnails[i,:,:],snr=nsig,npixels=5,dilate_size=5)
-            mean,median,std = sigma_clipped_stats(thumbnails[i,:,:],sigma=3.0,mask=mask)
-
-            bpmask = (np.abs(thumbnails[i,:,:]-median) > nsig*std) & ~(mask)
-
-            for bpx,bpy in [(np.where(bpmask)[0],np.where(bpmask)[1])]:
-                thumbnails[0,bpx,bpy] = np.nanmedian(thumbnails[0,bpx[0]-2:bpx[0]+2,bpy[1]-2:bpy[1]+2])
-
-            # if thumbnails_dq is not None:
-                # bp_mask = thumbnails_dq[i] | bpmask
-            thumbnails_dq[i][np.where(bpmask)] = 4
-
-            # bp_masks.append(bpmask)
-
-        return thumbnails, thumbnails_dq
-
-    if method == 'lascosmic':
-        import ccdproc
-        # A downside to this method is that it doesn't update the DQ frame. 
-        
-        for i in range(4):
-            thumbnails[i,:,:] = ccdproc.cosmicray_lacosmic(thumbnails[i,:,:], sigclip=nsig)[0]
-        return thumbnails, thumbnails_dq
-
-def smooth_cutouts(thumbnails,method='gaussian',width=3):
-    '''
-    A function to smooth the thumbnails
-    '''
-    if method != "gaussian" and method != "median":
-        print('Only "gaussian" thumbnail smoothing is implemented')
-        return
-
-    if method == "gaussian":
-        filter_type = gauss
-    elif method == 'median':
-        filter_type = median_filter
-    else:
-        print('Only "gaussian" and "median" thumbnail smoothing are implemented')
-        print('Returning')
-        return        
-
-    if len(thumbnails.shape) == 3:
-        for i in range(thumbnails.shape[0]):
-            thumbnails[i] = filter_type(thumbnails[i],width)
-    elif len(thumbnails.shape) == 2:
-        thumbnails = filter_type(thumbnails,width)
-    else:
-        print("Your thumbnails shape is weird and needs to be checked. It should either me [n_images,x,y] or just x,y")
-
-    return
-
-def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size=80, fit_width=3,
-    trace_mask_width=16,comb_method='median',low_start = 30, high_end= 130,
-    vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=60):
-    '''
-    A function to subtract the background from the slit and only the slit, 
-    by masking out the source and fitting the rest of the background. 
-
-    Inputs: 
-        full_image - A full WIRC+Pol data image. 
-    Keyword arguments:
-        band       - The observing band. Only J-band is implemented so far
-        box_size    - The size for the cutouts around the spectra
-        fid_width   - The vertical half-width that is used to estimate the background in each line
-        trace_mask_width - How much to mask out around the source - full width [pixels]
-        comb_method - How do you want to combine the rows vertically, options are 'median' or 'mean'
-        low_start  - Where do we want to start the background subtraction (row number in the box defined by box_size)
-        high_end - Where do we want to end the backgroudn subtraction (row number in the box defined by box_size)
-        tol - The tolerance for the fitting, passed to scipy.optimize.minimize
-    Outputs: 
-        bkg_image - A background image
-
-    
-    '''
-
-    #TODO: Try and somehow check the data and make sure we're not using old-slit data. 
-
-    if band != 'J':
-        raise ValueError("We can only do slit_background subtraction in the J-band for now")
-    
-    #Set up a mask to help us out here: 
-    mask = makeDiagMask(box_size*2,mask_size)
-    mask = np.array(mask,dtype=float)
-    mask[mask==0.] = np.nan
-
-    #The list of source positions we will use to make the background area we want is centered well
-    source_pos_list = [(1022, 1033),(1050, 1050),(1030, 1050),(1020, 1070)]
-
-    #Setup all the inputs for parallelizing
-    inputs = []
-    for i in range(4):
-
-        if (i<2):
-            this_mask = mask
-        else:
-            this_mask = mask[:,::-1]
-
-        traceLocation = locationInIm(J_lam, source_pos_list[i]).astype(int)
- 
-        cutout = full_image[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
-                                    traceLocation[i][0]-box_size:traceLocation[i][0]+box_size]
-
-        if bad_pixel_mask is not None:
-            local_DQ = bad_pixel_mask[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
-                                    traceLocation[i][0]-box_size:traceLocation[i][0]+box_size]
-            cutout = calibration.cleanBadPix(cutout, local_DQ, replacement_box = 5)
-        
-        #Setup the inputs for the parallization
-        inputs.append((cutout,this_mask,low_start,high_end,comb_method,fit_width,trace_mask_width,tol))
-
-    
-    #Set up the parallelization
-    pool = mp.Pool(processes=4)
-
-    #Run the fitting
-    outputs = pool.map(_generate_one_slit_background,inputs)
-    # import pdb;pdb.set_trace()
-    bkg_image = copy.deepcopy(full_image)
-    for i in range(4):
-        source_pos_list = [(1022, 1033),(1050, 1050),(1030, 1050),(1020, 1070)]
-        traceLocation = locationInIm(J_lam, source_pos_list[i]).astype(int)
-        bkg_image[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
-        traceLocation[i][0]-box_size:traceLocation[i][0]+box_size] = outputs[i]
-    
-    if plot: 
-        fig,axes = plt.subplots(3,4,figsize=(20,15))
-        for i in range(4):
-            axes[0,i].imshow(inputs[i][0],vmin=vmin,vmax=vmax,origin='lower')
-            axes[1,i].imshow(outputs[i],vmin=vmin,vmax=vmax,origin='lower')
-            axes[2,i].imshow(inputs[i][0]-outputs[i],vmin=vmin,vmax=vmax,origin='lower')
-        axes[0,0].set_ylabel("Data",fontsize=30)
-        axes[1,0].set_ylabel("Background Model",fontsize=30)
-        axes[2,0].set_ylabel("Residuals",fontsize=30)
-        plt.tight_layout()
-        plt.show()
-
-    return bkg_image
-
-def _smoothed_tophat(x,size):
-    '''
-    A helper function that helps fit to the background of subtract_slit_background 
-    '''
-    # print(size)
-    start = int(x[0]*size)
-    end = int(x[1]*size)
-    notch=int(x[2]*size)
-    
-    # print(start,end,notch)
-    smooth_size = x[3]
-    height=x[4]
-    offset = x[5]
-    
-    tophat = np.zeros([int(size)])
-    tophat += offset
-    tophat[start:notch] += height
-    
-    if start < 0:
-        start = 0
-        
-    if end >= notch:
-        end=notch-1
-    if end < 0:
-        end = 0
-    
-    if notch<0:
-        notch=0
-    
-    #Add in a notch
-    if notch > size:
-        notch=size
-    rangge = notch-end
-    slope = -height/rangge
-    
-    # print(notch, end, rangge)
-    tophat[end:notch] -= -slope*np.arange(rangge)
-    
-    tophat_sm = sn.gaussian_filter(tophat,smooth_size)
-    
-    return tophat_sm
-
-def _generate_one_slit_background(inputs):
-
-    cutout = inputs[0]
-    this_mask = inputs[1]
-    low_start = inputs[2]
-    high_end = inputs[3]
-    method = inputs[4]
-    fit_width = inputs[5]
-    trace_mask_width = inputs[6]
-    tol = inputs[7]
-    
-    bkg_cutout = copy.deepcopy(cutout)
-    
-    mask_bkg_cutout = this_mask*bkg_cutout
-    mask_cutout = this_mask*cutout
-    
-    #Get the median in the upper and lower areas - Assuming a half-box_size of 80
-    background_area = np.vstack([mask_bkg_cutout[:30],mask_bkg_cutout[130:]])
-
-    def resids(x,data,size):
-        residuals = data-_smoothed_tophat(x,size=size)
-        return residuals[residuals == residuals]
-
-    def to_minimize(x,data,size):
-        return np.nansum( 2*(1+resids(x,data,size)**2)**0.5-1) #Soft_l1 - This seems to work best so far. 
-        # return np.nansum(np.log(1+(resids(x,data,size)**2))) #Cauchy loss
-        # return np.nansum(np.arctan((resids(x,data,size)**2))) #Arctan loss
-
-    #Now loop!    
-    for i in range(low_start,high_end): 
-        
-        if method == 'mean':
-            cut = np.nanmean(mask_cutout[i-fit_width+1:i+fit_width],axis=0)
-        else:
-            cut = np.nanmedian(mask_cutout[i-fit_width+1:i+fit_width],axis=0)
-        
-        #Find the non-masked range
-        i0 = np.min(np.where(cut == cut))
-        iend = np.max(np.where(cut == cut))
-
-        #Cut it out
-        small_cut = cut[i0:iend]
-        cut_size = small_cut.shape[0]
-
-        #Mask out the source by finding the brightest pixel
-        source_mask = np.ones(cut_size)
-        source_pos = np.where(small_cut == np.max(small_cut))[0][0] #The maximum
-        source_low = source_pos-trace_mask_width//2
-        if source_low < 0:
-            source_low = 0
-        source_high = source_pos+trace_mask_width//2
-        if source_high > source_mask.shape[0]:
-            source_high = source_mask.shape[0]
-            
-        source_mask[source_low:source_high] = np.nan #Mask out the source
-        masked_cut = small_cut*source_mask
-
-        #First guess at this width. 
-        x0 = [0.2,0.67,0.84,8,np.nanmedian(small_cut[40:80])-np.nanmedian(small_cut[:20]),np.nanmedian(small_cut[:20])]
-        
-        #Now minimize
-        mini = so.minimize(to_minimize,x0,args=(masked_cut,masked_cut.size),method='Nelder-Mead',tol=1e-6)
-
-        bkg_cutout[i,i0:iend] = _smoothed_tophat(mini.x,masked_cut.size)
-    return bkg_cutout
+        return res[0].stddev.value

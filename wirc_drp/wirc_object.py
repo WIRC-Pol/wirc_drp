@@ -45,7 +45,7 @@ class wirc_data(object):
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True, 
         dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, 
-        cross_correlation_template=None, trace_template=None, verbose = True):
+        cross_correlation_template=None, trace_template=None, verbose = True,clear_sources=False):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file,
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once.
@@ -59,7 +59,7 @@ class wirc_data(object):
         elif wirc_object_filename is not None:
             if verbose:
                 print("Loading a wirc_data object from file {}".format(wirc_object_filename))
-            self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image)
+            self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image,clear_sources=clear_sources)
 
         elif raw_filename is not None:
             if verbose:
@@ -321,7 +321,7 @@ class wirc_data(object):
         else:
             print("Data already calibrated")
     
-    def generate_bkg(self, method='shift_and_subtract', bkg_fn=None, ref_lib=None, num_PCA_modes=None, bkg_by_quadrants=False, destripe=False,
+    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, ref_lib=None, num_PCA_modes=None, bkg_by_quadrants=False, destripe=False,
         shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
         """
         Generates a model of the background using a variety of possible methods and then saves it to self.bkg_image:
@@ -341,8 +341,10 @@ class wirc_data(object):
         #PCA background subtraction
         if method == 'PCA':
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if ref_lib is None:
+            if bkg_fns is None:
                 ref_lib = self.ref_lib
+            else:
+                ref_lib = bkg_fns
 
             if num_PCA_modes is not None:
                 if ref_lib is not None:
@@ -361,33 +363,54 @@ class wirc_data(object):
         elif method =='median_ref':
 
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if ref_lib is None:
+            if bkg_fns is None:
                 ref_lib = self.ref_lib
+            else:
+                ref_lib = bkg_fns
 
             if ref_lib is not None:
-                bkg_frames = []
-                for i in range(len(ref_lib)):
-                    bkg_frames.append(fits.getdata(ref_lib[i]))
-                if verbose:
-                    print('Subtracting background using median reference frame.')
-                self.bkg_image = np.nanmedian(np.array(bkg_frames), axis=0)
+
+                if len(ref_lib) == 1:
+                    self.bkg_image  = fits.getdata(ref_lib[0])
+                else:
+                    bkg_frames = []
+                    for i in range(len(ref_lib)):
+                        bkg_frames.append(fits.getdata(ref_lib[i]))
+                    if verbose:
+                        print('Subtracting background using median reference frame.')        
+                    self.bkg_image = np.nanmedian(np.array(bkg_frames), axis=0)        
             else:
                 print('Must provide a list of reference files to perform PCA subtraction, either as a keyword argument "ref_lib" or in self.ref_lib.')
-
 
         #using background frame that you manually give it
         elif method == 'scaled_bkg':
             
             #If no background file is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if bkg_fn is None:
-                bkg_fn = self.bkg_fn
+            if bkg_fns is None:
+                bkg_fns = self.ref_lib
 
-            if bkg_fn is not None: 
+            if bkg_fns is not None: 
+
+                #Check to see if we have a list of files. If so, we take the median
+                if  not isinstance(bkg_fns, str):
+                    # import pdb; pdb.set_trace()
+                    if len(bkg_fns) == 1:
+                        background  = fits.getdata(bkg_fns[0])
+                        background_hdu = fits.open(bkg_fns[0]) #Grab the last header
+                    else:
+                        bkg_frames = []
+                        for i in range(len(bkg_fns)):
+                            bkg_frames.append(fits.getdata(bkg_fns[i]))    
+                        background_hdu = fits.open(bkg_fns[i]) #Grab the last header
+                        background = np.nanmedian(np.array(bkg_frames), axis=0) 
+                else:
+                    #Just open the one file!
+                    background_hdu = fits.open(bkg_fns)
+                    background = background_hdu[0].data
+
                 if verbose:
                     print('Subtracting background using scaled background frame.')
-                
-                background_hdu = fits.open(bkg_fn)
-                background = background_hdu[0].data
+                                
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
                 
                 #Check if background is already reduced
@@ -442,12 +465,15 @@ class wirc_data(object):
 
                 self.bkg_image = background
 
-                #Update the header
-                self.header['HISTORY'] = "Generated scaled background frame {}".format(self.bkg_fn)
-                self.header['BKG_FN'] = bkg_fn
+                if len(bkg_fns) == 1:
+                    #Update the header
+                    self.header['HISTORY'] = "Generated scaled background frame {}".format(self.bkg_fn)
+                    self.header['BKG_FN'] = bkg_fns
+                else: 
+                    self.header['HISTORY'] = "Generated a scaled background based on the median of a big background list"
                     
             else:
-                print('Must give wirc object a bkg_fn in order to use this method.')        
+                print('Must give wirc object a bkg_fns in order to use this method.')        
 
         elif method == 'simple_median':
             print('Subtracting median pixel value from frame.')
@@ -720,7 +746,7 @@ class wirc_data(object):
             print("Saving a wirc_object to {}".format(wirc_object_filename));
         hdulist.writeto(wirc_object_filename, overwrite=overwrite)
 
-    def load_wirc_object(self, wirc_object_filename, load_full_image = True, verbose=True):
+    def load_wirc_object(self, wirc_object_filename, load_full_image = True, verbose=True, clear_sources=False):
         '''
         Read in the wircpol_object file from a fits file
 
@@ -793,6 +819,9 @@ class wirc_data(object):
 
             #TODO: This is temporary and needs fixing. 
             self.bkg_image = None
+
+            if clear_sources:
+                self.n_sources=0
 
             #Create one source object for each source and append it to source_list
             self.source_list = []
@@ -1059,8 +1088,8 @@ class wirc_data(object):
         if update_w_chi2_shift:
             im = copy.deepcopy(self.full_image)
 
-            if self.bkg_fn is not None and sub_bkg:
-                im -= fits.open(self.bkg_fn)[0].data
+            if self.bkg_image is not None and sub_bkg:
+                im -= bkg_image
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)
