@@ -6,7 +6,7 @@ Created on Thu Aug 11 16:15:52 2016
 image_simulation
 These are functions used to simulate an image based on a given spectrum.
 """
-import sys, os
+import sys, os, copy
 
 cur = os.getcwd()
 cur = cur.split('/')[:-1]
@@ -438,4 +438,9 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4):
 
         injected_image = injectSource(image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_name)
 
-        
+        #create a new HDU list to save to
+        out_file = copy.deepcopy(input_im)
+        out_file[0].data =  injected_image
+        new_name = 'injected_'+filelist.split('/')[-1] 
+        out_file.writeto(out_path+new_name)
+
