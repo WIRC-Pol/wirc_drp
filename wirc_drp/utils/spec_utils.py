@@ -69,7 +69,7 @@ def frame_rotate(array, angle, imlib='opencv', interpolation='bicubic', cxy=None
     array : array_like 
         Input frame, 2d array.
     angle : float
-        Rotation angle.
+        Rotation angle in degree.
     imlib : {'opencv', 'skimage'}, str optional
         Library used for image transformations. Opencv is faster than ndimage or
         skimage.

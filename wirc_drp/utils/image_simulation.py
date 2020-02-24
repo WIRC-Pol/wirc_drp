@@ -23,6 +23,8 @@ from astropy.convolution import Gaussian2DKernel, convolve,convolve_fft, Box1DKe
 from scipy.ndimage import shift, gaussian_filter, rotate
 from astropy.io import fits 
 
+from wirc_drp.utils.spec_utils import frame_rotate
+
 import time
 import numpy as np
 
@@ -52,10 +54,16 @@ def polarize(wl, spec, polarization, polarization_angle):
     U2 = (I - U)/2
     return [Q1,Q2,U1,U2] #generate 4 flux vectors for image generation
     
-def locationInIm(wl, location_in_fov):
+def locationInIm(wl, location_in_fov, offset_list = None):
     """compute for a source at the location_in_fov (y,x) in pixel scale, where
     4 traces would land in the actual detector.
-    Outputs: A list of [x,y] location for [Q1, Q2, U1, U2], rounded"""
+    Inputs:
+        wl -- the wavelength of the source
+        location_in_fov -- (y,x) coordinates of the zeroth order in pixel
+        offset_list -- a list of length 4, each giving a (dy, dx) offset from 
+                        the calculated trace location. This is to match to real data.
+    Outputs: A list of [x,y] location for [Q1, Q2, U1, U2]
+    rounded"""
     #current assumption: 1.45 micron lands in the middle of the frame
     #update this with Seth's Zemax result
     dwl = wl-1.45 #This compute the deviation from (511,511)
@@ -67,19 +75,36 @@ def locationInIm(wl, location_in_fov):
     #                [1024+ location_in_fov[0]+dpx, 1024+location_in_fov[1]+dpx], \
     #                 [location_in_fov[0]-dpx, location_in_fov[1]-dpx]]
     #New, from measurement: 
-    loc_in_im = [[location_in_fov[0]-dpx, location_in_fov[1]-dpx], \
-                [1024+ location_in_fov[0]+dpx, 1024+location_in_fov[1]+dpx],\
-                [location_in_fov[0]-dpx, 1024+location_in_fov[1]+dpx], \
-                  [1024+location_in_fov[0]+dpx, location_in_fov[1]-dpx]]  
+    #Location of UL, LR, UR, LL trace. Note that coordinates below are BEFORE 45 degree rotation. 
+    if offset_list is None:
+        offset_list = [[0,0]]*4
+    elif len(offset_list) != 4:
+        print("offset_list must be length of 4, offsets for the 4 traces.")
+        offset_list = [[0,0]]*4
+    loc_in_im = [[location_in_fov[0]-dpx      + offset_list[0][0]  , location_in_fov[1]-dpx     + offset_list[0][1]]   ,\
+                [1024+ location_in_fov[0]+dpx + offset_list[1][0] , 1024+location_in_fov[1]+dpx + offset_list[1][1]]   ,\
+                [location_in_fov[0]-dpx       + offset_list[2][0] , 1024+location_in_fov[1]+dpx + offset_list[2][1]]   ,\
+                [1024+location_in_fov[0]+dpx  + offset_list[3][0] , location_in_fov[1]-dpx      + offset_list[3][1] ]]  
     return loc_in_im, dpx
     
-def addTraces(traces, location, mid_wl):
+def addTraces(traces, location, mid_wl, offset_list = None, angle_list = None):
     """addTraces take a list of 4 traces (each an image array) and put it in 4 
     quadrants of a 2048x2048 image according to the given location of the source
     in a 1024x1024 field of view.
     traces are in [Q1,Q2,U1,U2] format.
     Output is the 2048x2048 image"""
-    loc, dpx = locationInIm(mid_wl, location) #given the source location, get locations of 4 traces in the image
+    #Deal with the xy and angle offsets
+    if offset_list is None:
+        offset_list = [[0,0]]*4
+    elif len(offset_list) != 4:
+        print("offset_list must be length of 4, offsets for the 4 traces.")
+        offset_list = [[0,0]]*4
+    if angle_list is None:
+        angle_list = [0]*4
+    elif len(angle_list) != 4:
+        print("offset_list must be length of 4, offsets for the 4 traces.")
+        angle_list = [0]*4
+    loc, dpx = locationInIm(mid_wl, location, offset_list) #given the source location, get locations of 4 traces in the image
     #print('mid_wl', mid_wl)    
     image = np.zeros((2048,2048))
     # traces[0] = traces[0] #Q+   
@@ -91,6 +116,12 @@ def addTraces(traces, location, mid_wl):
     traces[1] = traces[1][:, -1::-1] #Q-
     traces[2] = traces[2][-1::-1, -1::-1] #U+
     traces[3] = traces[3] #U-
+    ###apply angles from angle_list
+    for i in range(4):
+        width = traces[i].shape[0]
+        if angle_list[i] != 0:
+            traces[i] = frame_rotate(traces[i], angle_list[i], cxy=[width/2,width/2])
+    #put it in the full image
     for i in range(4):
         image[int(loc[i][0]-75):int(loc[i][0]+76), int(loc[i][1]-75):int(loc[i][1]+76)] = traces[i]
         #This is because we pick the box for each trace to be 151x151 pixel to accommodate J&H
@@ -246,15 +277,17 @@ def FF(sigma_FF):
     return np.random.normal(1,sigma_FF,(2048,2048))
 
 import matplotlib.pyplot as plt       
-def makeObject(spec, exp_time, seeing_pix, pol_vec, location, filter_name = 'J'):
+def makeObject(spec, exp_time, seeing_pix, pol_vec, location, filter_name = 'J', offset_list = None, angle_list = None):
     """makeObject create a noiseless image of a source with a given spectrum, 
     exp_time, seeing, and the location 
     input: spec = [spec_wl, spec_flux], is the spectrum of the source in energy flux
             exp_time, seeing_pix: self-explanatory
-            pol_vec = [pol_wl, pol, angle], is the polarization spectrum of the source
+            pol_vec = [pol_wl, pol_fraction, pol_angle], is the polarization spectrum of the source
             pol_angle: the polarization angle
             location: (x,y) of the source.
             filter_name: the observing band, J or H
+            offset_list: list of [dy, dx] offsets for the 4 traces
+            angle_list: list of angle offsets (from 45 deg) for the 4 traces
     """
     #Get filter information
     lb,dlb,f0,filter_trans_int, central_wl_pix = getFilterInfo(filter_name)
@@ -309,7 +342,7 @@ def makeObject(spec, exp_time, seeing_pix, pol_vec, location, filter_name = 'J')
     #add traces into image
     #addTraces_time= time.time()
     #image = addTraces(traces, location, (central_wl_pix[-1] + central_wl_pix[0] )/2)
-    image = addTraces(traces, location, lb)
+    image = addTraces(traces, location, lb, offset_list = offset_list, angle_list = angle_list)
     
     #print('addTraces takes ', time.time()- addTraces_time)
     #zeroth order and direct image
@@ -366,8 +399,9 @@ def imageFromSpec(obj_list, exp_time, seeing_pix, angle, bg_mag, bg_sigma, ron, 
 #    direct_im = shift(direct_im,(x_shift,y_shift))
     
     #Introduce some rotation
-    scene = rotate(scene, angle, reshape = False, order = 4)
-    scene[scene<0] = 0
+    # scene = rotate(scene, angle, reshape = False, order = 4)
+    width = scene.shape[0]
+    scene = frame_rotate(scene, angle, cxy=[width/2,width/2]) #replace scipy rotate with opencv bicubic
     #print(scene[scene<0])
     
     #Add sky background
@@ -376,50 +410,85 @@ def imageFromSpec(obj_list, exp_time, seeing_pix, angle, bg_mag, bg_sigma, ron, 
     #print('adding shit takes ', time.time()-addshit_time)
     
     #Poisson noise
+    scene[scene<0] = 0
     scene = shot_noise(scene)
     direct_im = shot_noise(direct_im)
     #print('elapsed three ', time.time()-imFS_start)   
     return scene, direct_im, sky
     
-def injectSource(image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_name):
+def injectSource(base_image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_name, \
+                     offset_list = 'default', angle_list = None):
     """
     injectSource takes an input real image from WIRC, and inject sources from the object list. 
-    Inputs: input_image -- a fits filename of a real image from WIRC+Pol to be injected
-            out_path -- where to put output images. 
+    Inputs: 
+            base_image -- an array of original image to be injected with a fake source
             obj_list -- a list of objects and relevant info in this format:
-                        [spec_wl, spec_flux, (x,y), pol_vec, pol_ang]
-                        pol_vec is given as [[wavelengths],[pol_fraction]]
+                        [spec_wl, spec_flux, (x,y), pol_vec]
+                        pol_vec is given as [[wavelengths],[pol_fraction],[pol_angle]]
             seeing_pix -- FWHM of the seeing in pixel unit. 
-            
-    Output: a fits file of the input_image with all sources from obj_list injected. 
+            offset_list -- list of offsets (y,x), if 'default', use default for each filter
+            angle_list -- list of angle offsets from 45 degree. 
+    Output: a fits file of the input_image with all sources from obj_list injected.
+
+    To do: Make sure to deal with image dimension without using magic numbers. 
     """
+    #Default offsets
+    if offset_list == 'default':
+        if filter_name == 'J':
+            offset_list =  [[-15,-13],[0,20],[-20,0],[10,-5]] #measured from data. This may change depending on source location
+        elif filter_name == 'H':
+            offset_list = [[-20,-15],[5,20],[-20,0],[10,0]]
     #for each object in obj_list, call makeObject and add the result to the frames
+    scene = np.zeros(base_image.shape)
     for i in obj_list:
         #deal with the effect of the HWP
         pol_wl   = i[3][0]
         pol_frac = i[3][1]
         pol_ang  = i[3][2]
         pol_ang += 2*HWP_angle 
-        _, image = makeObject([i[0], i[1]], exp_time, seeing_pix, i[3], i[2], filter_name = filter_name) #good ordering!
+        _, image = makeObject([i[0], i[1]], exp_time, seeing_pix, i[3], i[2], filter_name = filter_name, \
+                                    offset_list = offset_list, angle_list = angle_list) #good ordering!
         # direct_im += direct_image
         scene += image
         
-    #Introduce some rotation
-    scene = rotate(scene, angle = 0, reshape = False, order = 4)
-    scene[scene<0] = 0
+    #Introduce some rotation -- deprecated. Now this is done by defining angle offset for each trace in angle_list. 
+    # scene = rotate(scene, angle = 0, reshape = False, order = 4)
+    # width = scene.shape[0]
+    # scene = frame_rotate(scene, angle = 0, cxy=[width/2,width/2])  #replace scipy rotate with opencv bicubic
+    # scene[scene<0] = 0
     #print(scene[scene<0])
     
     #Poisson noise
+    scene[scene<0] = 0
+
     scene = shot_noise(scene)
 
     return base_image + scene
 
-def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4):
+def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4, \
+                        fake_exp_time = None, offset_list = 'Default', angle_list = None):
+    """
+    Inputs: 
+            filelist -- a list of fits filenames of real images from WIRC+Pol to be injected
+            out_path -- where to put output images. 
+            obj_list -- a list of objects and relevant info in this format:
+                        [spec_wl, spec_flux, (x,y), pol_vec]
+                        pol_vec is given as [[wavelengths],[pol_fraction],[pol_angle]]
+            seeing_pix -- FWHM of the seeing in pixel unit. 
+            fake_exp_time -- if a deliberately wrong exposure time is desired. 
+            offset_list -- list of offsets (y,x), if 'default', use default for each filter
+            angle_list -- list of angle offsets from 45 degree. 
+    """
     for input_image in filelist:
         # Open file
         input_im = fits.open(input_image)
         # Set some parameters
-        exp_time = input_im[0].header['EXPTIME'] * input_im[0].header['COADDS']
+        # Exposure time, use real one unless a fake exposure time is given
+        if fake_exp_time is not None:
+            exp_time = input_im[0].header['EXPTIME'] * input_im[0].header['COADDS']
+        else: 
+            exp_time = fake_exp_time
+        #Set filter name
         filter_str = input_im[0].header['FORE']
         if 'J__' in filter_str:
             filter_name = 'J'
@@ -428,6 +497,13 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4):
         else:
             print('Filter %s not supported. Only J or H'%filter_str)
             return None
+        #Default offsets
+        if offset_list == 'default':
+            if filter_name == 'J':
+                offset_list =  [[-15,-13],[0,20],[-20,0],[10,-5]] #measured from data. This may change depending on source location
+            elif filter_name == 'H':
+                offset_list = [[-20,-15],[5,20],[-20,0],[10,0]]
+
         #This parameter is the image
         image = input_im[0].data
 
@@ -436,7 +512,8 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4):
         #Deal with HWP angle
         HWP_angle = input_im[0].header['HWP_ANG']
 
-        injected_image = injectSource(image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_name)
+        injected_image = injectSource(image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_name, \
+            offset_list = offset_list, angle_list = angle_list)
 
         #create a new HDU list to save to
         out_file = copy.deepcopy(input_im)
@@ -444,3 +521,10 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4):
         new_name = 'injected_'+filelist.split('/')[-1] 
         out_file.writeto(out_path+new_name)
 
+"""
+TO DOs:
+(1) Add different rotation angles for the 4 traces, like real data. (done)
+(2) Add filter transmission profile shift between the top and bottom traces
+(3) Add x,y offset for the 4 traces on top of the transmission profile offset
+
+"""

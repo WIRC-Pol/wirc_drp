@@ -67,8 +67,8 @@ dLR = (442.25, -457.75)
 
 #grating specification
 wlPerPix = 2.83/1000 #wl coverage per diagonal pixel in microns
-#zero order image flux/total flux. 1% for the current spec.
-zero_fraction = 0.01
+#zero order image flux/total flux. 0.5% for the current spec.
+zero_fraction = 0.005
 pg_period = 17 #microns
 
 ###PHYSICAL CONSTANTS
