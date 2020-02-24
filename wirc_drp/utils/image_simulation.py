@@ -521,10 +521,48 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4, \
         print(new_name)
         out_file.writeto(out_path+new_name)
 
-"""
-TO DOs:
-(1) Add different rotation angles for the 4 traces, like real data. (done)
-(2) Add filter transmission profile shift between the top and bottom traces (postponed)
-(3) Add x,y offset for the 4 traces on top of the transmission profile offset (done)
+
 
 """
+TO DOs:
+(0) Helper function to inject different source properties. 
+(1) Add filter transmission profile shift between the top and bottom traces (postponed)
+"""
+
+def fakeSourceCreator(mag, spec_template_fn, pol_template_fn, pos):
+    """
+    Produce a fake source to be put in obj_list for source injection. 
+    Inputs:
+        mag: magnitude in J band
+        spec_template_fn: filename of the spectral shape of the source. The spectrum will be normalized to the given mag ([wl,flux])
+        pol_template_fn: polarization profile file (format [wl, pol, ang])
+        pos: (x,y) position of the target
+        **Note, wl in the 3 vectors should cover the same range. It MUST cover the J band for normalization.
+    Output:
+        a list describing an object. The format is [spec_wl, spec_flux, (x,y), pol_vec], 
+        which is for the source injection functions
+    """
+    spec_template = ascii.read(spec_template_fn)
+    pol_template = ascii.read(pol_template_fn)
+
+    wl = spec_template[0]
+    #interpolate if the wl grid are not the same
+    if pol_template[0] != wl:
+        pol_interp = interp1d(pol_template[0], pol_template[1], bounds_error=False)
+        pol_vec = pol_interp(wl)
+        ang_interp = interp1d(pol_template[0], pol_template[2], bounds_error=False)
+        ang_vec = ang_interp(wl)
+
+    #normalize the flux (assuming given F_lambda)
+    #Get J band info
+    lb,dlb,f0,filter_trans_int, central_wl = getFilterInfo('J')
+    fil_trans = filter_trans_int(wl)
+    #Total flux
+    int_flux = simps(spec_template[1]*fil_trans, wl, dx = wl[1]-wl[0])
+    #J band zero point
+    J_zero_lam = 3.147e-9 #W/m^2/micron (sorry, it's the unit the old function used)
+    desired_flux = J_zero_lam * 10**(-mag/2.5)
+    #Now, this is the actual spectrum in the W/m^2/micron unit at the given mag in J band
+    actual_spec = spec_template[1] * desired_flux/int_flux 
+
+    return [wl, actual_spec, (pos[0],pos[1]), [wl, pol_vec, ang_vec]]
