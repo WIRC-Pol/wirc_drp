@@ -466,7 +466,7 @@ def injectSource(base_image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_
     return base_image + scene
 
 def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4, \
-                        fake_exp_time = None, offset_list = 'Default', angle_list = None):
+                        fake_exp_time = None, offset_list = 'default', angle_list = None):
     """
     Inputs: 
             filelist -- a list of fits filenames of real images from WIRC+Pol to be injected
@@ -484,12 +484,13 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4, \
         input_im = fits.open(input_image)
         # Set some parameters
         # Exposure time, use real one unless a fake exposure time is given
-        if fake_exp_time is not None:
+        if fake_exp_time is None:
             exp_time = input_im[0].header['EXPTIME'] * input_im[0].header['COADDS']
+            # print(exp_time)
         else: 
             exp_time = fake_exp_time
         #Set filter name
-        filter_str = input_im[0].header['FORE']
+        filter_str = input_im[0].header['AFT']
         if 'J__' in filter_str:
             filter_name = 'J'
         elif 'H__' in filter_str:
@@ -497,12 +498,6 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4, \
         else:
             print('Filter %s not supported. Only J or H'%filter_str)
             return None
-        #Default offsets
-        if offset_list == 'default':
-            if filter_name == 'J':
-                offset_list =  [[-15,-13],[0,20],[-20,0],[10,-5]] #measured from data. This may change depending on source location
-            elif filter_name == 'H':
-                offset_list = [[-20,-15],[5,20],[-20,0],[10,0]]
 
         #This parameter is the image
         image = input_im[0].data
@@ -512,19 +507,24 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4, \
         #Deal with HWP angle
         HWP_angle = input_im[0].header['HWP_ANG']
 
+        #debug
+        # print(exp_time, filter_name, HWP_angle)
+
         injected_image = injectSource(image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_name, \
             offset_list = offset_list, angle_list = angle_list)
 
         #create a new HDU list to save to
         out_file = copy.deepcopy(input_im)
         out_file[0].data =  injected_image
-        new_name = 'injected_'+filelist.split('/')[-1] 
+        # out_file[0].header['HISTORY'] += ''
+        new_name = 'injected_'+input_image.split('/')[-1] 
+        print(new_name)
         out_file.writeto(out_path+new_name)
 
 """
 TO DOs:
 (1) Add different rotation angles for the 4 traces, like real data. (done)
-(2) Add filter transmission profile shift between the top and bottom traces
-(3) Add x,y offset for the 4 traces on top of the transmission profile offset
+(2) Add filter transmission profile shift between the top and bottom traces (postponed)
+(3) Add x,y offset for the 4 traces on top of the transmission profile offset (done)
 
 """
