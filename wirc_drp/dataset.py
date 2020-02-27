@@ -315,12 +315,12 @@ parallel=False,n_processes=None):
                     #Package up the arguments (getting the background list looks complicated, 
                     # but is really just a compact version of the non-parallel version): 
                     args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                    outdir,"",verbose,bkg_method,None,False,False) for i,fname in enumerate(filelist)]
+                    outdir,"",verbose,bkg_method,npca,False,False) for i,fname in enumerate(filelist)]
                     outputs = pool.map(extract_single_file_parallel_helper,args) 
 
                     #Now with the update cutout backgrounds
                     args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                    outdir,"",verbose,bkg_method,None,True,False) for i,fname in enumerate(filelist)]
+                    outdir,"",verbose,bkg_method,npca,True,False) for i,fname in enumerate(filelist)]
                     outputs = pool.map(extract_single_file_parallel_helper,args) 
                 #Or not
                 else: 
