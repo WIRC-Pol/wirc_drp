@@ -431,6 +431,8 @@ def find_best_background(list_of_files, separation_threshold = 2, verbose = Fals
     for i in range(len(all_hdr)):
         if best_bkgs[i] is None:
     #         print(i)
+            if verbose:
+                print(list_of_files[i])
             all_dist = np.array([ (coords[i].separation(x)).arcsec for x in coords ])
             far_enough = all_dist > sep_threshold
             same_hwp = hwps == hwps[i]
