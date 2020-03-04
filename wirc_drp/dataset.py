@@ -384,3 +384,46 @@ parallel=False,n_processes=None):
                     if bkg_method != "cutout_median":
                         extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
                         update_cutout_backgrounds=True)
+
+def find_dataset_sources(filelist,output_dir=None,n_processes=None,parallel=True):
+    '''
+    A function that finds all the sources in a given filelist and then re-saves the file. 
+    '''
+
+    if output_dir is None:
+        print("You MUST provide an output directory")
+        return
+
+    output_filenames = [(fname, output_dir+os.path.basename(fname)) for fname in filelist]
+
+    if parallel: 
+        import multiprocessing as mp
+
+        #If the user doesn't provide the number of processes,
+        #Then pick the maximum minus 1
+        if n_processes is None:
+            n_processes = mp.cpu_count() - 1
+
+        #Make the pool
+        pool = mp.Pool(processes=n_processes)
+        
+        #Package up the arguments: 
+        outputs = pool.map(_find_source_and_save,output_filenames) 
+    else: 
+        for paths in zip(filelist,output_filenames): 
+            _find_source_and_save(paths)
+
+def _find_source_and_save(paths):
+    '''
+    A utility function that 
+
+    Input: 
+    paths   -   A tuple of the form (original_path,output_path)
+    '''
+
+    tmp_data = wo.wirc_data(wirc_object_filename=paths[0])
+    tmp_data.find_sources_v2(show_plots=False)
+    tmp_data.save_wirc_object(paths[1],verbose=False)
+
+
+
