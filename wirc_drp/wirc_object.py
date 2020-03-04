@@ -140,6 +140,8 @@ class wirc_data(object):
             self.n_sources = 0
             self.source_list = []
             self.source_positions = []
+
+        self.cross_correlation_template = None
     
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, stable_bad_pix_map = 'default', get_bad_pix_from_master_dark = True,
                   destripe_raw = False, destripe=False, verbose=False,  report_median = False,
@@ -843,10 +845,12 @@ class wirc_data(object):
                 except KeyError:
                     new_source = wircpol_source([xpos,ypos],slit_loc, i)
 
-
-                new_source.trace_images             = copy.deepcopy(hdulist[(2*i)+2].data[0:4]) #finds the i'th source image data in the hdulist, first 4 are raw images
-                new_source.trace_images_DQ          = copy.deepcopy(hdulist[(2*i)+2].data[4:8])
-                new_source.trace_images_extracted   = copy.deepcopy(hdulist[(2*i)+2].data[8:] )#last 4 images are from which extraction is done.
+                try: 
+                    new_source.trace_images             = copy.deepcopy(hdulist[(2*i)+2].data[0:4]) #finds the i'th source image data in the hdulist, first 4 are raw images
+                    new_source.trace_images_DQ          = copy.deepcopy(hdulist[(2*i)+2].data[4:8])
+                    new_source.trace_images_extracted   = copy.deepcopy(hdulist[(2*i)+2].data[8:] )#last 4 images are from which extraction is done.
+                except: 
+                    print("Some error extracting cutout images. Maybe they weren't saved.")
 
                 #finds the table data of the TableHDU corresponding to the i'th source
                 big_table = copy.deepcopy(hdulist[(2*i)+3].data )
@@ -1089,7 +1093,7 @@ class wirc_data(object):
             im = copy.deepcopy(self.full_image)
 
             if self.bkg_image is not None and sub_bkg:
-                im -= bkg_image
+                im -= self.bkg_image
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)
@@ -1479,9 +1483,26 @@ class wircpol_source(object):
         #TODO: It would be good to have lowcut and highcut only apply to the calculation, and not affect the data at this point (I think)
 
         """
-        aligned = self.spectra_aligned
 
-        if aligned: #do wavelength calibration to Qp, then apply it to eveerything else
+        #Calibrate using a spectrum we trust (at least kind of) - This is because this method isn't as reliable for BDs
+        if method ==3: 
+            ## Read in a spectrum for spectral alignment
+            cal_spec = np.load("/scr/data/Other_Files/Tinyanont_2018_Fig6/HD109055_set2.npy")[:,:,84:-60]
+            # First we get the wavelength calibration
+            wvs = spec_utils.rough_wavelength_calibration_v2(cal_spec[0,1], 'J')
+            wvs = np.pad(wvs,2,mode='edge')
+            
+            #Now we cross-correlate with the know spectrum
+            self.trace_spectra = spec_utils.align_spectral_cube(self.trace_spectra[None],ref_trace=cal_spec[0,1])[0]
+            self.trace_spectra[0,0,:] = wvs
+            self.trace_spectra[1,0,:] = wvs
+            self.trace_spectra[2,0,:] = wvs
+            self.trace_spectra[3,0,:] = wvs
+             
+
+        aligned = self.spectra_aligned
+        
+        if aligned: #do wavelength calibration to Qp, then apply it to everything else
             if method == 1:
                 self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
                 self.trace_spectra[1,0,:] = self.trace_spectra[0,0,:]
@@ -1493,6 +1514,7 @@ class wircpol_source(object):
                 self.trace_spectra[2,0,:] = self.trace_spectra[0,0,:]
                 self.trace_spectra[3,0,:] = self.trace_spectra[0,0,:]
 
+            
         else:
             if method == 1:
                 self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
