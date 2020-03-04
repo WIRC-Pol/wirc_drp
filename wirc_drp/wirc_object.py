@@ -900,7 +900,8 @@ class wirc_data(object):
             hdulist.close()
             #print ("ending iteration #",i)
 
-    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
+    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,
+    update_w_chi2_shift=False,verbose=False):
         """
         Finds the number of sources in the image.
 
@@ -920,10 +921,10 @@ class wirc_data(object):
 		#make sure the source_list format is correct
         if self.bkg_image is not None:
             loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image-self.bkg_image, self.cross_correlation_template, 
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)    
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)    
         else:
             loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, 
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)
 
 
         if len(loc_list) >= 1:
