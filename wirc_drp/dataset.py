@@ -73,17 +73,18 @@ parallel=False,n_processes=None):
                         n_processes = mp.cpu_count() - 1
 
                     #Make the pool
-                    pool = mp.Pool(processes=n_processes)
-                    
-                    #Package up the arguments: 
-                    args = [(fname,source_pos,bkg_fnames,
-                    outdir,"",verbose,bkg_method,npca,False,False) for fname in filelist]
-                    outputs = pool.map(extract_single_file_parallel_helper,args) 
+                    with mp.Pool(processes=n_processes) as pool:
+                    # pool = mp.Pool(processes=n_processes)
+                        
+                        #Package up the arguments: 
+                        args = [(fname,source_pos,bkg_fnames,
+                        outdir,"",verbose,bkg_method,npca,False,False) for fname in filelist]
+                        outputs = pool.map(extract_single_file_parallel_helper,args) 
 
-                    #Now with the update cutout backgrounds
-                    args = [(fname,source_pos,bkg_fnames,
-                    outdir,"",verbose,bkg_method,npca,True,False) for fname in filelist]
-                    outputs = pool.map(extract_single_file_parallel_helper,args) 
+                        #Now with the update cutout backgrounds
+                        args = [(fname,source_pos,bkg_fnames,
+                        outdir,"",verbose,bkg_method,npca,True,False) for fname in filelist]
+                        outputs = pool.map(extract_single_file_parallel_helper,args) 
                 #Or not
                 else: 
                 
@@ -117,18 +118,19 @@ parallel=False,n_processes=None):
                     n_processes = mp.cpu_count() - 1
 
                 #Make the pool
-                pool = mp.Pool(processes=n_processes)
+                with mp.Pool(processes=n_processes) as pool:
+                # pool = mp.Pool(processes=n_processes)
                 
-                #Package up the arguments: 
-                args = [(fname,source_pos,bkg_fnames,
-                outdir,"",verbose,bkg_method,None,False,False) for fname in filelist]
-                outputs = pool.map(extract_single_file_parallel_helper,args) 
-
-                if bkg_method != "cutout_median":
-                    #Now with the update cutout backgrounds
+                    #Package up the arguments: 
                     args = [(fname,source_pos,bkg_fnames,
-                    outdir,"",verbose,bkg_method,None,True,False) for fname in filelist]
+                    outdir,"",verbose,bkg_method,None,False,False) for fname in filelist]
                     outputs = pool.map(extract_single_file_parallel_helper,args) 
+
+                    if bkg_method != "cutout_median":
+                        #Now with the update cutout backgrounds
+                        args = [(fname,source_pos,bkg_fnames,
+                        outdir,"",verbose,bkg_method,None,True,False) for fname in filelist]
+                        outputs = pool.map(extract_single_file_parallel_helper,args) 
 
             else:
 
@@ -144,7 +146,7 @@ parallel=False,n_processes=None):
             # pass
             
 def extract_single_file(filename,source_pos, bkg_fnames,output_path = "./",output_suffix="",verbose=True,
-bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_image = False):
+bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_image = False,sub_bar = False):
     '''
     Opens a file, generates a background image, extracts the source spectra and then saves them to the output path
 
@@ -167,7 +169,7 @@ bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_ima
     wp_source = tmp_data.source_list[0]
     wp_source.get_cutouts(tmp_data.full_image,tmp_data.DQ_image,'J',
                             replace_bad_pixels=True,method='interpolate',
-                            bkg_image = tmp_data.bkg_image)
+                            bkg_image = tmp_data.bkg_image,sub_bar=sub_bar)
     
     if bkg_method == "cutout_median":
         wp_source.generate_cutout_backgrounds(update=False)
@@ -253,22 +255,34 @@ n_processes=None):
 
 def reduce_dataset_distance(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
-"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,delta_ra= 0.0015,
+"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,delta_ra=10,
 parallel=False,n_processes=None):
     '''
     A version of reduce_dataset that has an ra distance cutoff to use in determining what background to use. 
     '''
 
-    ## Get all the RAS
-    list_of_headers = []
-    for i in filelist:
-        list_of_headers += [fits.getheader(i)]
-    #closest in time, some distance away, same HWP
-    all_hdr = list_of_headers
-    #get some useful quantities
-    coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
-    ras = np.array([x.ra.degree for x in coords])
+    ### Get all the RAS
+    ## Old Version
+    # list_of_headers = []
+    # for i in filelist:
+    #     list_of_headers += [fits.getheader(i)]
+    # #closest in time, some distance away, same HWP
+    # all_hdr = list_of_headers
+    # #get some useful quantities
+    # coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
+    # ras = np.array([x.ra.degree for x in coords]) #In units of degrees
 
+    if less_verbose:
+        print("Finding Source Positions")
+    sources = find_dataset_sources(filelist,output_dir=output_path,parallel=parallel,no_save=True)
+    source_positions = []
+    for fnames,sources in sources:
+        source_distances = [np.sqrt((source[0]-source_pos[1])**2+(source[1]-source_pos[0])**2) for source in sources]
+        source_positions.append(sources[np.where(source_distances == np.min(source_distances))[0][0]])
+    source_positions = np.array(source_positions)
+    ras = source_positions[:,1] #Now in units of pixels
+    if less_verbose:
+        print("")
 
     #Set up all the directories and filenames: 
     # fnames = np.sort(glob.glob(filelist))
@@ -310,18 +324,19 @@ parallel=False,n_processes=None):
                         n_processes = mp.cpu_count() - 1
 
                     #Make the pool
-                    pool = mp.Pool(processes=n_processes)
+                    with mp.Pool(processes=n_processes) as pool:
+                    # pool = mp.Pool(processes=n_processes)
                     
-                    #Package up the arguments (getting the background list looks complicated, 
-                    # but is really just a compact version of the non-parallel version): 
-                    args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                    outdir,"",verbose,bkg_method,npca,False,False) for i,fname in enumerate(filelist)]
-                    outputs = pool.map(extract_single_file_parallel_helper,args) 
+                        #Package up the arguments (getting the background list looks complicated, 
+                        # but is really just a compact version of the non-parallel version): 
+                        args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
+                        outdir,"",verbose,bkg_method,npca,False,False) for i,fname in enumerate(filelist)]
+                        outputs = pool.map(extract_single_file_parallel_helper,args) 
 
-                    #Now with the update cutout backgrounds
-                    args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                    outdir,"",verbose,bkg_method,npca,True,False) for i,fname in enumerate(filelist)]
-                    outputs = pool.map(extract_single_file_parallel_helper,args) 
+                        #Now with the update cutout backgrounds
+                        args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
+                        outdir,"",verbose,bkg_method,npca,True,False) for i,fname in enumerate(filelist)]
+                        outputs = pool.map(extract_single_file_parallel_helper,args) 
                 #Or not
                 else: 
                 
@@ -357,20 +372,21 @@ parallel=False,n_processes=None):
                     n_processes = mp.cpu_count() - 1
 
                 #Make the pool
-                pool = mp.Pool(processes=n_processes)
+                with mp.Pool(processes=n_processes) as pool:
+                # pool = mp.Pool(processes=n_processes)
                 
-                #Package up the arguments (getting the background list looks complicated, 
-                # but is really just a compact version of the non-parallel version): 
-                args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                outdir,"",verbose,bkg_method,None,False,False) for i,fname in enumerate(filelist)]
-                outputs = pool.map(extract_single_file_parallel_helper,args) 
-
-                # import pdb; pdb.set_trace()
-                if bkg_method != "cutout_median":
-                    #Now with the update cutout backgrounds
+                    #Package up the arguments (getting the background list looks complicated, 
+                    # but is really just a compact version of the non-parallel version): 
                     args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                    outdir,"",verbose,bkg_method,None,True,False) for i,fname in enumerate(filelist)]
+                    outdir,"",verbose,bkg_method,None,False,False) for i,fname in enumerate(filelist)]
                     outputs = pool.map(extract_single_file_parallel_helper,args) 
+
+                    # import pdb; pdb.set_trace()
+                    if bkg_method != "cutout_median":
+                        #Now with the update cutout backgrounds
+                        args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
+                        outdir,"",verbose,bkg_method,None,True,False) for i,fname in enumerate(filelist)]
+                        outputs = pool.map(extract_single_file_parallel_helper,args) 
 
             else:
 
@@ -384,3 +400,59 @@ parallel=False,n_processes=None):
                     if bkg_method != "cutout_median":
                         extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
                         update_cutout_backgrounds=True)
+
+def find_dataset_sources(filelist,output_dir=None,n_processes=None,parallel=True,no_save=False):
+    '''
+    A function that finds all the sources in a given filelist and then re-saves the file. 
+
+    Returns a list showing the filenames and found sources
+    '''
+
+    if output_dir is None:
+        print("You MUST provide an output directory")
+        return
+
+    output_filenames = [(fname, output_dir+os.path.basename(fname),no_save) for fname in filelist]
+
+    if parallel: 
+        import multiprocessing as mp
+
+        #If the user doesn't provide the number of processes,
+        #Then pick the maximum minus 1
+        if n_processes is None:
+            n_processes = mp.cpu_count() - 1
+
+        #Make the pool
+        with mp.Pool(processes=n_processes) as pool:
+        # pool = mp.Pool(processes=n_processes)
+        
+            #Package up the arguments: 
+            outputs = pool.map(_find_source_and_save,output_filenames) 
+    else: 
+        outputs = []
+        for file_names in zip(output_filenames): 
+            outputs.append(_find_source_and_save(file_names))
+    
+    return outputs
+
+def _find_source_and_save(paths):
+    '''
+    A utility function that 
+
+    Input: 
+    paths   -   A tuple of the form (original_path,output_path)
+    '''
+
+    tmp_data = wo.wirc_data(wirc_object_filename=paths[0],verbose=False)
+    tmp_data.find_sources_v2(show_plots=False,verbose=False)
+
+    #If not no_save
+    if not paths[2]:
+        tmp_data.save_wirc_object(paths[1],verbose=False)
+
+    source_poses = [source.pos for source in tmp_data.source_list]
+
+    return paths[0],source_poses
+
+
+

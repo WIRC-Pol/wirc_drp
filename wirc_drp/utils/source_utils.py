@@ -10,6 +10,7 @@ from astropy.io import fits
 from wirc_drp.utils import spec_utils as su
 from wirc_drp.utils.image_utils import findTrace
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib as mpl
 
 
@@ -1425,166 +1426,204 @@ def truncate(value, limits=[0, 160]):
     return value
 
 
-def fit_aperture(source, exp_time, x_stretch=1, y_stretch=1, interp_factor=10, verbose=True, plot=True, savefig=None):
-    """
-    fits racetrack aperture to trace cutouts from a WIRC+Pol source.
-    
-    returns list of nan masked apertures 
-    """
+def fit_aperture(source, exp_time, stretch=1, plot=True, savefig=None, verbose=True,
+                trace_len=90, trace_wid=8, fit_trace=False, interp_factor=10):
+
     gain = 1.2 #[e-/ADU]. 
     read_noise = 12 #[e-]
     dark_current = 1 #[e-/s]
     dark_current_noise = dark_current*exp_time
-
+    
     apertures = []
-    bkg_masks = []
     total_flux = []
-    bkg_noise = []
     SNRs = []
     trace_labels = ['UL', 'LR', 'UR', 'LL']
     
     for k in range(4):
-        interp_factor = 10
+
         im = source.trace_images[k]
         bkg = source.trace_bkg[k]
-        
+        orig_im = source.trace_images[k]
+
         im = im - bkg
+        
+        yy, xx = np.indices(im.shape)
 
         peak, fit, width, angle = findTrace(im, weighted=True, plot=False)
 
         angle=angle*np.pi/180
 
-        trace = np.array([im[truncate(fit.astype(int)[i])][i] for i in range(len(fit))])
+        #if true, we automatically fit the trace dimensions using length and width of FWHM 
+        if fit_trace:
+            trace = np.array([im[truncate(fit.astype(int)[i])][i] for i in range(len(fit))])
 
-        yy, xx = np.indices(im.shape)
+            yy, xx = np.indices(im.shape)
 
-        results = quantize_peaks(trace, lag=20, threshold=5, influence=0, show_plot=plot)
+            results = quantize_peaks(trace, lag=10, threshold=4, influence=0, show_plot=plot)
 
-        mean_peak = np.mean(trace[np.where(results["signals"]>0)][10:-10])
+            mean_peak = np.mean(trace[np.where(results["signals"]>0)][10:-10])
 
-        index = np.where(results["signals"]>0)[0]
+            index = np.where(results["signals"]>0)[0]
 
-        if verbose:
-            print("Mean peak flux = {}".format(mean_peak))
+            if verbose:
+                print("Mean peak flux = {}".format(mean_peak))
 
-        peak_indices = missing_elements(np.where(trace<.5*mean_peak)[0])
+            peak_indices = missing_elements(np.where(trace<.5*mean_peak)[0])
 
-        FWHM = peak_indices[-1]-peak_indices[0]
+            FWHM = peak_indices[-1]-peak_indices[0]
 
-        if verbose:
-            print("FWHM = {} px".format(FWHM))
+            if verbose:
+                print("FWHM = {} px".format(FWHM))
 
-        if plot:
-            plt.figure()
-            plt.plot(trace[np.where(results["signals"]>0)])
-            plt.axvline(peak_indices[0] - index[0], ymin=0, ymax=1, color='r', ls='--', label='FWHM = {}'.format(FWHM))
-            plt.axvline(peak_indices[-1] - index[0], ymin=0, ymax=1, color='r', ls='--')
-            plt.axhline(mean_peak, 10/len(trace[np.where(results["signals"]>0)]),
-                        (len(trace[np.where(results["signals"]>0)])-11)/len(trace[np.where(results["signals"]>0)]),
-                        color='k', ls='--', label='Mean peak value = {}'.format(np.round(mean_peak, 2)))
-            plt.legend()
-            plt.show()
-            plt.close()
+            if plot:
+                plt.figure()
+                plt.plot(trace[np.where(results["signals"]>0)])
+                plt.axvline(peak_indices[0] - index[0], ymin=0, ymax=1, color='r', ls='--', label='FWHM = {}'.format(FWHM))
+                plt.axvline(peak_indices[-1] - index[0], ymin=0, ymax=1, color='r', ls='--')
+                plt.axhline(mean_peak, 10/len(trace[np.where(results["signals"]>0)]),
+                            (len(trace[np.where(results["signals"]>0)])-11)/len(trace[np.where(results["signals"]>0)]),
+                            color='k', ls='--', label='Mean peak value = {}'.format(np.round(mean_peak, 2)))
+                plt.legend()
+                plt.show()
+                plt.close()
 
-        peak_index = (peak_indices[0]+peak_indices[-1])//2
+            peak_index = (peak_indices[0]+peak_indices[-1])//2
 
-        p_fit = perp_fit(fit, (peak_index, fit[peak_index]))
+            p_fit = perp_fit(fit, (peak_index, fit[peak_index]))
 
-        p_trace = np.array([im[p_fit.astype(int)[i]][i] for i in range(len(fit))])
+            p_trace = np.array([im[p_fit.astype(int)[i]][i] for i in range(len(fit))])
 
-        #interpolate perp trace to better calculate FWHM
-        p_trace_interp = interp1d(np.arange(len(p_trace)), p_trace)(np.linspace(0, len(fit)-1, len(fit)*interp_factor))
+            #interpolate perp trace to better calculate FWHM
+            p_trace_interp = interp1d(np.arange(len(p_trace)), p_trace)(np.linspace(0, len(fit)-1, len(fit)*interp_factor))
 
-        if plot:
-            plt.figure()
-            plt.title('Perpendicular trace')
-            plt.plot(p_trace)
-            plt.show()
-            plt.close()
+            if plot:
+                plt.figure()
+                plt.title('Perpendicular trace')
+                plt.plot(p_trace)
+                plt.show()
+                plt.close()
 
-        p_results = quantize_peaks(p_trace_interp, lag=20*interp_factor, threshold=5, influence=0, show_plot=plot)
+            p_results = quantize_peaks(p_trace_interp, lag=20*interp_factor, threshold=5, influence=0, show_plot=plot)
 
-        p_peak = np.max(p_trace_interp)
+            p_peak = np.max(p_trace_interp)
 
-        p_index = np.where(p_results["signals"]>0)[0]
+            p_index = np.where(p_results["signals"]>0)[0]
 
-        if verbose:
-            print("Peak flux = {}".format(p_peak))
+            if verbose:
+                print("Peak flux = {}".format(p_peak))
 
-        p_peak_indices = missing_elements(np.where(p_trace_interp<.5*p_peak)[0])
+            p_peak_indices = missing_elements(np.where(p_trace_interp<.5*p_peak)[0])
 
-        p_peak_index = int(np.where(p_trace_interp==np.max(p_trace_interp))[0][0]/interp_factor)
+            p_peak_index = int(np.where(p_trace_interp==np.max(p_trace_interp))[0][0]/interp_factor)
 
-        p_FWHM = (p_peak_indices[-1]-p_peak_indices[0])/interp_factor
+            p_FWHM = (p_peak_indices[-1]-p_peak_indices[0])/interp_factor
 
-        if verbose:
-            print("FWHM = {} px".format(p_FWHM))
+            if verbose:
+                print("FWHM = {} px".format(p_FWHM))
 
-        if plot:
-            plt.figure()
-            plt.title('Perpendicular trace peak')
-            plt.plot(p_trace_interp[np.where(p_results["signals"]>0)])
-            plt.axvline(p_peak_indices[0] - p_index[0], ymin=0, ymax=1, color='r', ls='--', label='FWHM = {}'.format(p_FWHM))
-            plt.axvline(p_peak_indices[-1] - p_index[0], ymin=0, ymax=1, color='r', ls='--')
-            plt.axhline(p_peak, (p_peak_indices[0] - p_index[0])/len(p_trace_interp[np.where(p_results["signals"]>0)]),
-                        (p_peak_indices[-1] - p_index[0])/len(p_trace_interp[np.where(p_results["signals"]>0)]),
-                        color='k', ls='--', label='Peak value = {}'.format(np.round(p_peak, 2)))
-            plt.legend()
-            plt.show()
-            plt.close()
+            if plot:
+                plt.figure()
+                plt.title('Perpendicular trace peak')
+                plt.plot(p_trace_interp[np.where(p_results["signals"]>0)])
+                plt.axvline(p_peak_indices[0] - p_index[0], ymin=0, ymax=1, color='r', ls='--', label='FWHM = {}'.format(p_FWHM))
+                plt.axvline(p_peak_indices[-1] - p_index[0], ymin=0, ymax=1, color='r', ls='--')
+                plt.axhline(p_peak, (p_peak_indices[0] - p_index[0])/len(p_trace_interp[np.where(p_results["signals"]>0)]),
+                            (p_peak_indices[-1] - p_index[0])/len(p_trace_interp[np.where(p_results["signals"]>0)]),
+                            color='k', ls='--', label='Peak value = {}'.format(np.round(p_peak, 2)))
+                plt.legend()
+                plt.show()
+                plt.close()
 
-        if verbose:
-            print("trace ctr = {}".format((peak_index, int(fit[peak_index]))))
-        x_ctr, y_ctr = peak_index, int(fit[peak_index])
+            if verbose:
+                print("trace ctr = {}".format((peak_index, int(fit[peak_index]))))
+            x_ctr, y_ctr = peak_index, int(fit[peak_index])
 
-        circ1 = (xx-x_ctr-x_stretch*FWHM/2)**2+(yy-y_ctr)**2
-        circ2 = (xx-x_ctr+x_stretch*FWHM/2)**2+(yy-y_ctr)**2
-        ends = np.logical_or((circ1<p_FWHM*y_stretch**2), (circ2<p_FWHM*y_stretch**2)).astype(float)
-        
-        box_x = np.logical_and((xx>x_ctr-x_stretch*FWHM/2), (xx<x_ctr+x_stretch*FWHM/2))
-        box_y = np.logical_and((yy>y_ctr-y_stretch*p_FWHM/2),(yy<y_ctr+y_stretch*p_FWHM/2))
-        box = np.logical_and(box_x, box_y).astype(float)
-        
-        racetrack = np.logical_or(box, ends).astype(float)
+            circ1 = (xx-x_ctr-x_stretch*FWHM/2)**2+(yy-y_ctr)**2
+            circ2 = (xx-x_ctr+x_stretch*FWHM/2)**2+(yy-y_ctr)**2
+            ends = np.logical_or((circ1<p_FWHM*y_stretch**2), (circ2<p_FWHM*y_stretch**2)).astype(float)
+            
+            box_x = np.logical_and((xx>x_ctr-x_stretch*FWHM/2), (xx<x_ctr+x_stretch*FWHM/2))
+            box_y = np.logical_and((yy>y_ctr-y_stretch*p_FWHM/2),(yy<y_ctr+y_stretch*p_FWHM/2))
+            box = np.logical_and(box_x, box_y).astype(float)
+            
+            racetrack = np.logical_or(box, ends).astype(float)
 
-        xp = (xx-x_ctr)*np.cos(angle) + (yy-y_ctr)*np.sin(angle) + x_ctr
-        yp = -(xx-x_ctr)*np.sin(angle) + (yy-y_ctr)*np.cos(angle) + y_ctr
+            xp = (xx-x_ctr)*np.cos(angle) + (yy-y_ctr)*np.sin(angle) + x_ctr
+            yp = -(xx-x_ctr)*np.sin(angle) + (yy-y_ctr)*np.cos(angle) + y_ctr
 
-        racetrack = np.nan_to_num(np.round(map_coordinates(racetrack, (yp, xp), cval=np.nan))).astype(bool)
+            racetrack = np.nan_to_num(np.round(map_coordinates(racetrack, (yp, xp), cval=np.nan))).astype(bool)     
+
+            
+        #otherwise we use the default values given in the kwarg
+        else:
+            diff = peak-fit.astype(int)
+
+            s = np.where(abs(diff)<5)[0]
+            maxrun = -1
+            rl = {}
+            for x in s:
+                run = rl[x] = rl.get(x-1, 0) + 1
+                if run > maxrun:
+                    maxend, maxrun = x, run
+
+            trace_x = np.arange(maxend-maxrun+1, maxend+1)
+
+            x_ctr, y_ctr = trace_x[len(trace_x)//2], fit[trace_x].astype(int)[len(trace_x)//2]
+
+            circ1 = (xx-x_ctr-stretch*trace_len/2)**2+(yy-y_ctr)**2
+            circ2 = (xx-x_ctr+stretch*trace_len/2)**2+(yy-y_ctr)**2
+            ends = np.logical_or((circ1<(trace_wid*stretch)**2), (circ2<(trace_wid*stretch)**2)).astype(float)
+
+            box_x = np.logical_and((xx>x_ctr-stretch*trace_len/2), (xx<x_ctr+stretch*trace_len/2))
+            box_y = np.logical_and((yy>y_ctr-stretch*trace_wid/2),(yy<y_ctr+stretch*trace_wid/2))
+            box = np.logical_and(box_x, box_y).astype(float)
+
+            racetrack = np.logical_or(box, ends).astype(float)
+
+            xp = (xx-x_ctr)*np.cos(angle) + (yy-y_ctr)*np.sin(angle) + x_ctr
+            yp = -(xx-x_ctr)*np.sin(angle) + (yy-y_ctr)*np.cos(angle) + y_ctr
+
+            racetrack = np.nan_to_num(np.round(map_coordinates(racetrack, (yp, xp), cval=np.nan))).astype(bool)
 
         aperture = np.copy(im.astype(float))
         aperture[~racetrack] = np.nan
-        
+
         bkg_mask = np.copy(bkg.astype(float))
         bkg_mask[~racetrack] = np.nan
 
-        f, ax = plt.subplots(1, 2, figsize=(6, 3))
+        f, ax = plt.subplots(1, 5, figsize=(19, 3), sharey=True)
         f.suptitle(trace_labels[k], fontsize=25)
-        ax[0].imshow(im, origin='lower', vmin=0, vmax=np.nanmax(aperture))
+        im0 = ax[0].imshow(im, origin='lower', vmin=np.nanmin(aperture), vmax=np.percentile(aperture, 98))
         ax[0].plot(fit)
         ax[0].plot(peak)
         ax[0].set_xlim(0, im.shape[1])
         ax[0].set_ylim(0, im.shape[0])
-        ax[1].imshow(aperture, origin='lower', vmin=0, vmax=np.nanmax(aperture))
+        im1 = ax[1].imshow(aperture, origin='lower', vmin=np.nanmin(aperture), vmax=np.percentile(aperture, 98))
         ax[1].set_xlabel('Total flux = {}'.format(np.round(np.nansum(aperture),2)))
-        if savefig:
-            plt.savefig('{}.pdf'.format(trace_labels[k]), dpi=300, bbox_inches='tight')
+        im2 = ax[2].imshow(orig_im, origin='lower', vmin=np.nanmin(orig_im), vmax=np.percentile(orig_im, 98))
+        ax[2].set_xlabel('Pre-Subt')
+        im3 = ax[3].imshow(bkg, origin='lower', vmin=np.nanmin(orig_im), vmax=np.percentile(orig_im, 98))
+        ax[3].set_xlabel('Bkg')
+        im4 = ax[4].imshow(im, origin='lower', vmin=np.nanmin(im), vmax=np.percentile(im, 98))
+        ax[4].set_xlabel('Post-Subt')
+        for i in range(5):
+            divider = make_axes_locatable(ax[i])
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            f.colorbar([im0, im1, im2, im3, im4][i], cax=cax, orientation='vertical')
+        if savefig is not None:
+            plt.savefig(savefig+'_'+trace_labels[k]+'.png', dpi=300, bbox_to_inches='tight', overwrite=True)
         if plot:
             plt.show()
         plt.close()
-        
+
         N_flux = np.round(np.nansum(aperture),2)
         N_noise = np.round(np.nansum(bkg_mask),2)
+        n_pix = np.count_nonzero(~np.isnan(aperture))
+        
+        SNR = N_flux/np.sqrt(N_flux+N_noise+n_pix*read_noise**2+n_pix*dark_current_noise)
         
         apertures.append(aperture)
-        bkg_masks.append(bkg_mask)
         total_flux.append(N_flux)
-        bkg_noise.append(N_noise)
-        
-        n_pix = np.count_nonzero(~np.isnan(aperture))
-        SNR = N_flux/np.sqrt(N_flux+N_noise+n_pix*read_noise+n_pix*dark_current_noise)
-        
         SNRs.append(np.round(SNR, 2))
-        
-    return apertures, bkg_masks, total_flux, bkg_noise, SNRs
 
+    return apertures, total_flux, SNRs
