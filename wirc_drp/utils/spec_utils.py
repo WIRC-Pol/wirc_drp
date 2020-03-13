@@ -69,7 +69,7 @@ def frame_rotate(array, angle, imlib='opencv', interpolation='bicubic', cxy=None
     array : array_like 
         Input frame, 2d array.
     angle : float
-        Rotation angle.
+        Rotation angle in degree.
     imlib : {'opencv', 'skimage'}, str optional
         Library used for image transformations. Opencv is faster than ndimage or
         skimage.
@@ -876,6 +876,16 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
                 if verbose:
                     print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
+            if diag_mask and mode=='pol':
+                mask = makeDiagMask(np.shape(thumbnail)[0],70)
+                thumbnail[~mask] = 0.0
+                bkg[~mask] = 0.0
+                DQ_copy[j,:,:][~mask] = 0.0
+                # plt.imshow(thumbnail)
+                mask = make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
+
+            
+            
             #rotate the spectrum here. rotation axis is the middle of the image
             width_thumbnail = thumbnail.shape[0]
             sub_rotated = frame_rotate(thumbnail-bkg, rotate_spec_angle+180,cxy=[width_thumbnail/2,width_thumbnail/2])
@@ -1016,7 +1026,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
 
     return np.array(spectra), np.array(spectra_std), np.array(widths), np.array(angles), np.array(thumbnails_to_extract)  #res_spec is a dict, res_stddev and thumbnails are list
 
-def rough_wavelength_calibration_v1(trace, filter_name):
+def rough_wavelength_calibration_v1(trace, filter_name, top_threshold = 0.5, verbose = False):
     """
     roughWaveCal does rough wavelength calibration by comparing the extracted profile
     to the filter transmission function. It is assumed that the continuum trace 
@@ -1039,7 +1049,7 @@ def rough_wavelength_calibration_v1(trace, filter_name):
    # plt.plot(trace)
    # plt.show()
     #flatten the top of the trace to remove spectral features
-    trace = np.array( [  max( min(x, 0.5*np.max(trace)), 0.05*np.max(trace)) for x in trace] )
+    trace = np.array( [  max( min(x, top_threshold*np.max(trace)), 0.1*top_threshold*np.max(trace)) for x in trace] )
     x = np.arange(len(trace)) #pixel index
     # wl0 = lb-dlb+0.05
     def pixToWl(y):
@@ -1078,6 +1088,8 @@ def rough_wavelength_calibration_v1(trace, filter_name):
     plt.plot(wla, transmission/np.max(transmission),'b')
     plt.plot(res.x[1] + res.x[0]*x, trace/np.max(trace),'r')
     # plt.show()    
+    if verbose:
+        print(res.x[1], res.x[0])
     return res.x[1] + res.x[0]*x
    # 
 
@@ -1489,10 +1501,13 @@ def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3, rebin = False)
         else:
             out_spectra = np.zeros(spectra.shape)
             for i in range(spectra.shape[0]):
-                out_spectra[i] = convolve(spectra,smooth_ker)
+                out_spectra[i] = convolve(spectra[i],smooth_ker)
         #deal with rebinning        
         if rebin:
-            out_spectra = out_spectra[::smooth_size]
+            if len(spectra.shape) ==1 : #just one spectrum
+                out_spectra = out_spectra[::smooth_size]
+            else:
+                out_spectra = out_spectra[:,::smooth_size]
         
     else:
         out_spectra = spectra
@@ -1642,30 +1657,30 @@ def compute_stokes_from_traces(trace_plus, trace_plus_err,trace_minus, trace_min
 ################To be deprecated#########################
 #########################################################
 
-def compute_p_and_pa( q, q_err, u, u_err):
-    """
-    Computes degree and angle of polarization with associated uncertainties
-    from given q and u. These should be corrected for instrumental polarization 
-    Input:
-        vectors q, u, and their uncertainties
-    Output: 
-        vector p, theta and their uncertainties
-    Formulae used:
-        p = sqrt(q^2 + u^2)
-        dp = 1/p sqrt( (q dq)^2 + (u du)^2)
-        theta = 1/2 atan(u/q)
-        dtheta = (28.65 dp)/p 
-    """
-    #Compute deg of polarization
-    p = np.sqrt(q**2 + u**2)
-    dp = 1/p * np.sqrt( (q * q_err)**2 + (u * u_err)**2)
-    p = np.sqrt(p**2 - dp**2) #debiased deg of polarization
+# def compute_p_and_pa( q, q_err, u, u_err):
+#     """
+#     Computes degree and angle of polarization with associated uncertainties
+#     from given q and u. These should be corrected for instrumental polarization 
+#     Input:
+#         vectors q, u, and their uncertainties
+#     Output: 
+#         vector p, theta and their uncertainties
+#     Formulae used:
+#         p = sqrt(q^2 + u^2)
+#         dp = 1/p sqrt( (q dq)^2 + (u du)^2)
+#         theta = 1/2 atan(u/q)
+#         dtheta = (28.65 dp)/p 
+#     """
+#     #Compute deg of polarization
+#     p = np.sqrt(q**2 + u**2)
+#     dp = 1/p * np.sqrt( (q * q_err)**2 + (u * u_err)**2)
+#     p = np.sqrt(p**2 - dp**2) #debiased deg of polarization
     
-    #Compute angle of polarization
-    theta = 1/2.*np.arctan2(u,q)
-    dtheta = 28.65*dp/p
+#     #Compute angle of polarization
+#     theta = 1/2.*np.arctan2(u,q)
+#     dtheta = 28.65*dp/p
     
-    return p, dp, theta, dtheta
+#     return p, dp, theta, dtheta
 
 def compute_polarization(trace_spectra, filter_name = 'J', plot=False, cutmin=0, cutmax=190):
     """

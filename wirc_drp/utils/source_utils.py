@@ -241,6 +241,26 @@ def group_HWP(HWP_set):
     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
     return pairs_0, pairs_225
 
+# def null_qu(HWP_set):
+#     """
+#     Helper function similar to group_HWP, but intentionally pair up observations with the same HWP 
+#     so that the final computed qu is supposed to be zero. 
+#     """
+#     set_0 = np.where(HWP_set == 0)
+#     set_225 = np.where(HWP_set == 22.5)
+#     set_45 = np.where(HWP_set == 45)
+#     set_675 = np.where(HWP_set == 67.5)
+
+#     small_0_45 = np.min( (len(set_0[0]), len(set_45[0])) )
+#     small_225_675 = np.min( (len(set_225[0]), len(set_675[0])))
+
+#     pairs_0 = np.stack([set_0[0][0:small_0_45], set_45[0][0:small_0_45]], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair. 
+#     pairs_225 = np.stack([set_225[0][0:small_225_675], set_675[0][0:small_225_675]], axis = 1)
+    
+#     # pairs_0 = np.stack([set_0[0], set_45[0]], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair.
+#     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
+#     return pairs_0, pairs_225   
+
 def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, method = 'flux_ratio'):
     """
     This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
@@ -371,7 +391,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
 
 
-def find_best_background(list_of_files, separation_threshold = 2):
+def find_best_background(list_of_files, separation_threshold = 2, verbose = False):
     """
     find_best_background takes a list of headers from WIRC+Pol observations and find best background frame for each element. 
     Here are the conditions: 
@@ -412,9 +432,15 @@ def find_best_background(list_of_files, separation_threshold = 2):
     for i in range(len(all_hdr)):
         if best_bkgs[i] is None:
     #         print(i)
+            if verbose:
+                print(list_of_files[i])
             all_dist = np.array([ (coords[i].separation(x)).arcsec for x in coords ])
             far_enough = all_dist > sep_threshold
             same_hwp = hwps == hwps[i]
+
+            if verbose:
+                print(all_dist)
+                print(same_hwp)
 
             all_good = np.logical_and(far_enough, same_hwp)
 
@@ -430,6 +456,9 @@ def find_best_background(list_of_files, separation_threshold = 2):
             #time difference
             t0 = Time(all_hdr[i]['UTSHUT'], format = 'isot')
             time_diff = np.array([ np.abs((x - t0).value) for x in times[all_good]])
+
+            if verbose:
+                print(time_diff)
 
             #Use minimal time difference
             best_bkg = names[all_good][np.where(time_diff == np.min(time_diff))[0]]
