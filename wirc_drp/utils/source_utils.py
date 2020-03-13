@@ -10,6 +10,7 @@ from astropy.io import fits
 from wirc_drp.utils import spec_utils as su
 from wirc_drp.utils.image_utils import findTrace
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib as mpl
 
 
@@ -311,7 +312,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     for i in pairs_225:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
                                                         HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
-        print(q[0].shape)
+        # print(q[0].shape)
         if method == 'flux_ratio':
             all_q225    += [q[0]]
             all_u225    += [u[0]]
@@ -483,7 +484,7 @@ def serkowski_polarization(wl, wl_max, p_max, K):
     """
     return p_max * np.exp( -K * (np.log(wl_max/wl))**2)
 
-def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xlow=1.15,xhigh=1.325,
+def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xlow=1.15,xhigh=1.325,
     ylow=-0.02,yhigh=0.02,target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,
     ldwarf=False,show=True,save_path=None,legend_loc ="bottom left",all_theta=False,
     fig = None, axes = None,filename=None,figsize=(16,20),title=None,tdwarf=False):
@@ -501,6 +502,14 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     q_dd = copy.deepcopy(q) #Doing it this way because the way q and u calculated changed. 
     u_dd = copy.deepcopy(u)
     # q_dd = np.nanmean(q,axis=1)
+
+    good_wvs = (master_wvs > 1.175) & (master_wvs < 1.325)
+    q_dd = q_dd[:,good_wvs]
+    u_dd = u_dd[:,good_wvs]
+    qerr = qerr[:,good_wvs]
+    uerr = uerr[:,good_wvs]
+    wvs = master_wvs[good_wvs]
+    spec = spec[good_wvs]
     # u_dd = np.nanmean(u,axis=1)
    # q_dd = q
    # u_dd = u
@@ -510,7 +519,7 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
    # q_dd = q
    # u_dd = u
 
-    #Doing this because of how things changed in computer polarization
+    #Doing this because of how things changed in compute polarization
 
     q_dd_err = copy.deepcopy(qerr)
     u_dd_err = copy.deepcopy(uerr)
@@ -547,23 +556,26 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
             q_mean[i] = md
         else:
             q_mean[i] = mn
+
         q_std[i] = std/np.sqrt(q_dd.shape[0])
         
         if qinds is not None:
-            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==0,i], sigma=3, maxiters=5)
+            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==0,i][q_dd[qinds==0,i] == q_dd[qinds==0,i]], sigma=3, maxiters=5)
             if mode == 'median':
                 q_mean_pair1[i] = md
             else:
                 q_mean_pair1[i] = mn
             q_std_pair1[i] = std/np.sqrt(q_dd[qinds==1].shape[0])
 
-            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==1,i], sigma=3, maxiters=5)
+            # import pdb;pdb.set_trace()
+
+            mn,md,std = stats.sigma_clipped_stats(q_dd[qinds==1,i][q_dd[qinds==1,i]==q_dd[qinds==1,i]], sigma=3, maxiters=5)
             if mode == 'median':
                 q_mean_pair2[i] = md
             else:
                 q_mean_pair2[i] = mn
             q_std_pair2[i] = std/np.sqrt(q_dd[qinds==1].shape[0])
-        
+
         mn,md,std = stats.sigma_clipped_stats(u_dd[:,i], sigma=3, maxiters=5)
         u_std[i] = std/np.sqrt(q_dd.shape[0])
         if mode == 'median':
@@ -572,19 +584,20 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
             u_mean[i] = mn
 
         if uinds is not None:
-            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==0,i], sigma=3, maxiters=5)
+            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==0,i][u_dd[uinds==0,i] == u_dd[uinds==0,i]], sigma=3, maxiters=5)
             if mode == 'median':
                 u_mean_pair1[i] = md
             else:
                 u_mean_pair1[i] = mn
             u_std_pair1[i] = std/np.sqrt(u_dd[uinds==0].shape[0])
 
-            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==1,i], sigma=3, maxiters=5)
+            mn,md,std = stats.sigma_clipped_stats(u_dd[uinds==1,i][u_dd[uinds==1,i] == u_dd[uinds==1,i]], sigma=3, maxiters=5)
             if mode == 'median':
                 u_mean_pair2[i] = md
             else:
                 u_mean_pair2[i] = mn
             u_std_pair2[i] = std/np.sqrt(u_dd[uinds==1].shape[0])
+
 
 
     p_mean = np.sqrt(q_mean**2+u_mean**2)
@@ -597,8 +610,6 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
     theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
     theta_std = 0.5*np.degrees( np.sqrt( (u_mean**2*q_std**2+q_mean**2*u_std**2)/(q_mean**2+u_mean**2)**2))
-
-
 
     ### Implement Binning
     if binsize != 1:
@@ -704,11 +715,11 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     # axes[1,1].fill_between(wvs,theta_mean+theta_mean_err,theta_mean-theta_mean_err,color='k',alpha=0.1)
     if qinds is not None:
         # import pdb; pdb.set_trace()
-        axes[0,0].fill_between(wvs,q_mean_pair1+q_std_pair1,q_mean_pair1-q_std_pair1,color='tab:blue',alpha=0.1,label="Pair 1",zorder=0)
-        axes[0,0].fill_between(wvs,q_mean_pair2+q_std_pair2,q_mean_pair2-q_std_pair2,color='tab:orange',alpha=0.1,label="Pair 2",zorder=0)
+        axes[0,0].fill_between(wvs,q_mean_pair1+q_std_pair1,q_mean_pair1-q_std_pair1,color='tab:blue',alpha=0.4,label="Pair 1",zorder=0)
+        axes[0,0].fill_between(wvs,q_mean_pair2+q_std_pair2,q_mean_pair2-q_std_pair2,color='tab:orange',alpha=0.4,label="Pair 2",zorder=0)
     if uinds is not None:
-        axes[0,1].fill_between(wvs,u_mean_pair1+u_std_pair1,u_mean_pair1-u_std_pair1,color='tab:blue',alpha=0.1,label="Pair 1",zorder=0)
-        axes[0,1].fill_between(wvs,u_mean_pair2+u_std_pair2,u_mean_pair2-u_std_pair2,color='tab:orange',alpha=0.1,label="Pair 1",zorder=0)
+        axes[0,1].fill_between(wvs,u_mean_pair1+u_std_pair1,u_mean_pair1-u_std_pair1,color='tab:blue',alpha=0.4,label="Pair 1",zorder=0)
+        axes[0,1].fill_between(wvs,u_mean_pair2+u_std_pair2,u_mean_pair2-u_std_pair2,color='tab:orange',alpha=0.4,label="Pair 1",zorder=0)
 
     #Only plot theta where > 3sigma
     if all_theta:
@@ -728,7 +739,8 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     # axes[1,1].plot(wvs,theta_mean-theta_std,'k--',alpha=0.5)
 
     #3-sigma for p
-    axes[1,0].plot(inds,3*p_std,'r')
+    # axes[1,0].plot(wvs,3*p_std,'r')
+    # axes[1,0].plot(wvs,3*p_mean_err,'r')
 
     #Axis plot ranges
     axes[0,0].set_xlim(xlow,xhigh)
@@ -773,8 +785,10 @@ def plot_pol_summary(wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xl
     ## Put in the plot overlaid with the spectrum
     axes[2,0].plot(wvs,p_mean,'k')
     axes[2,0].fill_between(wvs,p_mean+p_mean_err,p_mean-p_mean_err,color='k',alpha=0.1)
-    axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
-    axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    # axes[2,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    # axes[1,0].plot(wvs,3*p_mean_err,'r',label=r"3$\sigma$ from zero")
+    axes[2,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
+    axes[1,0].plot(wvs,3*p_std,'r',label=r"3$\sigma$ from zero")
     axes[2,0].legend(fontsize=14)
     if spec is not None:
         #Twin axis to show the mean spectrum
@@ -940,7 +954,7 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         colormapp = mpl.colors.LinearSegmentedColormap.from_list("", ["k","firebrick","crimson","darkorchid","blueviolet","mediumblue","navy","k"])
     else:
         colormapp = plt.get_cmap(cmap) 
-    print(phase)
+    # print(phase)
     colors = colormapp(phase)
     
     pmeans = []
@@ -962,25 +976,27 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         theta_dd = 0.5*np.degrees(np.arctan2(u_dd,q_dd))
         theta_dd[theta_dd < 0] +=180
 
-        q_dd_err = np.sqrt(np.sum((qerr**2),axis=1))/qerr.shape[1]
-        u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
+        # q_dd_err = np.sqrt(np.sum((qerr**2),axis=1))/qerr.shape[1]
+        q_dd_err = qerr
+        # u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
+        u_dd_err = uerr
 
         #Now calculate the mean or median
         from astropy import stats
-        q_mean = np.zeros([q_dd.shape[1]]) #We name this mean, though it could either be Mean or Median
-        q_std = np.zeros([q_dd.shape[1]])
-        u_mean = np.zeros([u_dd.shape[1]])
-        u_std = np.zeros([u_dd.shape[1]])
+        q_mean = np.zeros([q.shape[1]]) #We name this mean, though it could either be Mean or Median
+        q_std = np.zeros([q.shape[1]])
+        u_mean = np.zeros([u.shape[1]])
+        u_std = np.zeros([u.shape[1]])
 
-        for i in range(q_dd.shape[1]):
-
-            mn,md,std = stats.sigma_clipped_stats(q_dd[:,i], sigma=3, maxiters=5)
+        for i in range(q.shape[1]):
+            # import pdb; pdb.set_trace()
+            mn,md,std = stats.sigma_clipped_stats(q[:,i], sigma=3, maxiters=5)
             if mode == 'median':
                 q_mean[i] = md
             else:
                 q_mean[i] = mn
             q_std[i] = std/np.sqrt(q_dd.shape[0])
-            mn,md,std = stats.sigma_clipped_stats(u_dd[:,i], sigma=3, maxiters=5)
+            mn,md,std = stats.sigma_clipped_stats(u[:,i], sigma=3, maxiters=5)
             u_std[i] = std/np.sqrt(q_dd.shape[0])
             if mode == 'median':
                 u_mean[i] = md
@@ -1109,17 +1125,41 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         #3-sigma for p
         # axes[1,0].plot(wvs,3*p_std,color='cyan')
         # axes[1,0].plot(wvs,3*p_mean_err,'k--')
+        
+        ####Add the colormaps to show the phase colors
+        #Top left
+        cbaxes = inset_axes(axes[0,0], width="60%", height="7%", loc=9) 
+        cbar = mpl.colorbar.ColorbarBase(cbaxes, cmap = colormapp,norm = mpl.colors.Normalize(vmin=0,vmax=1.),ticks=[0.,0.5,1], orientation='horizontal')
+        if period == np.max(dt):
+            cbar.set_label("Phase (Period = ??)")
+        else:
+            cbar.set_label("Phase (Period = {}h)".format(period))
+        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=900)
 
-        #Add a colormap:
-        # sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
+        for i,p in enumerate(phase):
+            cbaxes.text(p-0.015,0.075,"{:d}".format(i),weight="bold")
 
+        #Top Right
+        cbaxes = inset_axes(axes[0,1], width="60%", height="7%", loc=9) 
+        cbar = mpl.colorbar.ColorbarBase(cbaxes, cmap = colormapp,norm = mpl.colors.Normalize(vmin=0,vmax=1.),ticks=[0.,0.5,1], orientation='horizontal')
+        if period == np.max(dt):
+            cbar.set_label("Phase (Period = ??)")
+        else:
+            cbar.set_label("Phase (Period = {}h)".format(period))
+        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=900)
+        for i,p in enumerate(phase):
+            cbaxes.text(p-0.015,0.075,"{:d}".format(i),weight="bold")
+
+        #Center Left
         cbaxes = inset_axes(axes[1,0], width="60%", height="7%", loc=9) 
         cbar = mpl.colorbar.ColorbarBase(cbaxes, cmap = colormapp,norm = mpl.colors.Normalize(vmin=0,vmax=1.),ticks=[0.,0.5,1], orientation='horizontal')
         if period == np.max(dt):
-            cbar.set_label("Phase \n(Period = ??)")
+            cbar.set_label("Phase (Period = ??)")
         else:
-            cbar.set_label("Phase \n(Period = {}h)".format(period))
-        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=300)
+            cbar.set_label("Phase (Period = {}h)".format(period))
+        cbaxes.scatter(phase,phase*0.,marker="^",color='white',s=700)
+        for i,p in enumerate(phase):
+            cbaxes.text(p-0.015,0.075,"{:d}".format(i),weight="bold")
 
         #Axis plot ranges
         axes[0,0].set_xlim(xlow,xhigh)
@@ -1180,9 +1220,11 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         axes[1,1].set_ylabel(r"$\theta$",fontsize=24)
         axes[1,1].set_xlabel(r"$\theta$",fontsize=24)
 
-        axes[1,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
-        axes[1,1].set_xlabel("Wavelength [arb units.]",fontsize=24)
-        axes[2,0].set_xlabel("Wavelength [arb units.]",fontsize=24)
+        axes[0,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+        axes[0,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+        axes[1,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+        axes[1,1].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
+        axes[2,0].set_xlabel(r"Wavelength [$\mu m$]",fontsize=24)
         twin.set_ylabel("Uncalibrated Spectrum",color=p_right.get_color())
 
         #Shrink the space for the title
@@ -1245,18 +1287,18 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
             axes[2,0].plot((1.3,1.51),(0.85*yhigh,0.85*yhigh),'k',label=r"H$_2$0") #Changed from Mike's list below to be the range from Cushing
             axes[2,0].text(1.31,0.86*yhigh,r"H$_2$0",fontsize=14)
 
-    if show:
-        plt.show()
     if save_path is not None:
         if binsize > 1:
             fn = "{}_{}_Binned.png".format(target_name,date,binsize)
         else: 
             fn = "{}_{}_Binned.png".format(target_name,date)
         plt.savefig(save_path+fn)
+
+    if show:
+        plt.show()
     if dt is not None:
-        return dt_bins,phase,qmeans,umeans,pmeans,theta_means, phase
-    else:
-        return qmeans,umeans,pmeans,theta_means
+        return dt_bins,phase,qmeans,umeans,pmeans,theta_means, phase, wvs
+        return qmeans,umeans,pmeans,theta_means, wvs
 
 
 def thresholding_algo(y, lag, threshold, influence):
@@ -1355,166 +1397,204 @@ def truncate(value, limits=[0, 160]):
     return value
 
 
-def fit_aperture(source, exp_time, x_stretch=1, y_stretch=1, interp_factor=10, verbose=True, plot=True, savefig=None):
-    """
-    fits racetrack aperture to trace cutouts from a WIRC+Pol source.
-    
-    returns list of nan masked apertures 
-    """
+def fit_aperture(source, exp_time, stretch=1, plot=True, savefig=None, verbose=True,
+                trace_len=90, trace_wid=8, fit_trace=False, interp_factor=10):
+
     gain = 1.2 #[e-/ADU]. 
     read_noise = 12 #[e-]
     dark_current = 1 #[e-/s]
     dark_current_noise = dark_current*exp_time
-
+    
     apertures = []
-    bkg_masks = []
     total_flux = []
-    bkg_noise = []
     SNRs = []
     trace_labels = ['UL', 'LR', 'UR', 'LL']
     
     for k in range(4):
-        interp_factor = 10
+
         im = source.trace_images[k]
         bkg = source.trace_bkg[k]
-        
+        orig_im = source.trace_images[k]
+
         im = im - bkg
+        
+        yy, xx = np.indices(im.shape)
 
         peak, fit, width, angle = findTrace(im, weighted=True, plot=False)
 
         angle=angle*np.pi/180
 
-        trace = np.array([im[truncate(fit.astype(int)[i])][i] for i in range(len(fit))])
+        #if true, we automatically fit the trace dimensions using length and width of FWHM 
+        if fit_trace:
+            trace = np.array([im[truncate(fit.astype(int)[i])][i] for i in range(len(fit))])
 
-        yy, xx = np.indices(im.shape)
+            yy, xx = np.indices(im.shape)
 
-        results = quantize_peaks(trace, lag=20, threshold=5, influence=0, show_plot=plot)
+            results = quantize_peaks(trace, lag=10, threshold=4, influence=0, show_plot=plot)
 
-        mean_peak = np.mean(trace[np.where(results["signals"]>0)][10:-10])
+            mean_peak = np.mean(trace[np.where(results["signals"]>0)][10:-10])
 
-        index = np.where(results["signals"]>0)[0]
+            index = np.where(results["signals"]>0)[0]
 
-        if verbose:
-            print("Mean peak flux = {}".format(mean_peak))
+            if verbose:
+                print("Mean peak flux = {}".format(mean_peak))
 
-        peak_indices = missing_elements(np.where(trace<.5*mean_peak)[0])
+            peak_indices = missing_elements(np.where(trace<.5*mean_peak)[0])
 
-        FWHM = peak_indices[-1]-peak_indices[0]
+            FWHM = peak_indices[-1]-peak_indices[0]
 
-        if verbose:
-            print("FWHM = {} px".format(FWHM))
+            if verbose:
+                print("FWHM = {} px".format(FWHM))
 
-        if plot:
-            plt.figure()
-            plt.plot(trace[np.where(results["signals"]>0)])
-            plt.axvline(peak_indices[0] - index[0], ymin=0, ymax=1, color='r', ls='--', label='FWHM = {}'.format(FWHM))
-            plt.axvline(peak_indices[-1] - index[0], ymin=0, ymax=1, color='r', ls='--')
-            plt.axhline(mean_peak, 10/len(trace[np.where(results["signals"]>0)]),
-                        (len(trace[np.where(results["signals"]>0)])-11)/len(trace[np.where(results["signals"]>0)]),
-                        color='k', ls='--', label='Mean peak value = {}'.format(np.round(mean_peak, 2)))
-            plt.legend()
-            plt.show()
-            plt.close()
+            if plot:
+                plt.figure()
+                plt.plot(trace[np.where(results["signals"]>0)])
+                plt.axvline(peak_indices[0] - index[0], ymin=0, ymax=1, color='r', ls='--', label='FWHM = {}'.format(FWHM))
+                plt.axvline(peak_indices[-1] - index[0], ymin=0, ymax=1, color='r', ls='--')
+                plt.axhline(mean_peak, 10/len(trace[np.where(results["signals"]>0)]),
+                            (len(trace[np.where(results["signals"]>0)])-11)/len(trace[np.where(results["signals"]>0)]),
+                            color='k', ls='--', label='Mean peak value = {}'.format(np.round(mean_peak, 2)))
+                plt.legend()
+                plt.show()
+                plt.close()
 
-        peak_index = (peak_indices[0]+peak_indices[-1])//2
+            peak_index = (peak_indices[0]+peak_indices[-1])//2
 
-        p_fit = perp_fit(fit, (peak_index, fit[peak_index]))
+            p_fit = perp_fit(fit, (peak_index, fit[peak_index]))
 
-        p_trace = np.array([im[p_fit.astype(int)[i]][i] for i in range(len(fit))])
+            p_trace = np.array([im[p_fit.astype(int)[i]][i] for i in range(len(fit))])
 
-        #interpolate perp trace to better calculate FWHM
-        p_trace_interp = interp1d(np.arange(len(p_trace)), p_trace)(np.linspace(0, len(fit)-1, len(fit)*interp_factor))
+            #interpolate perp trace to better calculate FWHM
+            p_trace_interp = interp1d(np.arange(len(p_trace)), p_trace)(np.linspace(0, len(fit)-1, len(fit)*interp_factor))
 
-        if plot:
-            plt.figure()
-            plt.title('Perpendicular trace')
-            plt.plot(p_trace)
-            plt.show()
-            plt.close()
+            if plot:
+                plt.figure()
+                plt.title('Perpendicular trace')
+                plt.plot(p_trace)
+                plt.show()
+                plt.close()
 
-        p_results = quantize_peaks(p_trace_interp, lag=20*interp_factor, threshold=5, influence=0, show_plot=plot)
+            p_results = quantize_peaks(p_trace_interp, lag=20*interp_factor, threshold=5, influence=0, show_plot=plot)
 
-        p_peak = np.max(p_trace_interp)
+            p_peak = np.max(p_trace_interp)
 
-        p_index = np.where(p_results["signals"]>0)[0]
+            p_index = np.where(p_results["signals"]>0)[0]
 
-        if verbose:
-            print("Peak flux = {}".format(p_peak))
+            if verbose:
+                print("Peak flux = {}".format(p_peak))
 
-        p_peak_indices = missing_elements(np.where(p_trace_interp<.5*p_peak)[0])
+            p_peak_indices = missing_elements(np.where(p_trace_interp<.5*p_peak)[0])
 
-        p_peak_index = int(np.where(p_trace_interp==np.max(p_trace_interp))[0][0]/interp_factor)
+            p_peak_index = int(np.where(p_trace_interp==np.max(p_trace_interp))[0][0]/interp_factor)
 
-        p_FWHM = (p_peak_indices[-1]-p_peak_indices[0])/interp_factor
+            p_FWHM = (p_peak_indices[-1]-p_peak_indices[0])/interp_factor
 
-        if verbose:
-            print("FWHM = {} px".format(p_FWHM))
+            if verbose:
+                print("FWHM = {} px".format(p_FWHM))
 
-        if plot:
-            plt.figure()
-            plt.title('Perpendicular trace peak')
-            plt.plot(p_trace_interp[np.where(p_results["signals"]>0)])
-            plt.axvline(p_peak_indices[0] - p_index[0], ymin=0, ymax=1, color='r', ls='--', label='FWHM = {}'.format(p_FWHM))
-            plt.axvline(p_peak_indices[-1] - p_index[0], ymin=0, ymax=1, color='r', ls='--')
-            plt.axhline(p_peak, (p_peak_indices[0] - p_index[0])/len(p_trace_interp[np.where(p_results["signals"]>0)]),
-                        (p_peak_indices[-1] - p_index[0])/len(p_trace_interp[np.where(p_results["signals"]>0)]),
-                        color='k', ls='--', label='Peak value = {}'.format(np.round(p_peak, 2)))
-            plt.legend()
-            plt.show()
-            plt.close()
+            if plot:
+                plt.figure()
+                plt.title('Perpendicular trace peak')
+                plt.plot(p_trace_interp[np.where(p_results["signals"]>0)])
+                plt.axvline(p_peak_indices[0] - p_index[0], ymin=0, ymax=1, color='r', ls='--', label='FWHM = {}'.format(p_FWHM))
+                plt.axvline(p_peak_indices[-1] - p_index[0], ymin=0, ymax=1, color='r', ls='--')
+                plt.axhline(p_peak, (p_peak_indices[0] - p_index[0])/len(p_trace_interp[np.where(p_results["signals"]>0)]),
+                            (p_peak_indices[-1] - p_index[0])/len(p_trace_interp[np.where(p_results["signals"]>0)]),
+                            color='k', ls='--', label='Peak value = {}'.format(np.round(p_peak, 2)))
+                plt.legend()
+                plt.show()
+                plt.close()
 
-        if verbose:
-            print("trace ctr = {}".format((peak_index, int(fit[peak_index]))))
-        x_ctr, y_ctr = peak_index, int(fit[peak_index])
+            if verbose:
+                print("trace ctr = {}".format((peak_index, int(fit[peak_index]))))
+            x_ctr, y_ctr = peak_index, int(fit[peak_index])
 
-        circ1 = (xx-x_ctr-x_stretch*FWHM/2)**2+(yy-y_ctr)**2
-        circ2 = (xx-x_ctr+x_stretch*FWHM/2)**2+(yy-y_ctr)**2
-        ends = np.logical_or((circ1<p_FWHM*y_stretch**2), (circ2<p_FWHM*y_stretch**2)).astype(float)
-        
-        box_x = np.logical_and((xx>x_ctr-x_stretch*FWHM/2), (xx<x_ctr+x_stretch*FWHM/2))
-        box_y = np.logical_and((yy>y_ctr-y_stretch*p_FWHM/2),(yy<y_ctr+y_stretch*p_FWHM/2))
-        box = np.logical_and(box_x, box_y).astype(float)
-        
-        racetrack = np.logical_or(box, ends).astype(float)
+            circ1 = (xx-x_ctr-x_stretch*FWHM/2)**2+(yy-y_ctr)**2
+            circ2 = (xx-x_ctr+x_stretch*FWHM/2)**2+(yy-y_ctr)**2
+            ends = np.logical_or((circ1<p_FWHM*y_stretch**2), (circ2<p_FWHM*y_stretch**2)).astype(float)
+            
+            box_x = np.logical_and((xx>x_ctr-x_stretch*FWHM/2), (xx<x_ctr+x_stretch*FWHM/2))
+            box_y = np.logical_and((yy>y_ctr-y_stretch*p_FWHM/2),(yy<y_ctr+y_stretch*p_FWHM/2))
+            box = np.logical_and(box_x, box_y).astype(float)
+            
+            racetrack = np.logical_or(box, ends).astype(float)
 
-        xp = (xx-x_ctr)*np.cos(angle) + (yy-y_ctr)*np.sin(angle) + x_ctr
-        yp = -(xx-x_ctr)*np.sin(angle) + (yy-y_ctr)*np.cos(angle) + y_ctr
+            xp = (xx-x_ctr)*np.cos(angle) + (yy-y_ctr)*np.sin(angle) + x_ctr
+            yp = -(xx-x_ctr)*np.sin(angle) + (yy-y_ctr)*np.cos(angle) + y_ctr
 
-        racetrack = np.nan_to_num(np.round(map_coordinates(racetrack, (yp, xp), cval=np.nan))).astype(bool)
+            racetrack = np.nan_to_num(np.round(map_coordinates(racetrack, (yp, xp), cval=np.nan))).astype(bool)     
+
+            
+        #otherwise we use the default values given in the kwarg
+        else:
+            diff = peak-fit.astype(int)
+
+            s = np.where(abs(diff)<5)[0]
+            maxrun = -1
+            rl = {}
+            for x in s:
+                run = rl[x] = rl.get(x-1, 0) + 1
+                if run > maxrun:
+                    maxend, maxrun = x, run
+
+            trace_x = np.arange(maxend-maxrun+1, maxend+1)
+
+            x_ctr, y_ctr = trace_x[len(trace_x)//2], fit[trace_x].astype(int)[len(trace_x)//2]
+
+            circ1 = (xx-x_ctr-stretch*trace_len/2)**2+(yy-y_ctr)**2
+            circ2 = (xx-x_ctr+stretch*trace_len/2)**2+(yy-y_ctr)**2
+            ends = np.logical_or((circ1<(trace_wid*stretch)**2), (circ2<(trace_wid*stretch)**2)).astype(float)
+
+            box_x = np.logical_and((xx>x_ctr-stretch*trace_len/2), (xx<x_ctr+stretch*trace_len/2))
+            box_y = np.logical_and((yy>y_ctr-stretch*trace_wid/2),(yy<y_ctr+stretch*trace_wid/2))
+            box = np.logical_and(box_x, box_y).astype(float)
+
+            racetrack = np.logical_or(box, ends).astype(float)
+
+            xp = (xx-x_ctr)*np.cos(angle) + (yy-y_ctr)*np.sin(angle) + x_ctr
+            yp = -(xx-x_ctr)*np.sin(angle) + (yy-y_ctr)*np.cos(angle) + y_ctr
+
+            racetrack = np.nan_to_num(np.round(map_coordinates(racetrack, (yp, xp), cval=np.nan))).astype(bool)
 
         aperture = np.copy(im.astype(float))
         aperture[~racetrack] = np.nan
-        
+
         bkg_mask = np.copy(bkg.astype(float))
         bkg_mask[~racetrack] = np.nan
 
-        f, ax = plt.subplots(1, 2, figsize=(6, 3))
+        f, ax = plt.subplots(1, 5, figsize=(19, 3), sharey=True)
         f.suptitle(trace_labels[k], fontsize=25)
-        ax[0].imshow(im, origin='lower', vmin=0, vmax=np.nanmax(aperture))
+        im0 = ax[0].imshow(im, origin='lower', vmin=np.nanmin(aperture), vmax=np.percentile(aperture, 98))
         ax[0].plot(fit)
         ax[0].plot(peak)
         ax[0].set_xlim(0, im.shape[1])
         ax[0].set_ylim(0, im.shape[0])
-        ax[1].imshow(aperture, origin='lower', vmin=0, vmax=np.nanmax(aperture))
+        im1 = ax[1].imshow(aperture, origin='lower', vmin=np.nanmin(aperture), vmax=np.percentile(aperture, 98))
         ax[1].set_xlabel('Total flux = {}'.format(np.round(np.nansum(aperture),2)))
-        if savefig:
-            plt.savefig('{}.pdf'.format(trace_labels[k]), dpi=300, bbox_inches='tight')
+        im2 = ax[2].imshow(orig_im, origin='lower', vmin=np.nanmin(orig_im), vmax=np.percentile(orig_im, 98))
+        ax[2].set_xlabel('Pre-Subt')
+        im3 = ax[3].imshow(bkg, origin='lower', vmin=np.nanmin(orig_im), vmax=np.percentile(orig_im, 98))
+        ax[3].set_xlabel('Bkg')
+        im4 = ax[4].imshow(im, origin='lower', vmin=np.nanmin(im), vmax=np.percentile(im, 98))
+        ax[4].set_xlabel('Post-Subt')
+        for i in range(5):
+            divider = make_axes_locatable(ax[i])
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            f.colorbar([im0, im1, im2, im3, im4][i], cax=cax, orientation='vertical')
+        if savefig is not None:
+            plt.savefig(savefig+'_'+trace_labels[k]+'.png', dpi=300, bbox_to_inches='tight', overwrite=True)
         if plot:
             plt.show()
         plt.close()
-        
+
         N_flux = np.round(np.nansum(aperture),2)
         N_noise = np.round(np.nansum(bkg_mask),2)
+        n_pix = np.count_nonzero(~np.isnan(aperture))
+        
+        SNR = N_flux/np.sqrt(N_flux+N_noise+n_pix*read_noise**2+n_pix*dark_current_noise)
         
         apertures.append(aperture)
-        bkg_masks.append(bkg_mask)
         total_flux.append(N_flux)
-        bkg_noise.append(N_noise)
-        
-        n_pix = np.count_nonzero(~np.isnan(aperture))
-        SNR = N_flux/np.sqrt(N_flux+N_noise+n_pix*read_noise+n_pix*dark_current_noise)
-        
         SNRs.append(np.round(SNR, 2))
-        
-    return apertures, bkg_masks, total_flux, bkg_noise, SNRs
 
+    return apertures, total_flux, SNRs

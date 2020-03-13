@@ -45,7 +45,7 @@ class wirc_data(object):
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True, 
         dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, 
-        cross_correlation_template=None, trace_template=None, verbose = True):
+        cross_correlation_template=None, trace_template=None, verbose = True,clear_sources=False):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file,
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once.
@@ -59,7 +59,7 @@ class wirc_data(object):
         elif wirc_object_filename is not None:
             if verbose:
                 print("Loading a wirc_data object from file {}".format(wirc_object_filename))
-            self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image)
+            self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image,clear_sources=clear_sources)
 
         elif raw_filename is not None:
             if verbose:
@@ -116,6 +116,16 @@ class wirc_data(object):
             #Background image   
             self.bkg_image = None   
 
+            #Cutout images
+            self.UL_cutout = None
+            self.LR_cutout = None
+            self.UR_cutout = None
+            self.LL_cutout = None
+
+            self.UL_bkg = None
+            self.LR_bkg = None
+            self.UR_bkg = None
+            self.LL_bkg = None
 
             #TODO Determine whether the type is spec or pol
             # self.type =
@@ -321,7 +331,7 @@ class wirc_data(object):
         else:
             print("Data already calibrated")
     
-    def generate_bkg(self, method='shift_and_subtract', bkg_fn=None, ref_lib=None, num_PCA_modes=None, bkg_by_quadrants=False, destripe=False,
+    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, ref_lib=None, num_PCA_modes=None, source_pos=None, bkg_by_quadrants=False, destripe=False,
         shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
         """
         Generates a model of the background using a variety of possible methods and then saves it to self.bkg_image:
@@ -341,8 +351,10 @@ class wirc_data(object):
         #PCA background subtraction
         if method == 'PCA':
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if ref_lib is None:
+            if bkg_fns is None:
                 ref_lib = self.ref_lib
+            else:
+                ref_lib = bkg_fns
 
             if num_PCA_modes is not None:
                 if ref_lib is not None:
@@ -357,37 +369,89 @@ class wirc_data(object):
             else:
                 print('Must specify number of PCA modes first.')  
 
+        if method == 'PCA_cutouts':
+            print('Subtracting background using PCA cutouts')
+            source = wircpol_source([source_pos[0], source_pos[1]], 'slitless', 0)
+            source.get_cutouts(self.full_image, self.DQ_image, 'J')
+            self.UL_cutout = source.trace_images[0]
+            self.LR_cutout = source.trace_images[1]
+            self.UR_cutout = source.trace_images[2]
+            self.LL_cutout = source.trace_images[3]
+            
+            if bkg_fns is None:
+                ref_lib = self.ref_lib
+            else:
+                ref_lib = bkg_fns
+            
+            UL_bkg_cutouts = []
+            LR_bkg_cutouts = []
+            UR_bkg_cutouts = []
+            LL_bkg_cutouts = []
+
+            for i in range(len(ref_lib)):
+                source.get_cutouts(fits.getdata(ref_lib[i]), self.DQ_image, 'J')
+                UL_bkg_cutouts.append(source.trace_images[0])
+                LR_bkg_cutouts.append(source.trace_images[1])
+                UR_bkg_cutouts.append(source.trace_images[2])
+                LL_bkg_cutouts.append(source.trace_images[3])
+
+            _, self.UL_bkg = calibration.PCA_subtraction(self.UL_cutout, UL_bkg_cutouts, num_PCA_modes)
+            _, self.LR_bkg = calibration.PCA_subtraction(self.LR_cutout, LR_bkg_cutouts, num_PCA_modes) 
+            _, self.UR_bkg = calibration.PCA_subtraction(self.UR_cutout, UR_bkg_cutouts, num_PCA_modes) 
+            _, self.LL_bkg = calibration.PCA_subtraction(self.LL_cutout, LL_bkg_cutouts, num_PCA_modes)  
+
         #median reference frame background subtraction
         elif method =='median_ref':
 
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if ref_lib is None:
+            if bkg_fns is None:
                 ref_lib = self.ref_lib
+            else:
+                ref_lib = bkg_fns
 
             if ref_lib is not None:
-                bkg_frames = []
-                for i in range(len(ref_lib)):
-                    bkg_frames.append(fits.getdata(ref_lib[i]))
-                if verbose:
-                    print('Subtracting background using median reference frame.')
-                self.bkg_image = np.nanmedian(np.array(bkg_frames), axis=0)
+
+                if len(ref_lib) == 1:
+                    self.bkg_image  = fits.getdata(ref_lib[0])
+                else:
+                    bkg_frames = []
+                    for i in range(len(ref_lib)):
+                        bkg_frames.append(fits.getdata(ref_lib[i]))
+                    if verbose:
+                        print('Subtracting background using median reference frame.')        
+                    self.bkg_image = np.nanmedian(np.array(bkg_frames), axis=0)        
             else:
                 print('Must provide a list of reference files to perform PCA subtraction, either as a keyword argument "ref_lib" or in self.ref_lib.')
-
 
         #using background frame that you manually give it
         elif method == 'scaled_bkg':
             
             #If no background file is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if bkg_fn is None:
-                bkg_fn = self.bkg_fn
+            if bkg_fns is None:
+                bkg_fns = self.ref_lib
 
-            if bkg_fn is not None: 
+            if bkg_fns is not None: 
+
+                #Check to see if we have a list of files. If so, we take the median
+                if  not isinstance(bkg_fns, str):
+                    # import pdb; pdb.set_trace()
+                    if len(bkg_fns) == 1:
+                        background  = fits.getdata(bkg_fns[0])
+                        background_hdu = fits.open(bkg_fns[0]) #Grab the last header
+                    else:
+                        bkg_frames = []
+                        for i in range(len(bkg_fns)):
+                            bkg_frames.append(fits.getdata(bkg_fns[i]))    
+                        background_hdu = fits.open(bkg_fns[i]) #Grab the last header
+                        background = np.nanmedian(np.array(bkg_frames), axis=0) 
+                else:
+                    #Just open the one file!
+                    background_hdu = fits.open(bkg_fns)
+                    background = background_hdu[0].data
+
                 if verbose:
                     print('Subtracting background using scaled background frame.')
-                
-                background_hdu = fits.open(bkg_fn)
-                background = background_hdu[0].data
+                                
                 bkg_exp_time = background_hdu[0].header["EXPTIME"]*background_hdu[0].header["COADDS"]
                 
                 #Check if background is already reduced
@@ -442,12 +506,15 @@ class wirc_data(object):
 
                 self.bkg_image = background
 
-                #Update the header
-                self.header['HISTORY'] = "Generated scaled background frame {}".format(self.bkg_fn)
-                self.header['BKG_FN'] = bkg_fn
+                if len(bkg_fns) == 1:
+                    #Update the header
+                    self.header['HISTORY'] = "Generated scaled background frame {}".format(self.bkg_fn)
+                    self.header['BKG_FN'] = bkg_fns
+                else: 
+                    self.header['HISTORY'] = "Generated a scaled background based on the median of a big background list"
                     
             else:
-                print('Must give wirc object a bkg_fn in order to use this method.')        
+                print('Must give wirc object a bkg_fns in order to use this method.')        
 
         elif method == 'simple_median':
             print('Subtracting median pixel value from frame.')
@@ -720,7 +787,7 @@ class wirc_data(object):
             print("Saving a wirc_object to {}".format(wirc_object_filename));
         hdulist.writeto(wirc_object_filename, overwrite=overwrite)
 
-    def load_wirc_object(self, wirc_object_filename, load_full_image = True, verbose=True):
+    def load_wirc_object(self, wirc_object_filename, load_full_image = True, verbose=True, clear_sources=False):
         '''
         Read in the wircpol_object file from a fits file
 
@@ -793,6 +860,9 @@ class wirc_data(object):
 
             #TODO: This is temporary and needs fixing. 
             self.bkg_image = None
+
+            if clear_sources:
+                self.n_sources=0
 
             #Create one source object for each source and append it to source_list
             self.source_list = []
@@ -867,7 +937,7 @@ class wirc_data(object):
             hdulist.close()
             #print ("ending iteration #",i)
 
-    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
+    def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
         """
         Finds the number of sources in the image.
 
@@ -885,13 +955,16 @@ class wirc_data(object):
                 self.cross_correlation_template = cross_correlation_template
         #self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 		#make sure the source_list format is correct
-        if self.bkg_image is not None:
-            loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image-self.bkg_image, self.cross_correlation_template, 
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)    
-        else:
-            loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, 
+        if bkg_im is not None:
+            loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
+            bkg_im=bkg_im, sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
+        elif bkg_im is None:
+            loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
             sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
 
+        if self.source_list:
+            print('emptying source list to find sources again.')
+            self.source_list = []
 
         if len(loc_list) >= 1:
             for loc in loc_list:
@@ -1059,8 +1132,8 @@ class wirc_data(object):
         if update_w_chi2_shift:
             im = copy.deepcopy(self.full_image)
 
-            if self.bkg_fn is not None and sub_bkg:
-                im -= fits.open(self.bkg_fn)[0].data
+            if self.bkg_image is not None and sub_bkg:
+                im -= bkg_image
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)
@@ -1145,7 +1218,7 @@ class wircpol_source(object):
 
     #def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
     def get_cutouts(self, image, image_DQ, filter_name, bkg_image = None, replace_bad_pixels = True, method = 'median', \
-    box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
+    box_size = 5, cutout_size = None, sub_bar=True, verbose=False, use_PCA_cutouts=None):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation
@@ -1191,9 +1264,12 @@ class wircpol_source(object):
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
         #Deal with background frame
-        if bkg_image is not None:         
-            self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
-                                cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
+        if bkg_image is not None:   
+            if use_PCA_cutouts is not None:
+                self.trace_bkg = np.array(use_PCA_cutouts)
+            else:      
+                self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
+                                    cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
             if replace_bad_pixels: 
                 #check method   
                 if method == 'interpolate': 
@@ -1620,7 +1696,8 @@ class wircpol_source(object):
         if not show:
             plt.switch_backend(default_back)
 
-    def get_broadband_polarization(self, mode ='from_spectra', xlow=0, xhigh=-1, weighted=False, bkg=None, exp_time=None, x_stretch=1.6, y_stretch=4, verbose=False, plot=False):
+    def get_broadband_polarization(self, mode ='from_spectra', xlow=0, xhigh=-1, weighted=False, bkg=None, exp_time=None, stretch=1, plot=False, 
+                                    savefig=None, verbose=True, trace_len=90, trace_wid=8, fit_trace=False):
         '''
         A function to measure the broadband polarization from a source. 
         Modes: 
@@ -1684,24 +1761,19 @@ class wircpol_source(object):
 
         elif mode=="aperture_photometry_new":
             
-            if self.trace_bkg is not None:
-                if exp_time is not None:
+            apertures, total_flux, SNR = source_utils.fit_aperture(self, exp_time=exp_time, stretch=stretch, plot=plot, savefig=savefig, verbose=verbose,
+                                                                    trace_len=trace_len, trace_wid=trace_wid, fit_trace=fit_trace)
 
-                    apertures, bkg_masks, total_flux, bkg_noise, SNRs = source_utils.fit_aperture(self, exp_time=exp_time, x_stretch=x_stretch, y_stretch=y_stretch, verbose=verbose, plot=plot)
+            bb_flux = []
 
-                    bb_flux = []
+            for i in range(4):
+                bb_flux.append(np.nansum(apertures[i]))
 
-                    for i in range(4):
-                        bb_flux.append(np.nansum(apertures[i]))
+            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
+            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
 
-                    self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
-                    self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
-
-                else:
-                    print('exp_time kwarg is None. Must give source exposure time.')
-
-            else:
-                print('trace_bkg is None. Must give source object background image to calculate broadband polarization.')
+            self.total_flux = total_flux
+            self.SNR = SNR
             
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")

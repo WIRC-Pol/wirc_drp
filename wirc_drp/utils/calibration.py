@@ -31,7 +31,8 @@ from astropy.stats import sigma_clipped_stats
 
 def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
                 global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
-                output_dir = None):
+                output_dir = None,min_flux=1000):
+
 
     """
     Create a master normalized flat file given a list of fits files of flat fields from
@@ -87,6 +88,9 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
             #subtract dark for each file, then normalize by mode
             hdu = f.open(flat_list[i],ignore_missing_end=True)
             d_sub = hdu[0].data  - factor*master_dark
+            if np.nanmedian(d_sub) < min_flux:
+                #print("Skipping file {}, because its flux is lower than {}".format(flat_list[i],min_flux))
+                continue
             #normalize
             if normalize == 'mode':
                 d_sub = d_sub/mode(d_sub, axis = None, nan_policy = 'omit')
@@ -129,7 +133,6 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
 
     #also set all 0 and negative pixels in flat as bad
     non_positive = flat <= 0
-
 
     #logic combine
     bad_px = np.logical_or(global_bad_px, local_bad_pix)
@@ -469,16 +472,20 @@ def masterDark(dark_list, bad_pix_method = 'MAD', sig_hot_pix = 5, output_dir = 
     #Open all files into a 3D array
     print("Creating a master dark")
     dark_cube = np.empty((len(dark_list),2048,2048))
+    num=0
     for i in range(len(dark_list)):
         try:
             hdu = f.open(dark_list[i])
             dark_cube[i,:,:] = hdu[0].data
             hdu.close()
+            num += 1
         except:
             print('File Error; moving on to next file.')
             dark_cube[i,:,:] = [([0]*2048)]*2048
             continue
 
+    if num == 0:
+        return None,None
     #Create the master dark
     master_dark = np.median(dark_cube, axis = 0)
 
@@ -556,8 +563,6 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
     Subtract dark; divide flat
     Bad pixels are masked out using the bad_pixel_map with 0 = bad and 1 = good pixels
 
-    ############TO BE DEPRECATED#################
-
     """
 
     #Get the list of science frames
@@ -619,13 +624,20 @@ def calibrate(science_list_fname, master_flat_fname, master_dark_fname, hp_map_f
             redux -= background
 
         if clean_Bad_Pix:
+            # plt.plot(bad_pixel_map_bool)
             redux = cleanBadPix(redux, bad_pixel_map_bool)
+            #redux = ccdproc.cosmicray_lacosmic(redux, sigclip=5)[0]
+
+            # redux = ccdproc.cosmicray_median(redux, mbox=7, rbox=5, gbox=7)[0]
 
         #Mask the bad pixels if the flag is set
         if mask_bad_pixels:
             redux *= ~bad_pixel_map_bool
 
         if replace_nans:
+            # nan_map = ~np.isfinite(redux)
+            # redux = cleanBadPix(redux, nan_map)
+            # plt.imshow(redux-after)
             nanmask = np.isnan(redux) #nan = True, just in case this is useful
             redux = np.nan_to_num(redux)
 
@@ -1207,87 +1219,6 @@ def remove_correlated_channel_noise(image,n_channels = 8, mask = None):
 
     return image_copy
 
-# def PCA_subtraction(im, ref_lib, num_PCA_modes):
-#     """
-#     Does PCA subtraction of science frames using KLIP algorithm described in Soummer et al. (2012)
-    
-#     im: 2-D np.array
-#         2-D image to do PCA subtraction on
-#     ref_lib: list of str
-#         list of .fits files to serve as reference library for PCA subtraction
-#     num_PCA_modes: np.array of int
-#         1-D np.array listing number of PCA modes to calculate when doing subtraction
-        
-#     return: 3-D np.array of fl
-#         3-D datacube of PCA subtracted images. Should have shape (k, N_y, N_x) where k is the number
-#         of different modes we calculated for the image (i.e. the size of num_PCA_modes) and N_y, N_x are the
-#         input image dimensions in the y and x axes respectively
-#     """
-#     print('Performing PCA background subtraction using {} modes'.format(num_PCA_modes))
-#     #concatenate input image into 1-D array
-#     im_x = im.shape[1]
-#     im_y = im.shape[0]
-    
-#     im = im.ravel()
-    
-#     # reads list of reference frames into data matrix by first concatenating the 2-D .fits images
-#     # into 1-D arrays and then row stacking these images into a 2-D np.array
-#     ref_frames = np.stack([fits.open(ref_lib[i])[0].data.ravel() for i in range(len(ref_lib))], axis=0)
-    
-#     # subtracts the mean of each reference frame from each reference frame 
-#     ref_frames_mean_sub = ref_frames - np.nanmean(ref_frames, axis=1)[:, None]
-#     ref_frames_mean_sub[np.where(np.isnan(ref_frames_mean_sub))] = 0
-    
-#     # creates covariance matrix from mean subtracted reference frames 
-#     covar_psfs = np.cov(ref_frames_mean_sub)
-#     tot_basis = covar_psfs.shape[0]
-    
-#     num_PCA_modes = np.clip(num_PCA_modes - 1, 0, tot_basis-1)  # clip values, for output consistency we'll keep duplicates
-#     max_basis = np.max(num_PCA_modes) + 1  # maximum number of eigenvectors/KL basis we actually need to use/calculate
-    
-#     # calculates eigenvalues and eigenvectors of the covariance matrix, but only the ones we need (up to max basis)
-#     evals, evecs = la.eigh(covar_psfs, eigvals=(tot_basis-max_basis, tot_basis-1))
-    
-#     evals = np.copy(evals[::-1])
-#     evecs = np.copy(evecs[:,::-1], order='F') 
-    
-#     # calculates the PCA basis vectors
-#     basis_vecs = np.dot(ref_frames_mean_sub.T, evecs)
-#     basis_vecs = basis_vecs * (1. / np.sqrt(evals * (np.size(im) - 1)))[None, :]  #multiply a value for each row
-    
-#     #subtract off the mean of the input frame
-#     im_mean_sub = im - np.nanmean(im)
-    
-#     # duplicate science image by the max_basis to do simultaneous calculation for different number of PCA modes
-#     im_mean_sub_rows = np.tile(im_mean_sub, (max_basis, 1))
-#     im_rows_selected = np.tile(im_mean_sub, (np.size(num_PCA_modes), 1)) # this is the output image which has less rows
-    
-#     # bad pixel mask
-#     # do it first for the image we're just doing computations on but don't care about the output
-#     im_nanpix = np.where(np.isnan(im_mean_sub_rows))
-#     im_mean_sub_rows[im_nanpix] = 0
-#     # now do it for the output image
-#     im_nanpix = np.where(np.isnan(im_rows_selected))
-#     im_rows_selected[im_nanpix] = 0
-    
-#     inner_products = np.dot(im_mean_sub_rows, np.require(basis_vecs, requirements=['F']))
-#     # select the KLIP modes we want for each level of KLIP by multiplying by lower diagonal matrix
-#     lower_tri = np.tril(np.ones([max_basis, max_basis]))
-#     inner_products = inner_products * lower_tri
-    
-#     # make a model background for each number of basis vectors we actually output
-#     model = np.dot(inner_products[num_PCA_modes,:], basis_vecs.T)
-    
-#     # subtract model from input frame for each number of PCA modes chosen
-#     PCA_sub_images = (im_rows_selected - model).reshape(np.size(num_PCA_modes), im_y, im_x)
-    
-#     if type(num_PCA_modes) is np.int64:
-#         return PCA_sub_images[0]
-
-#     elif type(num_PCA_modes) is np.ndarray:
-#         return PCA_sub_images
-
-
        
 def correct_nonlinearity(image, n_coadd, nonlinearity_arr):
     assert np.shape(nonlinearity_arr) == np.shape(image)
@@ -1328,15 +1259,21 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     im_y = im.shape[0]
     
     im = im.ravel()
+
+    num_PCA_modes = np.array(num_PCA_modes)
     
     # reads list of reference frames into data matrix by first concatenating the 2-D .fits images
     # into 1-D arrays and then row stacking these images into a 2-D np.array
-    ref_frames = np.stack([fits.open(ref_lib[i])[0].data.ravel() for i in range(len(ref_lib))], axis=0)
-    
+    try:
+        ref_frames = np.stack([fits.getdata(ref_lib[i]).ravel() for i in range(len(ref_lib))], axis=0)
+    except:
+        ref_frames = np.stack([ref_lib[i].ravel() for i in range(len(ref_lib))], axis=0)
+
     # subtracts the mean of each reference frame from each reference frame 
     ref_frames_mean_sub = ref_frames - np.nanmean(ref_frames, axis=1)[:, None]
     ref_frames_mean_sub[np.where(np.isnan(ref_frames_mean_sub))] = 0
     
+    # import pdb; pdb.set_trace()
     # creates covariance matrix from mean subtracted reference frames 
     covar_psfs = np.cov(ref_frames_mean_sub)
     tot_basis = covar_psfs.shape[0]
@@ -1384,7 +1321,7 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     if type(num_PCA_modes) is np.int64:
         return PCA_sub_images[0], model.reshape(im_y, im_x)+np.nanmean(im)
     elif type(num_PCA_modes) is np.ndarray:
-        return PCA_sub_images, model.reshape(np.size(num_PCA_modes), im_y, im_x)+np.nanmean(im)[None,:,:]
+        return PCA_sub_images, model.reshape(np.size(num_PCA_modes), im_y, im_x)+np.nanmean(im)
     
     else:
         print('Unsupported datatype for variable: num_PCA_modes. Variable must be either int or 1-D np.ndarray')
