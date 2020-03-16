@@ -333,11 +333,7 @@ class wirc_data(object):
         else:
             print("Data already calibrated")
     
-<<<<<<< HEAD
     def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, ref_lib=None, num_PCA_modes=None, source_pos=None, bkg_by_quadrants=False, destripe=False,
-=======
-    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, ref_lib=None, num_PCA_modes=None, bkg_by_quadrants=False, destripe=False,
->>>>>>> 73fa296b00df9be2aad126e687abccd55c66bd23
         shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
         """
         Generates a model of the background using a variety of possible methods and then saves it to self.bkg_image:
@@ -945,12 +941,7 @@ class wirc_data(object):
             hdulist.close()
             #print ("ending iteration #",i)
 
-<<<<<<< HEAD
     def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
-=======
-    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,
-    update_w_chi2_shift=False,verbose=False):
->>>>>>> 73fa296b00df9be2aad126e687abccd55c66bd23
         """
         Finds the number of sources in the image.
 
@@ -968,21 +959,12 @@ class wirc_data(object):
                 self.cross_correlation_template = cross_correlation_template
         #self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 		#make sure the source_list format is correct
-<<<<<<< HEAD
         if bkg_im is not None:
             loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
             bkg_im=bkg_im, sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
         elif bkg_im is None:
             loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
             sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
-=======
-        if self.bkg_image is not None:
-            loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image-self.bkg_image, self.cross_correlation_template, 
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)    
-        else:
-            loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, 
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)
->>>>>>> 73fa296b00df9be2aad126e687abccd55c66bd23
 
         if self.source_list:
             print('emptying source list to find sources again.')
@@ -1155,11 +1137,7 @@ class wirc_data(object):
             im = copy.deepcopy(self.full_image)
 
             if self.bkg_image is not None and sub_bkg:
-<<<<<<< HEAD
-                im -= bkg_image
-=======
                 im -= self.bkg_image
->>>>>>> 73fa296b00df9be2aad126e687abccd55c66bd23
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)
