@@ -116,6 +116,16 @@ class wirc_data(object):
             #Background image   
             self.bkg_image = None   
 
+            #Cutout images
+            self.UL_cutout = None
+            self.LR_cutout = None
+            self.UR_cutout = None
+            self.LL_cutout = None
+
+            self.UL_bkg = None
+            self.LR_bkg = None
+            self.UR_bkg = None
+            self.LL_bkg = None
 
             #TODO Determine whether the type is spec or pol
             # self.type =
@@ -140,6 +150,8 @@ class wirc_data(object):
             self.n_sources = 0
             self.source_list = []
             self.source_positions = []
+
+        self.cross_correlation_template = None
     
     def calibrate(self, clean_bad_pix=True, replace_nans=True, mask_bad_pixels=False, stable_bad_pix_map = 'default', get_bad_pix_from_master_dark = True,
                   destripe_raw = False, destripe=False, verbose=False,  report_median = False,
@@ -321,7 +333,7 @@ class wirc_data(object):
         else:
             print("Data already calibrated")
     
-    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, ref_lib=None, num_PCA_modes=None, bkg_by_quadrants=False, destripe=False,
+    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, ref_lib=None, num_PCA_modes=None, source_pos=None, bkg_by_quadrants=False, destripe=False,
         shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
         """
         Generates a model of the background using a variety of possible methods and then saves it to self.bkg_image:
@@ -358,6 +370,37 @@ class wirc_data(object):
                     print('Must provide a list of reference files to perform PCA subtraction, either as a keyword argument "ref_lib" or in self.ref_lib.')
             else:
                 print('Must specify number of PCA modes first.')  
+
+        if method == 'PCA_cutouts':
+            print('Subtracting background using PCA cutouts')
+            source = wircpol_source([source_pos[0], source_pos[1]], 'slitless', 0)
+            source.get_cutouts(self.full_image, self.DQ_image, 'J')
+            self.UL_cutout = source.trace_images[0]
+            self.LR_cutout = source.trace_images[1]
+            self.UR_cutout = source.trace_images[2]
+            self.LL_cutout = source.trace_images[3]
+            
+            if bkg_fns is None:
+                ref_lib = self.ref_lib
+            else:
+                ref_lib = bkg_fns
+            
+            UL_bkg_cutouts = []
+            LR_bkg_cutouts = []
+            UR_bkg_cutouts = []
+            LL_bkg_cutouts = []
+
+            for i in range(len(ref_lib)):
+                source.get_cutouts(fits.getdata(ref_lib[i]), self.DQ_image, 'J')
+                UL_bkg_cutouts.append(source.trace_images[0])
+                LR_bkg_cutouts.append(source.trace_images[1])
+                UR_bkg_cutouts.append(source.trace_images[2])
+                LL_bkg_cutouts.append(source.trace_images[3])
+
+            _, self.UL_bkg = calibration.PCA_subtraction(self.UL_cutout, UL_bkg_cutouts, num_PCA_modes)
+            _, self.LR_bkg = calibration.PCA_subtraction(self.LR_cutout, LR_bkg_cutouts, num_PCA_modes) 
+            _, self.UR_bkg = calibration.PCA_subtraction(self.UR_cutout, UR_bkg_cutouts, num_PCA_modes) 
+            _, self.LL_bkg = calibration.PCA_subtraction(self.LL_cutout, LL_bkg_cutouts, num_PCA_modes)  
 
         #median reference frame background subtraction
         elif method =='median_ref':
@@ -843,10 +886,12 @@ class wirc_data(object):
                 except KeyError:
                     new_source = wircpol_source([xpos,ypos],slit_loc, i)
 
-
-                new_source.trace_images             = copy.deepcopy(hdulist[(2*i)+2].data[0:4]) #finds the i'th source image data in the hdulist, first 4 are raw images
-                new_source.trace_images_DQ          = copy.deepcopy(hdulist[(2*i)+2].data[4:8])
-                new_source.trace_images_extracted   = copy.deepcopy(hdulist[(2*i)+2].data[8:] )#last 4 images are from which extraction is done.
+                try: 
+                    new_source.trace_images             = copy.deepcopy(hdulist[(2*i)+2].data[0:4]) #finds the i'th source image data in the hdulist, first 4 are raw images
+                    new_source.trace_images_DQ          = copy.deepcopy(hdulist[(2*i)+2].data[4:8])
+                    new_source.trace_images_extracted   = copy.deepcopy(hdulist[(2*i)+2].data[8:] )#last 4 images are from which extraction is done.
+                except: 
+                    print("Some error extracting cutout images. Maybe they weren't saved.")
 
                 #finds the table data of the TableHDU corresponding to the i'th source
                 big_table = copy.deepcopy(hdulist[(2*i)+3].data )
@@ -896,7 +941,7 @@ class wirc_data(object):
             hdulist.close()
             #print ("ending iteration #",i)
 
-    def find_sources_v2(self, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
+    def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
         """
         Finds the number of sources in the image.
 
@@ -914,13 +959,16 @@ class wirc_data(object):
                 self.cross_correlation_template = cross_correlation_template
         #self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 		#make sure the source_list format is correct
-        if self.bkg_image is not None:
-            loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image-self.bkg_image, self.cross_correlation_template, 
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)    
-        else:
-            loc_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, 
+        if bkg_im is not None:
+            loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
+            bkg_im=bkg_im, sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
+        elif bkg_im is None:
+            loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
             sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
 
+        if self.source_list:
+            print('emptying source list to find sources again.')
+            self.source_list = []
 
         if len(loc_list) >= 1:
             for loc in loc_list:
@@ -1089,7 +1137,7 @@ class wirc_data(object):
             im = copy.deepcopy(self.full_image)
 
             if self.bkg_image is not None and sub_bkg:
-                im -= bkg_image
+                im -= self.bkg_image
             for i in range(n_chi2_iters):
                 x, y =  image_utils.update_location_w_chi2_shift(self.full_image, x, y, self.filter_name, slit_pos = slit_pos,
                     verbose = verbose, cutout_size=chi2_cutout_size, max_offset=max_offset,trace_template = trace_template)
@@ -1174,7 +1222,7 @@ class wircpol_source(object):
 
     #def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
     def get_cutouts(self, image, image_DQ, filter_name, bkg_image = None, replace_bad_pixels = True, method = 'median', \
-    box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
+    box_size = 5, cutout_size = None, sub_bar=True, verbose=False, use_PCA_cutouts=None):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation
@@ -1220,9 +1268,12 @@ class wircpol_source(object):
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
         #Deal with background frame
-        if bkg_image is not None:         
-            self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
-                                cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
+        if bkg_image is not None:   
+            if use_PCA_cutouts is not None:
+                self.trace_bkg = np.array(use_PCA_cutouts)
+            else:      
+                self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
+                                    cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
             if replace_bad_pixels: 
                 #check method   
                 if method == 'interpolate': 
@@ -1479,9 +1530,26 @@ class wircpol_source(object):
         #TODO: It would be good to have lowcut and highcut only apply to the calculation, and not affect the data at this point (I think)
 
         """
-        aligned = self.spectra_aligned
 
-        if aligned: #do wavelength calibration to Qp, then apply it to eveerything else
+        #Calibrate using a spectrum we trust (at least kind of) - This is because this method isn't as reliable for BDs
+        if method ==3: 
+            ## Read in a spectrum for spectral alignment
+            cal_spec = np.load("/scr/data/Other_Files/Tinyanont_2018_Fig6/HD109055_set2.npy")[:,:,84:-60]
+            # First we get the wavelength calibration
+            wvs = spec_utils.rough_wavelength_calibration_v2(cal_spec[0,1], 'J')
+            wvs = np.pad(wvs,2,mode='edge')
+            
+            #Now we cross-correlate with the know spectrum
+            self.trace_spectra = spec_utils.align_spectral_cube(self.trace_spectra[None],ref_trace=cal_spec[0,1])[0]
+            self.trace_spectra[0,0,:] = wvs
+            self.trace_spectra[1,0,:] = wvs
+            self.trace_spectra[2,0,:] = wvs
+            self.trace_spectra[3,0,:] = wvs
+             
+
+        aligned = self.spectra_aligned
+        
+        if aligned: #do wavelength calibration to Qp, then apply it to everything else
             if method == 1:
                 self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
                 self.trace_spectra[1,0,:] = self.trace_spectra[0,0,:]
@@ -1493,6 +1561,7 @@ class wircpol_source(object):
                 self.trace_spectra[2,0,:] = self.trace_spectra[0,0,:]
                 self.trace_spectra[3,0,:] = self.trace_spectra[0,0,:]
 
+            
         else:
             if method == 1:
                 self.trace_spectra[0,0,:] = spec_utils.rough_wavelength_calibration_v1(self.trace_spectra[0,1,:], filter_name)
@@ -1649,7 +1718,8 @@ class wircpol_source(object):
         if not show:
             plt.switch_backend(default_back)
 
-    def get_broadband_polarization(self, mode ='from_spectra', xlow=0, xhigh=-1, weighted=False, bkg=None, exp_time=None, x_stretch=1.6, y_stretch=4, verbose=False, plot=False):
+    def get_broadband_polarization(self, mode ='from_spectra', xlow=0, xhigh=-1, weighted=False, bkg=None, exp_time=None, stretch=1, plot=False, 
+                                    savefig=None, verbose=True, trace_len=90, trace_wid=8, fit_trace=False):
         '''
         A function to measure the broadband polarization from a source. 
         Modes: 
@@ -1713,24 +1783,19 @@ class wircpol_source(object):
 
         elif mode=="aperture_photometry_new":
             
-            if self.trace_bkg is not None:
-                if exp_time is not None:
+            apertures, total_flux, SNR = source_utils.fit_aperture(self, exp_time=exp_time, stretch=stretch, plot=plot, savefig=savefig, verbose=verbose,
+                                                                    trace_len=trace_len, trace_wid=trace_wid, fit_trace=fit_trace)
 
-                    apertures, bkg_masks, total_flux, bkg_noise, SNRs = source_utils.fit_aperture(self, exp_time=exp_time, x_stretch=x_stretch, y_stretch=y_stretch, verbose=verbose, plot=plot)
+            bb_flux = []
 
-                    bb_flux = []
+            for i in range(4):
+                bb_flux.append(np.nansum(apertures[i]))
 
-                    for i in range(4):
-                        bb_flux.append(np.nansum(apertures[i]))
+            self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
+            self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
 
-                    self.bbQ = [None, -(bb_flux[2]-bb_flux[3])/(bb_flux[2]+bb_flux[3]), None] #Return, [wavelength, flux, error]
-                    self.bbU = [None, -(bb_flux[0]-bb_flux[1])/(bb_flux[0]+bb_flux[1]), None]
-
-                else:
-                    print('exp_time kwarg is None. Must give source exposure time.')
-
-            else:
-                print('trace_bkg is None. Must give source object background image to calculate broadband polarization.')
+            self.total_flux = total_flux
+            self.SNR = SNR
             
         else:
             print("Only 'from_spectra' and 'aperture_photometry' modes are supported. Returning.")
