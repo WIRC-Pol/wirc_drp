@@ -445,8 +445,8 @@ def injectSource(base_image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_
         pol_wl   = i[3][0]
         pol_frac = i[3][1]
         pol_ang  = i[3][2]
-        pol_ang += 2*HWP_angle 
-        _, image = makeObject([i[0], i[1]], exp_time, seeing_pix, i[3], i[2], filter_name = filter_name, \
+        pol_ang_actual = pol_ang + 2*HWP_angle 
+        _, image = makeObject([i[0], i[1]], exp_time, seeing_pix, [pol_wl, pol_frac, pol_ang_actual], i[2], filter_name = filter_name, \
                                     offset_list = offset_list, angle_list = angle_list) #good ordering!
         # direct_im += direct_image
         scene += image
