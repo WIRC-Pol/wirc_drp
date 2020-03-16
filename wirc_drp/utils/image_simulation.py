@@ -21,7 +21,7 @@ from scipy.integrate import simps
 from wirc_drp.utils.misc import fluxes, imGen, regularize, pixDownsample, binDownsample
 from astropy.convolution import Gaussian2DKernel, convolve,convolve_fft, Box1DKernel, Gaussian1DKernel
 from scipy.ndimage import shift, gaussian_filter, rotate
-from astropy.io import fits 
+from astropy.io import fits, ascii as asci
 
 from wirc_drp.utils.spec_utils import frame_rotate
 
@@ -506,9 +506,10 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4, \
 
         #Deal with HWP angle
         HWP_angle = input_im[0].header['HWP_ANG']
+        # print(HWP_angle)
 
         #debug
-        # print(exp_time, filter_name, HWP_angle)
+        print(exp_time, filter_name, HWP_angle)
 
         injected_image = injectSource(image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_name, \
             offset_list = offset_list, angle_list = angle_list)
@@ -542,8 +543,8 @@ def fakeSourceCreator(mag, spec_template_fn, pol_template_fn, pos):
         a list describing an object. The format is [spec_wl, spec_flux, (x,y), pol_vec], 
         which is for the source injection functions
     """
-    spec_template = ascii.read(spec_template_fn)
-    pol_template = ascii.read(pol_template_fn)
+    spec_template = asci.read(spec_template_fn)
+    pol_template = asci.read(pol_template_fn)
 
     wl = spec_template[0]
     #interpolate if the wl grid are not the same
