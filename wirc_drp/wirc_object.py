@@ -268,7 +268,6 @@ class wirc_data(object):
                 bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, hot_pixel_map.astype(bool)) #combine two maps
             else:
                 hot_pixel_map = hot_pixel_map_bool
-
             if clean_bad_pix:
                 redux = calibration.cleanBadPix(self.full_image, bad_pixel_map_bool)
                 if self.hp_fn is not None:
@@ -335,7 +334,8 @@ class wirc_data(object):
         else:
             print("Data already calibrated")
     
-    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, ref_lib=None, num_PCA_modes=None, source_pos=None, bkg_by_quadrants=False, destripe=False,
+    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, nclosest = None, same_HWP = True, ref_lib=None, num_PCA_modes=None, \
+        source_pos=None, bkg_by_quadrants=False, destripe=False, \
         shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
         """
         Generates a model of the background using a variety of possible methods and then saves it to self.bkg_image:
@@ -345,7 +345,40 @@ class wirc_data(object):
         (3) 'median_ref': Median combines the reference library frames 
         (4) 'scaled_bkg': Takes and scales a manually inputted background frame
         (5) 'simple_median': Calculates the median pixel value of the image and subtracts that off the entire image 
+
+        nclosest: If not None, only use n images in bkg_fns exposed closest to the science frame to construct background
+        same_HWP: If True, only use bkg_fns with the same HWP angle as the science image
         """
+        #check that ncloset value is valid
+        if ncloset is not None:
+            nclosest = int(ncloset) #in case somebody put in non integer
+            if ncloset > len(bkg_fns): #if you want more 'closest' files than available, use everything
+                ncloset = None
+        #if nclosest is not None or same_HWP is True, gather header info on files in bkg_fns
+        if (nclosest is not None) or same_HWP == True:
+            all_hdr = []
+            for i in bkg_fns:
+                all_hdr += [fits.getheader(i)]
+            #get some useful quantities
+            # coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
+            # names = np.array([x['RAW_FN'] for x in all_hdr])
+            hwps = np.array([x['HWP_ANG'] for x in all_hdr])
+            times = np.array([Time(x['UTSHUT'], format = 'isot') for x in all_hdr])
+            del all_hdr
+        time_obs = Time(self.header['UTSHUT'], format = 'isot'))
+        times_diff = np.abs(time_obs - times)
+
+        if same_HWP:
+            inds_same_HWP = np.abs(hwps - self.header['HWP_ANG'] ) < 0.1 #some threshold 
+            bkg_fns = bkg_fns[inds_same_HWP]
+            times_diff = times_diff[inds_same_HWP]
+
+        if nclosest is not None: #Get n numbers of bkg_fns with smallest time difference to 
+            inds = times_diff.argsort() #these indices are sorted by absolute time difference
+            bkg_fns = (bkg_fns[inds])[0:nclosest] #Then sort bkg_fns based on that, and pick the n closest ones
+
+        #for debugging
+        print(bkg_fns)
         
         #default shift and subtract method
         if method == 'shift_and_subtract':
