@@ -354,35 +354,36 @@ class wirc_data(object):
         same_HWP: If True, only use bkg_fns with the same HWP angle as the science image
         """
         #check that ncloset value is valid
-        if ncloset is not None:
-            nclosest = int(ncloset) #in case somebody put in non integer
-            if ncloset > len(bkg_fns): #if you want more 'closest' files than available, use everything
-                ncloset = None
-        #if nclosest is not None or same_HWP is True, gather header info on files in bkg_fns
-        if (nclosest is not None) or same_HWP == True:
-            all_hdr = []
-            for i in bkg_fns:
-                all_hdr += [fits.getheader(i)]
-            #get some useful quantities
-            # coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
-            # names = np.array([x['RAW_FN'] for x in all_hdr])
-            hwps = np.array([x['HWP_ANG'] for x in all_hdr])
-            times = np.array([Time(x['UTSHUT'], format = 'isot') for x in all_hdr])
-            del all_hdr
-        time_obs = Time(self.header['UTSHUT'], format = 'isot'))
-        times_diff = np.abs(time_obs - times)
+        if bkg_fns is not None:
+            if nclosest is not None:
+                nclosest = int(nclosest) #in case somebody put in non integer
+                if nclosest > len(bkg_fns): #if you want more 'closest' files than available, use everything
+                    nclosest = None
+            #if nclosest is not None or same_HWP is True, gather header info on files in bkg_fns
+            if (nclosest is not None) or same_HWP == True:
+                all_hdr = []
+                for i in bkg_fns:
+                    all_hdr += [fits.getheader(i)]
+                #get some useful quantities
+                # coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
+                # names = np.array([x['RAW_FN'] for x in all_hdr])
+                hwps = np.array([x['HWP_ANG'] for x in all_hdr])
+                times = np.array([Time(x['UTSHUT'], format = 'isot') for x in all_hdr])
+                del all_hdr
+            time_obs = Time(self.header['UTSHUT'], format = 'isot')
+            times_diff = np.abs(time_obs - times)
 
-        if same_HWP:
-            inds_same_HWP = np.abs(hwps - self.header['HWP_ANG'] ) < 0.1 #some threshold 
-            bkg_fns = bkg_fns[inds_same_HWP]
-            times_diff = times_diff[inds_same_HWP]
+            if same_HWP:
+                inds_same_HWP = np.abs(hwps - self.header['HWP_ANG'] ) < 0.1 #some threshold 
+                bkg_fns = bkg_fns[inds_same_HWP]
+                times_diff = times_diff[inds_same_HWP]
 
-        if nclosest is not None: #Get n numbers of bkg_fns with smallest time difference to 
-            inds = times_diff.argsort() #these indices are sorted by absolute time difference
-            bkg_fns = (bkg_fns[inds])[0:nclosest] #Then sort bkg_fns based on that, and pick the n closest ones
+            if nclosest is not None: #Get n numbers of bkg_fns with smallest time difference to 
+                inds = times_diff.argsort() #these indices are sorted by absolute time difference
+                bkg_fns = (bkg_fns[inds])[0:nclosest] #Then sort bkg_fns based on that, and pick the n closest ones
 
-        #for debugging
-        print(bkg_fns)
+            #for debugging
+            print(bkg_fns)
         
         #default shift and subtract method
         if method == 'shift_and_subtract':
