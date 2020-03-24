@@ -13,7 +13,6 @@ try:
     import matplotlib
     matplotlib.interactive(True)
 
-
     #First we'll set up all the directories and filenames: 
     wircpol_dir = os.environ['WIRC_DRP'] # Your WIRCPOL_DRP directory (with a "/" at the end!)
     tutorial_dir = wircpol_dir + "Tutorial/sample_data/Single_File_Tutorial/"
@@ -31,10 +30,10 @@ try:
     raw_data.calibrate(mask_bad_pixels=False,verbose=True)
 
     #save newly calibrated file
-    raw_data.save_wirc_object("calibrated.fits",verbose=True)
+    raw_data.save_wirc_object(tutorial_dir+"calibrated.fits",verbose=True)
 
     #First we'll create a new data object, mostly just to demonstrate how to read in an existing wirc_data object. 
-    calibrated_data = wo.wirc_data(wirc_object_filename="calibrated.fits",verbose=True)
+    calibrated_data = wo.wirc_data(wirc_object_filename=tutorial_dir+"calibrated.fits",verbose=True)
 
     #generate background image using one of several different options
     calibrated_data.generate_bkg()
@@ -61,21 +60,21 @@ try:
 
     #extract the spectra from each thumbnail
     calibrated_data.source_list[0].extract_spectra(verbose=False)
-    calibrated_data.source_list[0].plot_trace_spectra(figsize=(12,8))
+    # calibrated_data.source_list[0].plot_trace_spectra(figsize=(12,8))
 
     ## Now we'll do a rough wavelength calibration and plot the data again
     calibrated_data.source_list[0].rough_lambda_calibration(method=2) 
-    calibrated_data.source_list[0].plot_trace_spectra(figsize=(10,6),xlow=1.16,xhigh=1.34)
+    # calibrated_data.source_list[0].plot_trace_spectra(figsize=(10,6),xlow=1.16,xhigh=1.34)
 
     #We now combine the 4 spectra to calculate Stokes Q and U
     calibrated_data.source_list[0].compute_polarization(cutmin=20, cutmax=150)
-    calibrated_data.source_list[0].plot_Q_and_U(figsize=(8,3),xlow=1.17,xhigh=1.32,ylow=-0.1,yhigh=0.1)
+    # calibrated_data.source_list[0].plot_Q_and_U(figsize=(8,3),xlow=1.17,xhigh=1.32,ylow=-0.1,yhigh=0.1)
 
     #We now save the new information and tables to a new file Note how it initiates the table columns even if the data hasn't been computed (for example, we haven't computed source_list[1] yet)
-    calibrated_data.save_wirc_object("calibrated.fits")
+    calibrated_data.save_wirc_object(tutorial_dir+"calibrated.fits")
     print('End of test script.')
 
-    plt.close("all")
+    # plt.close("all")
 except Exception as e:
     print("Failed Test 1 with exception {}".format(e))
     sys.exit(1)
