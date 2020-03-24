@@ -18,6 +18,8 @@ that newer version will have backward compatibility.**
 
 3) Install all the dependencies below. 
 
+4) For Developers only: run the bash script "scripts/install-hooks.bash" to enable pre-commit code checks. 
+
 ## Dependencies
 
 The WIRC_DRP relies on several outside packages:
