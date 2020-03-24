@@ -24,7 +24,8 @@ try:
     bp_fn = tutorial_dir+"wirc2012_bp_map.fits"
 
     #Now we'll create the wirc_data object, passing in the filenames for the master dark, flat and bad pixel maps
-    raw_data = wo.wirc_data(raw_filename=raw_fn, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn,verbose=True)
+    raw_data = wo.wirc_data(raw_filename=raw_fn, flat_fn = flat_fn, dark_fn = dark_fn, bp_fn = bp_fn,verbose=True,
+                            update_bjd=False)
 
     #calibrate the data object
     raw_data.calibrate(mask_bad_pixels=False,verbose=True)

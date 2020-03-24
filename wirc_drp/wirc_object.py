@@ -45,7 +45,8 @@ class wirc_data(object):
 
     def __init__(self, raw_filename=None, wirc_object_filename=None, load_full_image = True, 
         dark_fn = None, flat_fn = None, bp_fn = None, hp_fn = None, bkg_fn = None, ref_lib = None, 
-        cross_correlation_template=None, trace_template=None, verbose = True,clear_sources=False):
+        cross_correlation_template=None, trace_template=None, verbose = True,clear_sources=False,
+        update_bjd=True):
         ## set verbose=False to suppress print outputs
         ## Load in either the raw file, or the wircpol_object file,
         ## If load_full_image is True, load the full array image. This uses a lot of memory if a lot of wric objects are loaded at once.
@@ -131,18 +132,21 @@ class wirc_data(object):
             # self.type =
 
             #get mid-exposure time in BJD_TDB
-            try:
-                date_in=self.header['UTSHUT']
-                target_pos=coord.SkyCoord(self.header['RA'],self.header['DEC'],unit=(u.hourangle,u.deg),frame='icrs')
-                palomar=coord.EarthLocation.of_site('Palomar')
-                time=ap_time.Time(date_in,format='isot',scale='utc',location=palomar)
-                mid_exptime=0.5*self.header['EXPTIME']*self.header['COADDS']/(24*3600) #in units of days
-                ltt_bary=time.light_travel_time(target_pos)
-                time=time.tdb+ltt_bary #convert from UTC to TDB standard, apply barycentric correction
-                self.bjd=time.jd+mid_exptime
-            except Exception as e:
+            if update_bjd:
+                try:
+                    date_in=self.header['UTSHUT']
+                    target_pos=coord.SkyCoord(self.header['RA'],self.header['DEC'],unit=(u.hourangle,u.deg),frame='icrs')
+                    palomar=coord.EarthLocation.of_site('Palomar')
+                    time=ap_time.Time(date_in,format='isot',scale='utc',location=palomar)
+                    mid_exptime=0.5*self.header['EXPTIME']*self.header['COADDS']/(24*3600) #in units of days
+                    ltt_bary=time.light_travel_time(target_pos)
+                    time=time.tdb+ltt_bary #convert from UTC to TDB standard, apply barycentric correction
+                    self.bjd=time.jd+mid_exptime
+                except Exception as e:
+                    self.bjd = 0.
+                    print("Couldn't update the BJD. Error {}".format(e))
+            else: 
                 self.bjd = 0.
-                print("Couldn't update the BJD. Error {}".format(e))
 
         else: #for a blank wirc object
             self.calibrated = False
