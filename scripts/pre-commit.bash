@@ -1,14 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/env bash
 
-import sys
+GIT_DIR=$(git rev-parse --git-dir)
 
-print("Running pre-commit hook")
+echo "Running pre-commit hook\n"
 
-try:
-    import wirc_drp
-except Exception as e:
-    print("Pre-commit test falied with error {}".format(e))
-    sys.exit(-1)
+echo "Starting Test 1"
+python tests/test1.py
 
-print("Test passed")
-sys.exit(0)
+if [ $? -ne 0 ]; then
+ echo "Pre-commit tests failed on test 1"
+ exit 1
+fi
+

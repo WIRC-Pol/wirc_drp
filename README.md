@@ -18,7 +18,7 @@ that newer version will have backward compatibility.**
 
 3) Install all the dependencies below. 
 
-4) For Developers only: run the bash script "scripts/install-hooks.bash" to enable pre-commit code checks. 
+4) For anyone wishing to run: run the bash script "scripts/install-hooks.bash" to enable pre-commit code checks. 
 
 ## Dependencies
 
