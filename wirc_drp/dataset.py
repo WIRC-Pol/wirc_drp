@@ -41,7 +41,7 @@ parallel=False,n_processes=None):
 
     for bkg_method in bkg_methods:
         # try: 
-        if bkg_method == "slit_background" and ~in_slit:
+        if bkg_method == "slit_background" and not in_slit:
             warnings.warn("You requested 'slit_background' subtraction, but didn't indicate that the source was in the slit. Not doing slit_background, but continuing")
             continue
 
@@ -91,11 +91,11 @@ parallel=False,n_processes=None):
                     for i,fname in enumerate(filelist):
                         if verbose or less_verbose:
                             print("File {} of {} with bkg_method = {}{}: {}".format(i+1,len(filelist),bkg_method,npca,fname))
-                        else:
-                            extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir,verbose=verbose,bkg_method=bkg_method,
-                            num_PCA_modes=npca)
-                            extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
-                            num_PCA_modes=npca,update_cutout_backgrounds=True)
+                        
+                        extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir,verbose=verbose,bkg_method=bkg_method,
+                        num_PCA_modes=npca)
+                        extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
+                        num_PCA_modes=npca,update_cutout_backgrounds=True)
         
         else:
 
@@ -192,10 +192,12 @@ def extract_single_file_parallel_helper(args):
     '''
     This is here to help the parallelization of extract_single_file by unpacking the arguments
     '''
-
-    extract_single_file(args[0],args[1],args[2],output_path = args[3],output_suffix = args[4],
-    verbose = args[5],bkg_method = args[6],num_PCA_modes = args[7],
-    update_cutout_backgrounds = args[8], save_full_image=args[9])
+    try: 
+        extract_single_file(args[0],args[1],args[2],output_path = args[3],output_suffix = args[4],
+        verbose = args[5],bkg_method = args[6],num_PCA_modes = args[7],
+        update_cutout_backgrounds = args[8], save_full_image=args[9])
+    except:
+        print("Some error with file {}".format(args[0]))
 
 def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
@@ -256,7 +258,7 @@ n_processes=None):
 def reduce_dataset_distance(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
 "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,delta_ra=10,
-parallel=False,n_processes=None):
+parallel=False,n_processes=None,parallel_finding=True):
     '''
     A version of reduce_dataset that has an ra distance cutoff to use in determining what background to use. 
     '''
@@ -274,7 +276,7 @@ parallel=False,n_processes=None):
 
     if less_verbose:
         print("Finding Source Positions")
-    sources = find_dataset_sources(filelist,output_dir=output_path,parallel=parallel,no_save=True)
+    sources = find_dataset_sources(filelist,output_dir=output_path,parallel=parallel_finding,no_save=True)
     source_positions = []
     for fnames,sources in sources:
         source_distances = [np.sqrt((source[0]-source_pos[1])**2+(source[1]-source_pos[0])**2) for source in sources]
@@ -293,7 +295,7 @@ parallel=False,n_processes=None):
 
     for bkg_method in bkg_methods:
         # try: 
-        if bkg_method == "slit_background" and ~in_slit:
+        if bkg_method == "slit_background" and not in_slit:
             warnings.warn("You requested 'slit_background' subtraction, but didn't indicate that the source was in the slit. Not doing slit_background, but continuing")
             continue
 
@@ -324,19 +326,25 @@ parallel=False,n_processes=None):
                         n_processes = mp.cpu_count() - 1
 
                     #Make the pool
-                    with mp.Pool(processes=n_processes) as pool:
+                    # with mp.Pool(processes=n_processes) as pool:
                     # pool = mp.Pool(processes=n_processes)
                     
                         #Package up the arguments (getting the background list looks complicated, 
                         # but is really just a compact version of the non-parallel version): 
-                        args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                        outdir,"",verbose,bkg_method,npca,False,False) for i,fname in enumerate(filelist)]
-                        outputs = pool.map(extract_single_file_parallel_helper,args) 
+                        # args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
+                        # outdir,"",verbose,bkg_method,npca,False,False) for i,fname in enumerate(filelist)]
+                        # outputs = pool.map(extract_single_file_parallel_helper,args) 
+                        
+                        # #Now with the update cutout backgrounds
+                        # args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
+                        # outdir2,"",verbose,bkg_method,npca,True,False) for i,fname in enumerate(filelist)]
+                        # outputs = pool.map(extract_single_file_parallel_helper,args) 
 
-                        #Now with the update cutout backgrounds
-                        args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                        outdir,"",verbose,bkg_method,npca,True,False) for i,fname in enumerate(filelist)]
-                        outputs = pool.map(extract_single_file_parallel_helper,args) 
+                    do_parallel_extraction(source_pos,filelist,ras,delta_ra,outdir,verbose,bkg_method,npca,False,False,n_processes)
+
+                    do_parallel_extraction(source_pos,filelist,ras,delta_ra,outdir2,verbose,bkg_method,npca,True,False,n_processes)
+
+                        
                 #Or not
                 else: 
                 
@@ -346,10 +354,17 @@ parallel=False,n_processes=None):
 
                         if verbose or less_verbose:
                             print("File {} of {} with bkg_method = {}{}: {}".format(i+1,len(filelist),bkg_method,npca,fname))
-                        extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir,verbose=verbose,bkg_method=bkg_method,
-                        num_PCA_modes=npca)
-                        extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
-                        num_PCA_modes=npca,update_cutout_backgrounds=True)
+                        try: 
+                            extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir,verbose=verbose,bkg_method=bkg_method,
+                            num_PCA_modes=npca)
+                        except: 
+                            print("Something went wrong with file {}".format(fname))
+
+                        try: 
+                            extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
+                            num_PCA_modes=npca,update_cutout_backgrounds=True)
+                        except: 
+                            print("Something went wrong with background cutouts with file {} ".format(fname))
         
         else:
 
@@ -371,22 +386,29 @@ parallel=False,n_processes=None):
                 if n_processes is None:
                     n_processes = mp.cpu_count() - 1
 
-                #Make the pool
-                with mp.Pool(processes=n_processes) as pool:
-                # pool = mp.Pool(processes=n_processes)
+                npca = None
                 
-                    #Package up the arguments (getting the background list looks complicated, 
-                    # but is really just a compact version of the non-parallel version): 
-                    args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                    outdir,"",verbose,bkg_method,None,False,False) for i,fname in enumerate(filelist)]
-                    outputs = pool.map(extract_single_file_parallel_helper,args) 
+                do_parallel_extraction(source_pos,filelist,ras,delta_ra,outdir,verbose,bkg_method,npca,False,False,n_processes)
+                
+                if bkg_method != "cutout_median":
+                    do_parallel_extraction(source_pos,filelist,ras,delta_ra,outdir2,verbose,bkg_method,npca,True,False,n_processes)
 
-                    # import pdb; pdb.set_trace()
-                    if bkg_method != "cutout_median":
-                        #Now with the update cutout backgrounds
-                        args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
-                        outdir,"",verbose,bkg_method,None,True,False) for i,fname in enumerate(filelist)]
-                        outputs = pool.map(extract_single_file_parallel_helper,args) 
+                # #Make the pool
+                # with mp.Pool(processes=n_processes) as pool:
+                # # pool = mp.Pool(processes=n_processes)
+                
+                #     #Package up the arguments (getting the background list looks complicated, 
+                #     # but is really just a compact version of the non-parallel version): 
+                #     args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
+                #     outdir,"",verbose,bkg_method,None,False,False) for i,fname in enumerate(filelist)]
+                #     outputs = pool.map(extract_single_file_parallel_helper,args) 
+
+                #     # import pdb; pdb.set_trace()
+                #     if bkg_method != "cutout_median":
+                #         #Now with the update cutout backgrounds
+                #         args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
+                #         outdir2,"",verbose,bkg_method,None,True,False) for i,fname in enumerate(filelist)]
+                #         outputs = pool.map(extract_single_file_parallel_helper,args) 
 
             else:
 
@@ -396,10 +418,32 @@ parallel=False,n_processes=None):
 
                     if verbose or less_verbose:
                         print("File {} of {} with bkg_method = {}: {}".format(i+1,len(filelist),bkg_method,fname))
-                    extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir,verbose=verbose,bkg_method=bkg_method)
+                    try: 
+                        extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir,verbose=verbose,bkg_method=bkg_method)
+                    except: 
+                        print("Something went wrong with file {}".format(fname))
                     if bkg_method != "cutout_median":
-                        extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
-                        update_cutout_backgrounds=True)
+                        try: 
+                            extract_single_file(fname,source_pos, filelist[good_bkgs],output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
+                            update_cutout_backgrounds=True)
+                        except:
+                            print("Something went wrong with bkg_cutouts with file {}".format(fname))
+
+def do_parallel_extraction(source_pos,filelist,ras,delta_ra,outdir,verbose,bkg_method,npca,update_bkg_cutouts,save,n_processes):
+    '''
+    Another helping function
+    '''
+    import multiprocessing as mp
+    #Make the pool
+    with mp.Pool(processes=n_processes) as pool:
+        # pool = mp.Pool(processes=n_processes)
+        
+        #Package up the arguments (getting the background list looks complicated, 
+        # but is really just a compact version of the non-parallel version): 
+        args = [(fname,source_pos,filelist[np.where(np.abs(ras-ras[i]) > delta_ra)],
+        outdir,"",verbose,bkg_method,npca,update_bkg_cutouts,save) for i,fname in enumerate(filelist)]
+        outputs = pool.map(extract_single_file_parallel_helper,args)
+    
 
 def find_dataset_sources(filelist,output_dir=None,n_processes=None,parallel=True,no_save=False):
     '''
@@ -430,7 +474,7 @@ def find_dataset_sources(filelist,output_dir=None,n_processes=None,parallel=True
             outputs = pool.map(_find_source_and_save,output_filenames) 
     else: 
         outputs = []
-        for file_names in zip(output_filenames): 
+        for file_names in output_filenames: 
             outputs.append(_find_source_and_save(file_names))
     
     return outputs
