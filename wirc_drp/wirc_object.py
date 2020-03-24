@@ -266,6 +266,8 @@ class wirc_data(object):
             if self.hp_fn is not None:
                 hot_pixel_map = fits.open(self.hp_fn)[0].data
                 bad_pixel_map_bool = np.logical_or(bad_pixel_map_bool, hot_pixel_map.astype(bool)) #combine two maps
+            else:
+                hot_pixel_map = hot_pixel_map_bool
 
             if clean_bad_pix:
                 redux = calibration.cleanBadPix(self.full_image, bad_pixel_map_bool)
