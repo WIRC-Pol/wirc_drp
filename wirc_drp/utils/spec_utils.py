@@ -58,7 +58,9 @@ import sys, os, time
 import copy
 #import pyklip.klip
 
-wircpol_dir = os.environ['WIRC_DRP']
+# wircpol_dir = os.environ['WIRC_DRP']
+wircpol_dir = '/'.join(os.path.realpath(__file__).split('/')[:-2]) 
+
 
 
 def frame_rotate(array, angle, imlib='opencv', interpolation='bicubic', cxy=None):
@@ -1190,7 +1192,7 @@ def rough_lambda_and_filter_calibration(spectra, widths, xpos, ypos, band = "J",
             print("The linear dispersion for trace {} is {} um per pixel".format(i,ld))
 
         #Read in the filter profile
-        filt_tp = np.genfromtxt(wircpol_dir+"wirc_drp/specification/J_WIRC.csv", delimiter=',')
+        filt_tp = np.genfromtxt(wircpol_dir+"/specification/J_WIRC.csv", delimiter=',')
         filt_tp[:,1] = filt_tp[:,1]/100 #The filter trasmission is given as percent. Let's normalize it to 1. 
 
         #The wavelength correction factor for the filter. Ghinassi et al. 2002 paper gives the below equations, with n_eff = 2 for MKO filters. 
