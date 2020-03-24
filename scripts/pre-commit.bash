@@ -1,14 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env bash
 
-import sys
+echo "Running pre-commit hook\n"
 
-print("Running pre-commit hook")
+echo "Starting Test 1"
+python ./scripts/test1.py
 
-try:
-    import wirc_drp
-except Exception as e:
-    print("Pre-commit test falied with error {}".format(e))
-    sys.exit(-1)
+if [ $? -ne 0 ]; then
+ echo "Pre-commit tests failed on test 1"
+ exit 1
+fi
 
-print("Test passed")
-sys.exit(0)
