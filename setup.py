@@ -11,3 +11,5 @@ setup(
 	install_requires=['opencv-python','scikit-image'],
 	long_description=open('README.md').read()
 	)
+
+
