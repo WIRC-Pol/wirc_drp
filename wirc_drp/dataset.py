@@ -199,61 +199,64 @@ def extract_single_file_parallel_helper(args):
     except:
         print("Some error with file {}".format(args[0]))
 
-def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
-bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
-"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,parallel=False,
-n_processes=None):
-    '''
-    A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
-    It uses each position as backgrond for the other. 
-
-    Inputs:
-        filelist    -   A python list of filepaths
-        background_list -   A python list of background files (this can be one file)
-    '''
-
-    #Separate them into two dithers - Assuming dither only in the RA direction
-    list_of_headers = []
-    for i in filelist:
-        list_of_headers += [fits.getheader(i)]
-    #closest in time, some distance away, same HWP
-    all_hdr = list_of_headers
-    #get some useful quantities
-    coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
-    ras = np.array([x.ra.degree for x in coords])
-
-    #Let's get the moving mean to help us distinguish between the two dither positions, 
-    #knowing that it could drift over time. 
-    moving_mean = []
-    inds = np.arange(len(ras))
-
-    for i in range(len(ras)):
-        dist = np.sqrt((inds-i)**2)
-        dist_args = np.argsort(dist)
-        good_inds = inds[dist_args][:8]
-        moving_mean.append(np.mean(ras[good_inds]))
+# def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
+# bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
+# "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,parallel=False,
+# n_processes=None):
+#     '''
+     
+#      THIS FUNCTION IS BAD, DON'T USE IT. 
 
 
-    groupA = np.where(ras-moving_mean<0)
-    groupB = np.where(ras-moving_mean>0)
+#     A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
+#     It uses each position as backgrond for the other. 
 
-    #Reduce them all with all the possible background subtraction methods - Dither position 1
-    reduce_dataset(filelist[groupA], source_pos, bkg_fnames = filelist[groupB], 
-                            bkg_methods = bkg_methods,
-                            output_path = output_path,
-                            verbose=verbose,
-                            less_verbose=less_verbose,
-                            n_pca=n_pca, in_slit=in_slit,
-                            parallel=parallel,n_processes=n_processes)
+#     Inputs:
+#         filelist    -   A python list of filepaths
+#         background_list -   A python list of background files (this can be one file)
+#     '''
 
-    #Reduce them all with all the possible background subtraction methods - Dither position 2
-    reduce_dataset(filelist[groupB], source_pos, bkg_fnames = filelist[groupA], 
-                            bkg_methods = bkg_methods,
-                            output_path = output_path,
-                            verbose=verbose,
-                            less_verbose=less_verbose,
-                            n_pca=n_pca, in_slit=in_slit,
-                            parallel=parallel,n_processes=n_processes)
+#     #Separate them into two dithers - Assuming dither only in the RA direction
+#     list_of_headers = []
+#     for i in filelist:
+#         list_of_headers += [fits.getheader(i)]
+#     #closest in time, some distance away, same HWP
+#     all_hdr = list_of_headers
+#     #get some useful quantities
+#     coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
+#     ras = np.array([x.ra.degree for x in coords])
+
+#     #Let's get the moving mean to help us distinguish between the two dither positions, 
+#     #knowing that it could drift over time. 
+#     moving_mean = []
+#     inds = np.arange(len(ras))
+
+#     for i in range(len(ras)):
+#         dist = np.sqrt((inds-i)**2)
+#         dist_args = np.argsort(dist)
+#         good_inds = inds[dist_args][:8]
+#         moving_mean.append(np.mean(ras[good_inds]))
+
+#     groupA = np.where(ras-moving_mean<0)
+#     groupB = np.where(ras-moving_mean>0)
+
+#     #Reduce them all with all the possible background subtraction methods - Dither position 1
+#     reduce_dataset(filelist[groupA], source_pos, bkg_fnames = filelist[groupB], 
+#                             bkg_methods = bkg_methods,
+#                             output_path = output_path,
+#                             verbose=verbose,
+#                             less_verbose=less_verbose,
+#                             n_pca=n_pca, in_slit=in_slit,
+#                             parallel=parallel,n_processes=n_processes)
+
+#     #Reduce them all with all the possible background subtraction methods - Dither position 2
+#     reduce_dataset(filelist[groupB], source_pos, bkg_fnames = filelist[groupA], 
+#                             bkg_methods = bkg_methods,
+#                             output_path = output_path,
+#                             verbose=verbose,
+#                             less_verbose=less_verbose,
+#                             n_pca=n_pca, in_slit=in_slit,
+#                             parallel=parallel,n_processes=n_processes)
 
 def reduce_dataset_distance(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
