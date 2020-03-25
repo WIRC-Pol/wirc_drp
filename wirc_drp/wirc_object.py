@@ -342,6 +342,38 @@ class wirc_data(object):
         (4) 'scaled_bkg': Takes and scales a manually inputted background frame
         (5) 'simple_median': Calculates the median pixel value of the image and subtracts that off the entire image 
         """
+        #check that nclosest value is valid
+        if bkg_fns is not None:
+            if nclosest is not None:
+                nclosest = int(nclosest) #in case somebody put in non integer
+                if nclosest > len(bkg_fns): #if you want more 'closest' files than available, use everything
+                    nclosest = None
+            #if nclosest is not None or same_HWP is True, gather header info on files in bkg_fns
+            if (nclosest is not None) or same_HWP == True:
+                all_hdr = []
+                for i in bkg_fns:
+                    all_hdr += [fits.getheader(i)]
+                #get some useful quantities
+                # coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
+                # names = np.array([x['RAW_FN'] for x in all_hdr])
+                hwps = np.array([x['HWP_ANG'] for x in all_hdr])
+                times = np.array([ap_time.Time(x['UTSHUT'], format = 'isot') for x in all_hdr])
+                del all_hdr
+                time_obs = Time(self.header['UTSHUT'], format = 'isot')
+                times_diff = np.abs(time_obs - times)
+
+            if same_HWP:
+                inds_same_HWP = np.abs(hwps - self.header['HWP_ANG'] ) < 0.1 #some threshold 
+                bkg_fns = bkg_fns[inds_same_HWP]
+                times_diff = times_diff[inds_same_HWP]
+
+            if nclosest is not None: #Get n numbers of bkg_fns with smallest time difference to 
+                inds = times_diff.argsort() #these indices are sorted by absolute time difference
+                bkg_fns = (bkg_fns[inds])[0:nclosest] #Then sort bkg_fns based on that, and pick the n closest ones
+
+            #for debugging
+            #print(bkg_fns)
+
         
         #default shift and subtract method
         if method == 'shift_and_subtract':
@@ -351,23 +383,15 @@ class wirc_data(object):
         #PCA background subtraction
         if method == 'PCA':
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if bkg_fns is None:
-                ref_lib = self.ref_lib
-            else:
+            if bkg_fns is not None:
                 ref_lib = bkg_fns
 
             if num_PCA_modes is not None:
-                if ref_lib is not None:
-                    if verbose:
-                        print('Subtracting background using PCA.')
-
-                    #Do the PCA subtraction, save the model image to self.bkg_image. It also outputs a subtracted image, ignore that for now. 
-                    _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, ref_lib, num_PCA_modes,**kwargs)
-                    
+                #Do the PCA subtraction, save the model image to self.bkg_image. It also outputs a subtracted image, ignore that for now.
+                if self.ref_lib is not None: 
+                    _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, self.ref_lib, num_PCA_modes,**kwargs)
                 else:
-                    print('Must provide a list of reference files to perform PCA subtraction, either as a keyword argument "ref_lib" or in self.ref_lib.')
-            else:
-                print('Must specify number of PCA modes first.')  
+                    _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, ref_lib, num_PCA_modes,**kwargs)
 
         if method == 'PCA_cutouts':
             print('Subtracting background using PCA cutouts')
@@ -476,7 +500,7 @@ class wirc_data(object):
                         else:
                             bk_factor = 1.
                         if verbose:
-                            print("Subtracting background frame {} from all science files".format(self.bkg_fn))
+                            print("Subtracting background frame {} from all science files".format(bkg_fn))
 
                         background = background - bk_factor*master_dark
 
@@ -509,7 +533,7 @@ class wirc_data(object):
                 if len(bkg_fns) == 1:
                     #Update the header
                     self.header['HISTORY'] = "Generated scaled background frame {}".format(self.bkg_fn)
-                    self.header['BKG_FN'] = bkg_fns
+                    self.header['BKG_FN'] = bkg_fns[0]
                 else: 
                     self.header['HISTORY'] = "Generated a scaled background based on the median of a big background list"
                     
