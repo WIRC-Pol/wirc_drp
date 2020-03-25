@@ -88,7 +88,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
     # MAIN CODE ###########
 
     # Load cropped and centered trace template image
-    template_fn = constants.wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
+    template_fn = constants.wircpol_dir+'/wirc_drp/masks/single_trace_template2.fits'
     
     if verbose:
         print("Loading Template from {}".format(template_fn))
@@ -154,7 +154,7 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
 
      # # If use_full_frame_mask
     if use_full_frame_mask:
-        ffmask = fits.open(constants.wircpol_dir+'wirc_drp/masks/full_frame_mask.fits')[0].data
+        ffmask = fits.open(constants.wircpol_dir+'/wirc_drp/masks/full_frame_mask.fits')[0].data
         fftmask = np.ndarray.astype(ffmask,bool)
         fftmask = fftmask[::-1,:]
         # science_image_filt[np.where(~fftmask)] = 0.
@@ -376,7 +376,7 @@ def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, v
     # Load cropped and centered trace template image
 
     if trace_template is None:
-        template_fn = constants.wircpol_dir+'wirc_drp/masks/single_trace_template2.fits'
+        template_fn = constants.wircpol_dir+'/irc_drp/masks/single_trace_template2.fits'
         
         if verbose:
             print("Loading Template from {}".format(template_fn))
