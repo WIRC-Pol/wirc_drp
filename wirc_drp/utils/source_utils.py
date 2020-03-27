@@ -212,6 +212,7 @@ def group_HWP(HWP_set):
     Input: HWP_set, a vector of all half wave plate angles in the observing compute_qu_for_obs_sequence
     Output: Two arrays each for sets of 0/45 deg and another for 22.5/67.5. compute_qu_for_obs_sequence can then use this info to call 
             compute_qu to compute qu for each appropriate pair.  
+            Another array to record pairless indices. 
     """
     # #HWP_index determine which pair is q and which is u. If HWP = 0 or 45, HWP_ind = 0; if HWP = 22.5, 67.5, HWP_ind = 1
     # #So HWP_ind = 0; LL, UR is q, LR, UL is u. Flipped for HWP_ind = 1
@@ -239,7 +240,12 @@ def group_HWP(HWP_set):
     
     # pairs_0 = np.stack([set_0[0], set_45[0]], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair.
     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
-    return pairs_0, pairs_225
+
+    #Report indices that didn't get paired up. 
+    # args = np.arange(len(HWP_set))
+    # paired = np.concatenate([pairs_0.flatten(), pairs_225.flatten()])
+    # pair_less = np.setdiff1d(args, paired)
+    return pairs_0, pairs_225#, pair_less
 
 # def null_qu(HWP_set):
 #     """
@@ -295,12 +301,17 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     # print( pairs_0, pairs_225)
     #First deal with observations with HWP angles 0/45. Go through the list and compute q and u for each pair
 
+    #Get rid of observations that have no pair, print report. 
+    # spectra_cube_with_pair = 
+
     all_q0 = []
     all_u0 = []
     all_qerr0 = []
     all_uerr0 = []
     all_qind0 = []
     all_uind0 = []
+
+    ind_of_obs = [] #This record the index of observations
 
     for i in pairs_0:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
@@ -319,6 +330,8 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
             all_uerr0 += [(u_err[0]+u_err[1])/(2*np.sqrt(2))]
             all_qind0 += [0]
             all_uind0 += [1]
+
+        ind_of_obs += [np.mean(i)] #average between the two indices of the observations is recorded
 
     #Now deal with observations with HWP angles 22.5/67.5. 
 
@@ -348,6 +361,9 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
             all_qind225 += [1]
             all_uind225 += [0]
 
+        ind_of_obs += [np.mean(i)] #average between the two indices of the observations is recorded
+
+
     #Original:
     # all_q       = np.array(all_q0 + all_q225    )
     # all_u       = np.array(all_u0 + all_u225     )
@@ -359,34 +375,49 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     #Now we want to return to the original measurement order, so we interleave the two sets: 
     #For now we do this by finding the indexes of the 0 and 22.5 waveplate positions. 
     #If there's a screwy HWP Sequence this will get messed up. 
-    first_inds = np.where(HWP_set ==0 )[0]//2
-    second_inds = np.where(HWP_set == 22.5 )[0]//2
+#     first_inds = np.where(HWP_set ==0 )[0]//2
+#     second_inds = np.where(HWP_set == 22.5 )[0]//2
     
-   # import pdb;pdb.set_trace()
-    all_q = np.empty((np.shape(all_q0)[0]+np.shape(all_q225)[0],np.shape(all_q0)[1]))
-    all_q[first_inds] = all_q0
-    all_q[second_inds] = all_q225
+#    # import pdb;pdb.set_trace()
+#     all_q = np.empty((np.shape(all_q0)[0]+np.shape(all_q225)[0],np.shape(all_q0)[1]))
+#     all_q[first_inds] = all_q0
+#     all_q[second_inds] = all_q225
 
-    all_u = np.empty((np.shape(all_u0)[0]+np.shape(all_u225)[0],np.shape(all_u0)[1]))
-    all_u[first_inds] = all_u0
-    all_u[second_inds] = all_u225
+#     all_u = np.empty((np.shape(all_u0)[0]+np.shape(all_u225)[0],np.shape(all_u0)[1]))
+#     all_u[first_inds] = all_u0
+#     all_u[second_inds] = all_u225
 
-    all_qerr = np.empty((np.shape(all_qerr0)[0]+np.shape(all_qerr225)[0],np.shape(all_qerr0)[1]))
-    all_qerr[first_inds] = all_qerr0
-    all_qerr[second_inds] = all_qerr225
+#     all_qerr = np.empty((np.shape(all_qerr0)[0]+np.shape(all_qerr225)[0],np.shape(all_qerr0)[1]))
+#     all_qerr[first_inds] = all_qerr0
+#     all_qerr[second_inds] = all_qerr225
 
-    all_uerr = np.empty((np.shape(all_uerr0)[0]+np.shape(all_uerr225)[0],np.shape(all_uerr0)[1]))
-    all_uerr[first_inds] = all_uerr0
-    all_uerr[second_inds] = all_uerr225
+#     all_uerr = np.empty((np.shape(all_uerr0)[0]+np.shape(all_uerr225)[0],np.shape(all_uerr0)[1]))
+#     all_uerr[first_inds] = all_uerr0
+#     all_uerr[second_inds] = all_uerr225
 
-    #These next few lines are probably overkill, but copying and pasting is easier than thinking. 
-    all_qind = np.empty((np.shape(all_qind0)[0]+np.shape(all_qind225)[0]))
-    all_qind[first_inds] = all_qind0
-    all_qind[second_inds] = all_qind225   
+#     #These next few lines are probably overkill, but copying and pasting is easier than thinking. 
+#     all_qind = np.empty((np.shape(all_qind0)[0]+np.shape(all_qind225)[0]))
+#     all_qind[first_inds] = all_qind0
+#     all_qind[second_inds] = all_qind225   
 
-    all_uind = np.empty((np.shape(all_uind0)[0]+np.shape(all_uind225)[0]))
-    all_uind[first_inds] = all_uind0
-    all_uind[second_inds] = all_uind225  
+#     all_uind = np.empty((np.shape(all_uind0)[0]+np.shape(all_uind225)[0]))
+#     all_uind[first_inds] = all_uind0
+#     all_uind[second_inds] = all_uind225  
+
+    #Instead of assuming regular HWP sequence, we will sort using ind_of_obs
+    sort_by_obs = (np.array(ind_of_obs)).argsort()
+
+    print(ind_of_obs)
+    print(sort_by_obs)
+
+    #add results from all_*0 and all_*225 together, then sort by the observation indices. 
+    all_q      = np.array(all_q0    + all_q225      )[sort_by_obs] 
+    all_u      = np.array(all_u0    + all_u225      )[sort_by_obs]
+    all_qerr   = np.array(all_qerr0 + all_qerr225   )[sort_by_obs]
+    all_uerr   = np.array(all_uerr0 + all_uerr225   )[sort_by_obs]
+    all_qind   = np.array(all_qind0 + all_qind225   )[sort_by_obs]
+    all_uind   = np.array(all_uind0 + all_uind225   )[sort_by_obs]
+
 
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
 

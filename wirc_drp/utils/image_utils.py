@@ -1923,7 +1923,7 @@ def smooth_cutouts(thumbnails,method='gaussian',width=3):
     return
 
 def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size=80, fit_width=3,
-    trace_mask_width=16,comb_method='median',low_start = 30, high_end= 130,
+    trace_mask_width=16,comb_method='median',low_start = 30, high_end= 150,
     vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=60):
     '''
     A function to subtract the background from the slit and only the slit, 
