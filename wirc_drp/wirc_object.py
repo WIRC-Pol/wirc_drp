@@ -394,23 +394,15 @@ class wirc_data(object):
         #PCA background subtraction
         if method == 'PCA':
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if bkg_fns is None:
-                ref_lib = self.ref_lib
-            else:
+            if bkg_fns is not None:
                 ref_lib = bkg_fns
 
             if num_PCA_modes is not None:
-                if ref_lib is not None:
-                    if verbose:
-                        print('Subtracting background using PCA.')
-
-                    #Do the PCA subtraction, save the model image to self.bkg_image. It also outputs a subtracted image, ignore that for now. 
-                    _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, ref_lib, num_PCA_modes,**kwargs)
-                    
+                #Do the PCA subtraction, save the model image to self.bkg_image. It also outputs a subtracted image, ignore that for now.
+                if self.ref_lib is not None: 
+                    _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, self.ref_lib, num_PCA_modes,**kwargs)
                 else:
-                    print('Must provide a list of reference files to perform PCA subtraction, either as a keyword argument "ref_lib" or in self.ref_lib.')
-            else:
-                print('Must specify number of PCA modes first.')  
+                    _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, ref_lib, num_PCA_modes,**kwargs)
 
         if method == 'PCA_cutouts':
             print('Subtracting background using PCA cutouts')
