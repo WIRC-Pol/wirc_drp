@@ -407,8 +407,8 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     #Instead of assuming regular HWP sequence, we will sort using ind_of_obs
     sort_by_obs = (np.array(ind_of_obs)).argsort()
 
-    print(ind_of_obs)
-    print(sort_by_obs)
+    # print(ind_of_obs)
+    # print(sort_by_obs)
 
     #add results from all_*0 and all_*225 together, then sort by the observation indices. 
     all_q      = np.array(all_q0    + all_q225      )[sort_by_obs] 
