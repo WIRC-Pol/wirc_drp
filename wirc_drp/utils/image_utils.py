@@ -2006,7 +2006,9 @@ def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size
         axes[2,0].set_ylabel("Residuals",fontsize=30)
         plt.tight_layout()
         plt.show()
-
+    #close the processing pool
+    pool.close()
+    #return results
     return bkg_image
 
 def _smoothed_tophat(x,size):
