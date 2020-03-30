@@ -353,8 +353,12 @@ class wirc_data(object):
         nclosest: If not None, only use n images in bkg_fns exposed closest to the science frame to construct background
         same_HWP: If True, only use bkg_fns with the same HWP angle as the science image
         """
-        #check that ncloset value is valid
+        #put bkg_fns into a list
+        if type(bkg_fns) == str:
+            bkg_fns = [bkg_fns]
         if bkg_fns is not None:
+            bkg_fns = np.array(bkg_fns)
+            #check that ncloset value is valid
             if nclosest is not None:
                 nclosest = int(nclosest) #in case somebody put in non integer
                 if nclosest > len(bkg_fns): #if you want more 'closest' files than available, use everything
