@@ -40,6 +40,7 @@ angular_magnification = 97.7
 lb=1.25#in microns
 passband = 0.162#in microns
 th = 0.17#instrument throughput; source http://www.astro.caltech.edu/palomar/observer/200inchResources/lfc/lfcpick.html
+th_h = 0.3
 #0.3#optical throughput: revised by Ming but corrected for new detector increase QE
 sigma_bg = 1       #background sigma number
 sigma_ron = 12      #readout sigma in electrons
