@@ -1983,7 +1983,7 @@ def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size
 
     
     #Set up the parallelization
-    pool = mp.Pool(processes=4)
+    pool = mp.Pool(processes=11)
 
     #Run the fitting
     outputs = pool.map(_generate_one_slit_background,inputs)
@@ -2006,9 +2006,8 @@ def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size
         axes[2,0].set_ylabel("Residuals",fontsize=30)
         plt.tight_layout()
         plt.show()
-    #close the processing pool
+
     pool.close()
-    #return results
     return bkg_image
 
 def _smoothed_tophat(x,size):
@@ -2115,6 +2114,7 @@ def _generate_one_slit_background(inputs):
         
         #Now minimize
         mini = so.minimize(to_minimize,x0,args=(masked_cut,masked_cut.size),method='Nelder-Mead',tol=1e-6)
+        # mini = so.least_squares(to_minimize,x0,args=(masked_cut,masked_cut.size),method='lm',f_scale=0.01,jac='3-point',loss='linear')
 
         bkg_cutout[i,i0:iend] = _smoothed_tophat(mini.x,masked_cut.size)
     return bkg_cutout

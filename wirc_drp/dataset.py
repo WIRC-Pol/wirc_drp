@@ -11,7 +11,7 @@ import astropy.units as u
 def reduce_dataset(filelist, source_pos, bkg_fnames = None, output_path = "./",verbose=True, 
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
 "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,less_verbose=True,
-parallel=False,n_processes=None):
+parallel=False,n_processes=None,nclosest=None,same_HWP=True):
     '''
     A function that reduces a dataset given a list of calibrated science and background files
 
@@ -20,7 +20,8 @@ parallel=False,n_processes=None):
 
     Inputs:
         filelist    -   A python list of filepaths
-        background_list -   A python list of background files (this can be one file)
+        source_pos  -   The source position in detector [x,y]
+        bkg_fnames -   A python list of background files (this can be one file)
     '''
 
     #Set up all the directories and filenames: 
@@ -78,12 +79,12 @@ parallel=False,n_processes=None):
                         
                         #Package up the arguments: 
                         args = [(fname,source_pos,bkg_fnames,
-                        outdir,"",verbose,bkg_method,npca,False,False) for fname in filelist]
+                        outdir,"",verbose,bkg_method,npca,False,False,nclosest,same_HWP) for fname in filelist]
                         outputs = pool.map(extract_single_file_parallel_helper,args) 
 
                         #Now with the update cutout backgrounds
                         args = [(fname,source_pos,bkg_fnames,
-                        outdir,"",verbose,bkg_method,npca,True,False) for fname in filelist]
+                        outdir,"",verbose,bkg_method,npca,True,False,nclosest,same_HWP) for fname in filelist]
                         outputs = pool.map(extract_single_file_parallel_helper,args) 
                 #Or not
                 else: 
@@ -93,9 +94,11 @@ parallel=False,n_processes=None):
                             print("File {} of {} with bkg_method = {}{}: {}".format(i+1,len(filelist),bkg_method,npca,fname))
                         
                         extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir,verbose=verbose,bkg_method=bkg_method,
-                        num_PCA_modes=npca)
-                        extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
-                        num_PCA_modes=npca,update_cutout_backgrounds=True)
+                        num_PCA_modes=npca,nclosest=nclosest,same_HWP=same_HWP)
+
+                        if not in_slit:
+                            extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
+                            num_PCA_modes=npca,update_cutout_backgrounds=True,nclosest=nclosest,same_HWP=same_HWP)
         
         else:
 
@@ -123,13 +126,13 @@ parallel=False,n_processes=None):
                 
                     #Package up the arguments: 
                     args = [(fname,source_pos,bkg_fnames,
-                    outdir,"",verbose,bkg_method,None,False,False) for fname in filelist]
+                    outdir,"",verbose,bkg_method,None,False,False,nclosest,same_HWP) for fname in filelist]
                     outputs = pool.map(extract_single_file_parallel_helper,args) 
 
                     if bkg_method != "cutout_median":
                         #Now with the update cutout backgrounds
                         args = [(fname,source_pos,bkg_fnames,
-                        outdir,"",verbose,bkg_method,None,True,False) for fname in filelist]
+                        outdir,"",verbose,bkg_method,None,True,False,nclosest,same_HWP) for fname in filelist]
                         outputs = pool.map(extract_single_file_parallel_helper,args) 
 
             else:
@@ -137,16 +140,18 @@ parallel=False,n_processes=None):
                 for i,fname in enumerate(filelist):
                     if verbose or less_verbose:
                         print("File {} of {} with bkg_method = {}: {}".format(i+1,len(filelist),bkg_method,fname))
-                    extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir,verbose=verbose,bkg_method=bkg_method)
-                    if bkg_method != "cutout_median":
+                    extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir,verbose=verbose,
+                    bkg_method=bkg_method,nclosest=nclosest,same_HWP=same_HWP)
+                    if bkg_method != "cutout_median" and not in_slit:
                         extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
-                        update_cutout_backgrounds=True)
+                        update_cutout_backgrounds=True,nclosest=nclosest,same_HWP=same_HWP)
         # except:
             # print("Couldn't finish reduction on file {} for bkg_method {}".format(fname,bkg_method))
             # pass
             
 def extract_single_file(filename,source_pos, bkg_fnames,output_path = "./",output_suffix="",verbose=True,
-bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_image = False,sub_bar = False):
+bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_image = False,sub_bar = False,
+nclosest=None,same_HWP=True):
     '''
     Opens a file, generates a background image, extracts the source spectra and then saves them to the output path
 
@@ -154,39 +159,45 @@ bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_ima
     filename    -   The filename of a calibrated wirc object file
     source_pos  -   The source position in [x,y] format
     '''
-    tmp_data = wo.wirc_data(wirc_object_filename=filename,verbose=verbose)
-    tmp_data.source_list = []
-    tmp_data.n_sources = 0
-    
-    if bkg_method is not None and bkg_method != "cutout_median":
-        tmp_data.generate_bkg(method=bkg_method,verbose=verbose,
-                            bkg_by_quadrants=True,
-                            bkg_fns=bkg_fnames,num_PCA_modes=num_PCA_modes)
+
+    try:
+        tmp_data = wo.wirc_data(wirc_object_filename=filename,verbose=verbose)
+        tmp_data.source_list = []
+        tmp_data.n_sources = 0
+        
+        if bkg_method is not None and bkg_method != "cutout_median":
+            tmp_data.generate_bkg(method=bkg_method,verbose=verbose,
+                                bkg_by_quadrants=True,
+                                bkg_fns=bkg_fnames,num_PCA_modes=num_PCA_modes,
+                                nclosest=nclosest,
+                                same_HWP=same_HWP)
 
 
-    tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=True,sub_bkg=True)
+        tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=True,sub_bkg=True)
 
-    wp_source = tmp_data.source_list[0]
-    wp_source.get_cutouts(tmp_data.full_image,tmp_data.DQ_image,'J',
-                            replace_bad_pixels=True,method='interpolate',
-                            bkg_image = tmp_data.bkg_image,sub_bar=sub_bar)
-    
-    if bkg_method == "cutout_median":
-        wp_source.generate_cutout_backgrounds(update=False)
-    if update_cutout_backgrounds:
-        wp_source.generate_cutout_backgrounds(update=True)
+        wp_source = tmp_data.source_list[0]
+        wp_source.get_cutouts(tmp_data.full_image,tmp_data.DQ_image,'J',
+                                replace_bad_pixels=True,method='interpolate',
+                                bkg_image = tmp_data.bkg_image,sub_bar=sub_bar)
+        
+        if bkg_method == "cutout_median":
+            wp_source.generate_cutout_backgrounds(update=False)
+        if update_cutout_backgrounds:
+            wp_source.generate_cutout_backgrounds(update=True)
 
-    wp_source.extract_spectra(verbose=verbose,
-                            plot_findTrace=False,plot_optimal_extraction=False,
-                            spatial_sigma=3,diag_mask=True)
+        wp_source.extract_spectra(verbose=verbose,
+                                plot_findTrace=False,plot_optimal_extraction=False,
+                                spatial_sigma=3,diag_mask=True)
 
-    tmp_data.source_list.append(wp_source)
-    tmp_data.n_sources += 1
+        tmp_data.source_list.append(wp_source)
+        tmp_data.n_sources += 1
 
-    # import pdb; pdb.set_trace()
-    output_fname = output_path+filename.rsplit(".fits")[0].split("/")[-1]+output_suffix+".fits"
-    tmp_data.save_wirc_object(output_fname,save_full_image = save_full_image)
-
+        # import pdb; pdb.set_trace()
+        output_fname = output_path+filename.rsplit(".fits")[0].split("/")[-1]+output_suffix+".fits"
+        tmp_data.save_wirc_object(output_fname,save_full_image = save_full_image)
+    except Exception as e:
+        print("Some error with file {}".format(filename))
+        print(str(e))
 
 def extract_single_file_parallel_helper(args):
     '''
@@ -195,9 +206,10 @@ def extract_single_file_parallel_helper(args):
     try: 
         extract_single_file(args[0],args[1],args[2],output_path = args[3],output_suffix = args[4],
         verbose = args[5],bkg_method = args[6],num_PCA_modes = args[7],
-        update_cutout_backgrounds = args[8], save_full_image=args[9])
-    except:
+        update_cutout_backgrounds = args[8], save_full_image=args[9],nclosest=args[10],same_HWP=args[11])
+    except Exception as e:
         print("Some error with file {}".format(args[0]))
+        print(e)
 
 # def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
 # bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",

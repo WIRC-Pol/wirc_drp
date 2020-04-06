@@ -379,6 +379,8 @@ class wirc_data(object):
                 times_diff = np.abs(time_obs - times)
 
             if same_HWP:
+                if verbose: 
+                    print("Selecting only background frames with the same HWP angle")
                 inds_same_HWP = np.abs(hwps - self.header['HWP_ANG'] ) < 0.1 #some threshold 
                 bkg_fns = bkg_fns[inds_same_HWP]
                 times_diff = times_diff[inds_same_HWP]
@@ -386,6 +388,11 @@ class wirc_data(object):
             if nclosest is not None: #Get n numbers of bkg_fns with smallest time difference to 
                 inds = times_diff.argsort() #these indices are sorted by absolute time difference
                 bkg_fns = (bkg_fns[inds])[0:nclosest] #Then sort bkg_fns based on that, and pick the n closest ones
+                if verbose: 
+                    print("Selection {} closest background frames".format(nclosest))
+            
+            if verbose: 
+                print("Using background files: {}".format(bkg_fns))
 
             #for debugging
             # print(bkg_fns)
@@ -457,7 +464,8 @@ class wirc_data(object):
                     for i in range(len(ref_lib)):
                         bkg_frames.append(fits.getdata(ref_lib[i]))
                     if verbose:
-                        print('Subtracting background using median reference frame.')        
+                        print('Subtracting background using median reference frame.')
+                    # import pdb;pdb.set_trace()
                     self.bkg_image = np.nanmedian(np.array(bkg_frames), axis=0)        
             else:
                 print('Must provide a list of reference files to perform PCA subtraction, either as a keyword argument "ref_lib" or in self.ref_lib.')
@@ -980,7 +988,8 @@ class wirc_data(object):
             hdulist.close()
             #print ("ending iteration #",i)
 
-    def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
+    def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,
+    update_w_chi2_shift=False,verbose=False):
         """
         Finds the number of sources in the image.
 
@@ -999,11 +1008,11 @@ class wirc_data(object):
         #self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 		#make sure the source_list format is correct
         if bkg_im is not None:
-            loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
-            bkg_im=bkg_im, sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
+            loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image-bkg_im, self.cross_correlation_template,
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)
         elif bkg_im is None:
             loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)
 
         if self.source_list:
             print('emptying source list to find sources again.')

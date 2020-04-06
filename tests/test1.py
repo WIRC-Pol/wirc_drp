@@ -42,7 +42,7 @@ try:
     wp_source = wo.wircpol_source([1063,1027],'1',0) #The second argument indicates that this source is in the middle slit
 
     #We'll now get the trace cutouts for this source
-    wp_source.get_cutouts(calibrated_data.full_image, calibrated_data.DQ_image, 'J')
+    wp_source.get_cutouts(calibrated_data.full_image, calibrated_data.DQ_image, 'J',sub_bar=False)
     #wp_source.plot_cutouts(figsize=(10,6))
 
     #Now let's add this source to the calibrated_data source list.
