@@ -338,7 +338,7 @@ class wirc_data(object):
         else:
             print("Data already calibrated")
     
-    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, nclosest = None, same_HWP = False, ref_lib=None, num_PCA_modes=None, \
+    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, nclosest = None, same_HWP = True, ref_lib=None, num_PCA_modes=None, \
         source_pos=None, bkg_by_quadrants=False, destripe=False, \
         shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
         """
@@ -389,6 +389,9 @@ class wirc_data(object):
                 inds = times_diff.argsort() #these indices are sorted by absolute time difference
                 bkg_fns = (bkg_fns[inds])[0:nclosest] #Then sort bkg_fns based on that, and pick the n closest ones
 
+            #Catch an error if there's no background fitting the criteria
+            if len(bkg_fns) == 0:
+                raise ValueError('No background file matching your criteria, try setting same_HWP = False')
             #for debugging
             # print(bkg_fns)
         
