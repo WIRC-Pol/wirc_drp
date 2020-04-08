@@ -338,7 +338,7 @@ class wirc_data(object):
         else:
             print("Data already calibrated")
     
-    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, nclosest = None, same_HWP = True, ref_lib=None, num_PCA_modes=None, \
+    def generate_bkg(self, method='shift_and_subtract', bkg_fns=None, nclosest = None, same_HWP = False, ref_lib=None, num_PCA_modes=None, \
         source_pos=None, bkg_by_quadrants=False, destripe=False, \
         shift_dir='horizontal', bkg_sub_shift_size = 31, filter_bkg_size=None,verbose=False,**kwargs):
         """
@@ -354,8 +354,10 @@ class wirc_data(object):
         same_HWP: If True, only use bkg_fns with the same HWP angle as the science image
         """
         #put bkg_fns into a list
+        print(bkg_fns)
         if type(bkg_fns) == str:
-            bkg_fns = [bkg_fns]
+            print('Put background name in list')
+            bkg_fns = np.array([bkg_fns])
         if bkg_fns is not None:
             bkg_fns = np.array(bkg_fns)
             #check that ncloset value is valid
@@ -472,7 +474,7 @@ class wirc_data(object):
             if bkg_fns is not None: 
 
                 #Check to see if we have a list of files. If so, we take the median
-                if  not isinstance(bkg_fns, str):
+                if not isinstance(bkg_fns, str):
                     # import pdb; pdb.set_trace()
                     if len(bkg_fns) == 1:
                         background  = fits.getdata(bkg_fns[0])
