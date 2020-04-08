@@ -597,7 +597,7 @@ def mask_sources_util(im, trace_template, source_list, trace_fluxes,
         
     return im
 
-def find_sources_in_wircpol_image(im, ref_frame, out_fp=None, sigma_threshold=1, grid_res=18,
+def find_sources_in_wircpol_image(im, ref_frame, bkg_im=None, out_fp=None, sigma_threshold=1, grid_res=18,
                     neighborhood_size=50, perc_threshold=95, bgd_subt_perc_threshold=98,
                    mask_fp=None, boxsize=10, show_plots=True,verbose=True):
     """
@@ -634,6 +634,12 @@ def find_sources_in_wircpol_image(im, ref_frame, out_fp=None, sigma_threshold=1,
     """
     if verbose:
         print('Finding sources')
+    if bkg_im is not None:
+        try:
+            im -= bkg_im
+        except:
+            im -= fits.getdata(bkg_im)
+            
     im_x = im.shape[1]
     im_y = im.shape[0]
     ref_x = ref_frame.shape[1]
