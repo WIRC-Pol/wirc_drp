@@ -98,7 +98,7 @@ def get_angles_widths_from_list(filelist, data_dir = '', source_number = 0):
 #POLARIZATION CALCULATION HELPER
 # q, u, q_err, u_err, q_position, u_position = compute_qu(spec1, spec2, HWP1, HWP2)
 #helper function to compute q and u given two spectra cubes
-def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ratio'):
+def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ratio', sign = '-'):
     """
     compute_qu is a helper function that takes two spectral cubes, each with the dimensions of (4,3,spec_pix)
     with two orthogonal HWP angles (0 and 45 or 22.5 and 67.5), then compute q and u
@@ -142,10 +142,16 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
 
             #now determine which is which
             sampling_angles_0 = np.array([135, 45, 90,0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
-            sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
-            sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
+            if sign == '-':
+                sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
+                sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
+            elif sign == '+':
+                sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
+                sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
             signs = np.sign(sampling_angles_2 - sampling_angles_1) # 0 - 45 is +q, 22.5 - 67.5 is +u
-
+            print(sampling_angles_1)
+            print(sampling_angles_2)
+            print(signs)
             #q's are those with sampling_angles_1 = 0 or 90 and sampling_angles_2 = 90 or 0
             q_ind = np.where(np.logical_or(sampling_angles_1 == 0, sampling_angles_1 == 90))
             u_ind = np.where(np.logical_or(sampling_angles_1 == 45, sampling_angles_1 == 135))
@@ -166,10 +172,16 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
         elif method == 'flux_ratio':
             #First, figure out the sampling angles
             sampling_angles_0 = np.array([135, 45, 90, 0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
-            sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
-            sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
-            # print(sampling_angles_1)
-            # print(sampling_angles_2)
+            # sampling_angles_0 = np.array([0, 90, 45, 135])
+            if sign == '-':
+                sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
+                sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
+            elif sign=='+':
+                sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
+                sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg.    
+            print(HWP1, HWP2)             
+            print(sampling_angles_1)
+            print(sampling_angles_2)
             #indices (non elegant solution...)
             ind0_0 =   np.where(sampling_angles_1 == 0)[0]
             ind0_90 =  np.where(sampling_angles_1 == 90)[0]
@@ -267,7 +279,7 @@ def group_HWP(HWP_set):
 #     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
 #     return pairs_0, pairs_225   
 
-def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, method = 'flux_ratio'):
+def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, method = 'flux_ratio', sign = '-'):
     """
     This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
     and call compute_qu to measure polarization q and u. 
@@ -315,7 +327,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
     for i in pairs_0:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
-                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
+                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method, sign = sign)
         if method == 'flux_ratio':
             all_q0    += [q[0]]
             all_u0    += [u[0]]
@@ -344,7 +356,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
     for i in pairs_225:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
-                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
+                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method, sign = sign)
         # print(q[0].shape)
         if method == 'flux_ratio':
             all_q225    += [q[0]]
@@ -420,6 +432,10 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
 
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
+
+
+
+
 
 
 def find_best_background(list_of_files, separation_threshold = 2, verbose = False):
@@ -538,11 +554,15 @@ def compute_p_and_pa( q, u, q_err, u_err):
     
     return p, p_corr, dp, theta, dtheta
 
-def serkowski_polarization(wl, wl_max, p_max, K):
+def serkowski_polarization(wl, wl_max, p_max, K, theta = None):
     """Compute the polarization spectrum expected from ISP Serkowski law
     p_serk = p_max * exp(-K ln^2(wl_max/wl))
     """
-    return p_max * np.exp( -K * (np.log(wl_max/wl))**2)
+    p_spec = p_max * np.exp( -K * (np.log(wl_max/wl))**2)
+    if theta is None:
+        return p_spec 
+    else:
+        return p_spec, p_spec*np.cos(2*np.radians(theta)), p_spec*np.sin(2*np.radians(theta)) 
 
 def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xlow=1.15,xhigh=1.325,
     ylow=-0.02,yhigh=0.02,target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,

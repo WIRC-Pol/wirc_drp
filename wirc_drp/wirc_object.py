@@ -354,8 +354,10 @@ class wirc_data(object):
         same_HWP: If True, only use bkg_fns with the same HWP angle as the science image
         """
         #put bkg_fns into a list
+        print(bkg_fns)
         if type(bkg_fns) == str:
-            bkg_fns = [bkg_fns]
+            print('Put background name in list')
+            bkg_fns = np.array([bkg_fns])
         if bkg_fns is not None:
             bkg_fns = np.array(bkg_fns)
             #check that ncloset value is valid
@@ -394,6 +396,9 @@ class wirc_data(object):
             if verbose: 
                 print("Using background files: {}".format(bkg_fns))
 
+            #Catch an error if there's no background fitting the criteria
+            if len(bkg_fns) == 0:
+                raise ValueError('No background file matching your criteria, try setting same_HWP = False')
             #for debugging
             # print(bkg_fns)
         
@@ -414,37 +419,6 @@ class wirc_data(object):
                     _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, self.ref_lib, num_PCA_modes,**kwargs)
                 else:
                     _ , self.bkg_image  = calibration.PCA_subtraction(self.full_image, ref_lib, num_PCA_modes,**kwargs)
-
-        if method == 'PCA_cutouts':
-            print('Subtracting background using PCA cutouts')
-            source = wircpol_source([source_pos[0], source_pos[1]], 'slitless', 0)
-            source.get_cutouts(self.full_image, self.DQ_image, 'J')
-            self.UL_cutout = source.trace_images[0]
-            self.LR_cutout = source.trace_images[1]
-            self.UR_cutout = source.trace_images[2]
-            self.LL_cutout = source.trace_images[3]
-            
-            if bkg_fns is None:
-                ref_lib = self.ref_lib
-            else:
-                ref_lib = bkg_fns
-            
-            UL_bkg_cutouts = []
-            LR_bkg_cutouts = []
-            UR_bkg_cutouts = []
-            LL_bkg_cutouts = []
-
-            for i in range(len(ref_lib)):
-                source.get_cutouts(fits.getdata(ref_lib[i]), self.DQ_image, 'J')
-                UL_bkg_cutouts.append(source.trace_images[0])
-                LR_bkg_cutouts.append(source.trace_images[1])
-                UR_bkg_cutouts.append(source.trace_images[2])
-                LL_bkg_cutouts.append(source.trace_images[3])
-
-            _, self.UL_bkg = calibration.PCA_subtraction(self.UL_cutout, UL_bkg_cutouts, num_PCA_modes)
-            _, self.LR_bkg = calibration.PCA_subtraction(self.LR_cutout, LR_bkg_cutouts, num_PCA_modes) 
-            _, self.UR_bkg = calibration.PCA_subtraction(self.UR_cutout, UR_bkg_cutouts, num_PCA_modes) 
-            _, self.LL_bkg = calibration.PCA_subtraction(self.LL_cutout, LL_bkg_cutouts, num_PCA_modes)  
 
         #median reference frame background subtraction
         elif method =='median_ref':
@@ -480,7 +454,7 @@ class wirc_data(object):
             if bkg_fns is not None: 
 
                 #Check to see if we have a list of files. If so, we take the median
-                if  not isinstance(bkg_fns, str):
+                if not isinstance(bkg_fns, str):
                     # import pdb; pdb.set_trace()
                     if len(bkg_fns) == 1:
                         background  = fits.getdata(bkg_fns[0])
@@ -1270,7 +1244,7 @@ class wircpol_source(object):
 
     #def get_cutouts(self, image, image_DQ, filter_name, replace_bad_pixels = True, method = 'median', box_size = 5, cutout_size = None, sub_bar=True, verbose=False):
     def get_cutouts(self, image, image_DQ, filter_name, bkg_image = None, replace_bad_pixels = True, method = 'median', \
-    box_size = 5, cutout_size = None, sub_bar=True, verbose=False, use_PCA_cutouts=None):
+    box_size = 5, cutout_size = None, sub_bar=True, verbose=False, ref_lib=None, get_PCA_cutouts=False, num_PCA_modes=None):
         """
         Cutout thumbnails and put them into self.trace_images
         if replace_bad_pixels = True, read teh DQ image and replace pixels with value != 0 by interpolation
@@ -1316,12 +1290,46 @@ class wircpol_source(object):
         self.thumbnails_cut_out = True #source attribute, later applied to header["THMB_CUT"]
 
         #Deal with background frame
-        if bkg_image is not None:   
-            if use_PCA_cutouts is not None:
-                self.trace_bkg = np.array(use_PCA_cutouts)
-            else:      
-                self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
-                                    cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
+        if get_PCA_cutouts and bkg_image is None:
+            UL_pca_cutouts = []
+            LR_pca_cutouts = []
+            UR_pca_cutouts = []
+            LL_pca_cutouts = []
+
+            for i in range(len(ref_lib)):
+                cutouts = np.array(image_utils.cutout_trace_thumbnails(fits.getdata(ref_lib[i]), np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
+                                        cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0]) 
+
+                UL_pca_cutouts.append(cutouts[0])
+                LR_pca_cutouts.append(cutouts[1])
+                UR_pca_cutouts.append(cutouts[2])
+                LL_pca_cutouts.append(cutouts[3])
+
+            _, UL_bkg = calibration.PCA_subtraction(self.trace_images[0], UL_pca_cutouts, num_PCA_modes)
+            _, LR_bkg = calibration.PCA_subtraction(self.trace_images[1], LR_pca_cutouts, num_PCA_modes) 
+            _, UR_bkg = calibration.PCA_subtraction(self.trace_images[2], UR_pca_cutouts, num_PCA_modes) 
+            _, LL_bkg = calibration.PCA_subtraction(self.trace_images[3], LL_pca_cutouts, num_PCA_modes)
+
+            self.trace_bkg = np.array([UL_bkg, LR_bkg, UR_bkg, LL_bkg])
+
+            if replace_bad_pixels: 
+                #check method   
+                if method == 'interpolate': 
+                    #iterate through the 4 thumbnails   
+                    for i in range(len(self.trace_bkg)):        
+                        bad_pix_map = self.trace_images_DQ[i].astype(bool)  
+                        self.trace_bkg[i] = calibration.replace_bad_pix_with_interpolation(self.trace_bkg[i], self.trace_images_DQ[i])  
+                        # except:   
+                        #     print("Cannot replace bad_pixels if the DQ image doesn't exist.") 
+                elif method == 'median':    
+                    #iterate through the 4 thumbnails   
+                    for i in range(len(self.trace_bkg)):        
+                        bad_pix_map = self.trace_images_DQ[i].astype(bool)  
+                        self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)
+
+        elif bkg_image is not None:   
+            self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
+                                cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
             if replace_bad_pixels: 
                 #check method   
                 if method == 'interpolate': 
