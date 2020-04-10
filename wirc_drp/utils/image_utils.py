@@ -1929,8 +1929,8 @@ def smooth_cutouts(thumbnails,method='gaussian',width=3):
     return
 
 def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size=80, fit_width=3,
-    trace_mask_width=16,comb_method='median',low_start = 30, high_end= 150,
-    vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=60):
+    trace_mask_width=16,comb_method='median',low_start = 40, high_end= 125,
+    vmin=-100,vmax=500,tol=1e-6,plot=False, mask_size=53):
     '''
     A function to subtract the background from the slit and only the slit, 
     by masking out the source and fitting the rest of the background. 
@@ -1985,7 +1985,7 @@ def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size
             cutout = calibration.cleanBadPix(cutout, local_DQ, replacement_box = 5)
         
         #Setup the inputs for the parallization
-        inputs.append((cutout,this_mask,low_start,high_end,comb_method,fit_width,trace_mask_width,tol))
+        inputs.append((cutout,this_mask,low_start,high_end,comb_method,fit_width,trace_mask_width,tol,i))
 
     
     #Set up the parallelization
@@ -1996,10 +1996,9 @@ def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size
     # import pdb;pdb.set_trace()
     bkg_image = copy.deepcopy(full_image)
     for i in range(4):
-        source_pos_list = [(1022, 1033),(1050, 1050),(1030, 1050),(1020, 1070)]
         traceLocation = locationInIm(J_lam, source_pos_list[i]).astype(int)
         bkg_image[traceLocation[i][1]-box_size:traceLocation[i][1]+box_size,
-        traceLocation[i][0]-box_size:traceLocation[i][0]+box_size] = outputs[i]
+            traceLocation[i][0]-box_size:traceLocation[i][0]+box_size] = outputs[i]
     
     if plot: 
         fig,axes = plt.subplots(3,4,figsize=(20,15))
@@ -2016,9 +2015,240 @@ def subtract_slit_background(full_image,bad_pixel_mask = None, band='J',box_size
     pool.close()
     return bkg_image
 
+def _smoothed_tophat_w_psf(x,size):
+    '''
+    A helper function that helps fit to the background of subtract_slit_background 
+    includes a psf fitting
+    '''
+
+    ##### GAUSSIAN PSF START ########
+
+    ### The parameters in the fit
+    start = int(x[0]*size) #The start of the tophat
+    end = int(x[1]*size)   #The end of the notch
+    notch=int(x[2]*size)   #The start of the notch
+    smooth_size = x[3] #The size of the gaussian filter to apply to the tophat
+    height=x[4] #The height of the sky background level 
+    offset = x[5] #A general offset value
+    
+    a = x[7] # Gaussian amplitude
+    x0 = x[8] # Gaussian center
+    sigma = x[9] # Gaussian sigma
+    ###
+    
+    ### Apply the tophat
+    tophat = np.zeros([int(size)])
+#     tophat += offset
+    tophat[start:notch] += height
+    ###
+    
+    ###Handle some Edge cases
+    if start < 0:
+        start = 0
+    
+    if end >= notch:
+        end=notch-1
+    if end < 0:
+        end = 0
+    
+    if notch<0:
+        notch=0
+    ###
+    
+    ### Add in a notch
+    if notch > size:
+        notch=size
+    rangge = notch-end
+    slope = -height/rangge
+    tophat[end:notch] -= -slope*np.arange(rangge)
+    ### 
+    
+    #Add in a smaller notch at the start. 
+    notch_length = int(x[6])
+    if notch_length < 0:
+        notch_length = 0
+
+    if start > notch_length and notch_length > 0:
+        slope = height/notch_length
+#         print(start,notch_length)
+        try:
+            tophat[start-notch_length:start] += slope*np.arange(notch_length)
+        except:
+            print(start,notch_length)
+
+
+    ### Smooth the tophat
+    tophat_sm = sn.gaussian_filter(tophat,smooth_size)
+    
+    ### Add in a gaussian source
+    inds = np.arange(int(size))
+    output = tophat_sm + a*np.exp(-0.5*((inds-x0)/sigma)**2)+offset
+
+    return output
+    ###### GAUSSIAN PSF END #############
+
+def _smoothed_gradient(x,size):
+
+
+    ### The parameters in the fit
+    start = int(x[0]*size) #The start of the tophat
+    end = int(x[1]*size)   #The end of the notch
+    notch=int(x[2]*size)   #The start of the notch
+    smooth_size_left = x[3] #The size of the gaussian filter to apply to the tophat
+    smooth_size_right = x[4] #The size of the gaussian filter to apply to the tophat
+    height=x[5] #The height of the sky background level 
+    offset_l = x[6] #A general offset value
+    offset_r = x[7] #A general offset value
+    notch_length = int(x[8]*size) #smaller notch at the start. 
+    slope = x[9] #Slope for the gradient 
+    
+    a = x[10] # Moffat amplitude
+    x0 = x[11] # Moffat center
+    alpha = x[12] # Moffat alpha
+    beta = x[13] #Moffat Beta
+    ###
+    
+
+    ### Apply the gradint
+    tophat = np.zeros([int(size)])
+    # tophat += offset
+    try: 
+        if notch > start:
+            if notch > 0:
+                if start > 0:
+                    tophat[start:end] += slope*(np.arange(int(end-start))-start) + height
+    except: 
+        # print(start, notch)
+        pass
+    ###
+    
+    ###Handle some Edge cases
+    if start < 0:
+        start = 0
+    
+    if end >= notch:
+        end=notch-1
+    if end < 0:
+        end = 0
+    
+    if notch<0:
+        notch=0
+    ###
+    
+    ### Add in a notch
+    if notch > size:
+        notch=size
+    rangge = notch-end
+    slope = -height/rangge
+    tophat[end:notch] -= slope*np.arange(rangge)
+    ### 
+    
+    #Add in a smaller notch at the start. 
+    # notch_length = int(x[6])
+#     if notch_length < 0:
+#         notch_length = 0
+
+#     if start > notch_length and notch_length > 0:
+#         slope = height/notch_length
+# #         print(start,notch_length)
+#         try:
+#             tophat[start-notch_length:start] += slope*np.arange(notch_length)
+#         except:
+#             print(start,notch_length)
+    
+    ### Smooth the tophat
+    middle = int(size//2)
+
+    tophat_sm = copy.deepcopy(tophat)
+    tophat_sm[:start] += offset_l
+    tophat_sm[end:] += offset_r
+
+    # tophat_sm = sn.gaussian_filter(tophat_sm,smooth_size_right)
+    tophat_sm = sn.gaussian_filter(tophat_sm,smooth_size_left)
+    tophat_sm[middle:] = sn.gaussian_filter(tophat_sm[middle:],smooth_size_right)
+    
+    ### Add in a moffat gaussian source
+    inds = np.arange(int(size))
+    output = tophat_sm + a*(1+((inds-x0)/alpha)**2)**-beta #+ offset
+    
+    return output
+
+def _smoothed_tophat_w_moffat(x,size):
+    '''
+    A helper function that helps fit to the background of subtract_slit_background 
+    includes a psf fitting
+    '''
+
+    ### The parameters in the fit
+    start = int(x[0]*size) #The start of the tophat
+    end = int(x[1]*size)   #The end of the notch
+    notch=int(x[2]*size)   #The start of the notch
+    smooth_size = x[3] #The size of the gaussian filter to apply to the tophat
+    height=x[4] #The height of the sky background level 
+    offset = x[5] #A general offset value 
+    
+    a = x[7] # Moffat amplitude
+    x0 = x[8] # Moffat center
+    alpha = x[9] # Moffat alpha
+    beta = x[10] #Moffat Beta
+    ###
+    
+    
+    ### Apply the tophat
+    tophat = np.zeros([int(size)])
+#     tophat += offset
+    tophat[start:notch] += height
+    ###
+    
+    ###Handle some Edge cases
+    if start < 0:
+        start = 0
+    
+    if end >= notch:
+        end=notch-1
+    if end < 0:
+        end = 0
+    
+    if notch<0:
+        notch=0
+    ###
+    
+    ### Add in a notch
+    if notch > size:
+        notch=size
+    rangge = notch-end
+    slope = -height/rangge
+    tophat[end:notch] -= -slope*np.arange(rangge)
+    ### 
+
+    #Add in a smaller notch at the start. 
+    notch_length = int(x[6])
+    if notch_length < 0:
+        notch_length = 0
+
+    if start > notch_length and notch_length > 0:
+        slope = height/notch_length
+#         print(start,notch_length)
+        try:
+            tophat[start-notch_length:start] += slope*np.arange(notch_length)
+        except:
+            print(start,notch_length)
+    
+    ### Smooth the tophat
+    tophat_sm = sn.gaussian_filter(tophat,smooth_size)
+    
+    ### Add in a gaussian source
+    inds = np.arange(int(size))
+    output = tophat_sm + a*(1+((inds-x0)/alpha)**2)**-beta + offset
+
+    return output
+    
+
 def _smoothed_tophat(x,size):
     '''
     A helper function that helps fit to the background of subtract_slit_background 
+    This one has no psf in it and could be used to generate the background image 
+    to be subtracted. Doesn't include the gradient. 
     '''
     # print(size)
     start = int(x[0]*size)
@@ -2053,6 +2283,19 @@ def _smoothed_tophat(x,size):
     
     # print(notch, end, rangge)
     tophat[end:notch] -= -slope*np.arange(rangge)
+
+    #Add in a smaller notch at the start. 
+    notch_length = int(x[6])
+    if notch_length < 0:
+        notch_length = 0
+
+    if start > notch_length and notch_length > 0:
+        slope = height/notch_length
+#         print(start,notch_length)
+        try:
+            tophat[start-notch_length:start] += slope*np.arange(notch_length)
+        except:
+            print(start,notch_length)
     
     tophat_sm = sn.gaussian_filter(tophat,smooth_size)
     
@@ -2068,6 +2311,7 @@ def _generate_one_slit_background(inputs):
     fit_width = inputs[5]
     trace_mask_width = inputs[6]
     tol = inputs[7]
+    trace_ind = inputs[8]
     
     bkg_cutout = copy.deepcopy(cutout)
     
@@ -2078,7 +2322,16 @@ def _generate_one_slit_background(inputs):
     background_area = np.vstack([mask_bkg_cutout[:30],mask_bkg_cutout[130:]])
 
     def resids(x,data,size):
+        # residuals = data-_smoothed_tophat_w_psf(x,size=size)
         residuals = data-_smoothed_tophat(x,size=size)
+        return residuals[residuals == residuals]
+
+    def resids_gradient(x,data,size):
+        residuals = data-_smoothed_gradient(x,size=size)
+        return residuals[residuals == residuals]
+
+    def resids_moffat(x,data,size):
+        residuals = data-_smoothed_tophat_w_moffat(x,size=size)
         return residuals[residuals == residuals]
 
     def to_minimize(x,data,size):
@@ -2086,6 +2339,14 @@ def _generate_one_slit_background(inputs):
         # return np.nansum(np.log(1+(resids(x,data,size)**2))) #Cauchy loss
         # return np.nansum(np.arctan((resids(x,data,size)**2))) #Arctan loss
 
+    def to_minimize_moffat(x,data,size):
+        return np.nansum( 2*(1+resids_moffat(x,data,size)**2)**0.5-1) #Soft_l1 - This seems to work best so far. 
+        # return np.nansum(np.log(1+(resids(x,data,size)**2))) #Cauchy loss
+        # return np.nansum(np.arctan((resids(x,data,size)**2))) #Arctan loss
+
+    def to_minimize_gradient(x,data,size):
+        return np.nansum( 2*(1+resids_gradient(x,data,size)**2)**0.5-1) #Soft_l1 - This seems to work best so far. 
+    
     #Now loop!    
     for i in range(low_start,high_end): 
         
@@ -2112,15 +2373,137 @@ def _generate_one_slit_background(inputs):
         if source_high > source_mask.shape[0]:
             source_high = source_mask.shape[0]
             
-        source_mask[source_low:source_high] = np.nan #Mask out the source
-        masked_cut = small_cut*source_mask
+        ### Old version
+        # source_mask[source_low:source_high] = np.nan #Mask out the source
+        # masked_cut = small_cut*source_mask
+
+        ### Now we're going to fit for the source as a gaussian
+        masked_cut = small_cut*source_mask #No masking
 
         #First guess at this width. 
-        x0 = [0.2,0.67,0.84,8,np.nanmedian(small_cut[40:80])-np.nanmedian(small_cut[:20]),np.nanmedian(small_cut[:20])]
+        # offset = np.nanmedian(small_cut[:20])
+        # tophat_height = np.nanmedian(small_cut[40:80])-offset
+        # x0 = [0.19,0.81,0.848,5.4,8,
+        #         tophat_height,
+        #         offset,
+        #         5.0/small_cut.size,
+        #         -0.001/40,
+        #         np.max(small_cut)-tophat_height-offset,
+        #         source_pos,
+        #         4.5,
+        #         1.63]
         
-        #Now minimize
-        mini = so.minimize(to_minimize,x0,args=(masked_cut,masked_cut.size),method='Nelder-Mead',tol=1e-6)
+        offset_l = np.nanmedian(small_cut[:10])
+        offset_r = np.nanmedian(small_cut[-10:])
+        tophat_height = np.nanmedian(small_cut[40:70])
+        
+        if trace_ind == 0:    
+            x0 = [0.15,0.8,0.84,5,8,
+                    tophat_height,
+                    offset_l,
+                    offset_r,
+                    4.0/small_cut.size,
+                    -0.001/40,
+                    np.max(small_cut)-tophat_height,
+                    source_pos,
+                    5.,
+                    1.5]
+            if i > 60:
+                x0[0] = 0.20
+
+        if trace_ind == 1:    
+            x0 = [0.14,0.76,0.8,5,8,
+                    tophat_height,
+                    offset_l,
+                    offset_r,
+                    4.0/small_cut.size,
+                    -0.001/40,
+                    np.max(small_cut)-tophat_height,
+                    source_pos,
+                    5.,
+                    1.5]
+
+            if i > 65 :
+                x0[0]=0.20
+
+            # if i > 95 :
+                # x0[0]=0.14
+            
+        if trace_ind == 2:    
+            x0 = [0.2,0.78,0.82,5,8,
+                    tophat_height,
+                    offset_l,
+                    offset_r,
+                    4.0/small_cut.size,
+                    -0.001/40,
+                    np.max(small_cut)-tophat_height,
+                    source_pos,
+                    5.,
+                    1.5]
+            if i > 100:
+                x0[0] = 0.22
+  
+        if trace_ind == 3: 
+            x0 = [0.21,0.8,0.84,5,8,
+                    tophat_height,
+                    offset_l,
+                    offset_r,
+                    4.0/small_cut.size,
+                    -0.001/40,
+                    np.max(small_cut)-tophat_height,
+                    source_pos,
+                    5.,
+                    1.5]
+
+        # mini1 = so.minimize(to_minimize_gradient,x0,args=(small_cut,small_cut.size))
+
+        #Now minimize first with a gaussian PSF. 
+        mini = so.minimize(to_minimize_gradient,x0,args=(small_cut,small_cut.size),method='Nelder-Mead',
+        tol=1e-9,options={'maxiter':100000,'maxfev':100000,'xatol':1e-9,'fatol':1e-9})
+
+        #Now do it with a Moffat as well. 
+        # x0 = mini.x
+        # x0[-1] = 4 #Tack on the Moffat Parameters
+        # x0 = np.append(x0,4.765)
+        # mini = so.minimize(to_minimize_moffat,x0,args=(masked_cut,masked_cut.size),method='Nelder-Mead',
+        # tol=1e-6,options={'maxiter':10000,'maxfev':10000,'xatol':1e-9,'fatol':1e-9})
+
         # mini = so.least_squares(to_minimize,x0,args=(masked_cut,masked_cut.size),method='lm',f_scale=0.01,jac='3-point',loss='linear')
 
-        bkg_cutout[i,i0:iend] = _smoothed_tophat(mini.x,masked_cut.size)
+        # if i == 85:
+        #     plt.figure()
+        #     plt.plot(small_cut)
+        #     plt.plot(_smoothed_gradient(x0,small_cut.size))
+        #     print(trace_ind,x0)
+        #     # print(trace_ind == 0)
+        #     # print(trace_ind == 1)
+        #     # print(trace_ind == 2)
+        #     # print(trace_ind == 3)
+        #     plt.plot(_smoothed_gradient(mini.x,small_cut.size))
+        #     plt.title("{},{}".format(trace_ind,i))
+        #     plt.show()
+
+
+        xout = mini.x
+        xout[10] = 0
+
+        resids = np.nansum(np.sqrt((small_cut-_smoothed_gradient(xout,small_cut.size))**2))
+        resids_med = np.nansum(np.sqrt((small_cut-np.nanmedian(small_cut))**2))
+
+        if resids_med < resids:
+            bkg_cutout[i,i0:iend] = np.nanmedian(small_cut)
+        else:
+            bkg_cutout[i,i0:iend] = _smoothed_gradient(xout,small_cut.size)
+
+    for i in range(0,low_start):
+        #Find the non-masked range
+        i0 = np.min(np.where(mask_cutout[i] == mask_cutout[i]))
+        iend = np.max(np.where(mask_cutout[i] == mask_cutout[i]))
+        bkg_cutout[i,i0:iend] = np.nanmedian(mask_cutout[i])
+
+    for i in range(high_end,bkg_cutout.shape[0]): 
+        i0 = np.min(np.where(mask_cutout[i] == mask_cutout[i]))
+        iend = np.max(np.where(mask_cutout[i] == mask_cutout[i]))
+        bkg_cutout[i,i0:iend] = np.nanmedian(mask_cutout[i])
+    
     return bkg_cutout
