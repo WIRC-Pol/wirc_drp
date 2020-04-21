@@ -122,7 +122,7 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
     #stack spectra
     # if spec1.shape != spec2.shape:
     if ((round(HWP1,2) - round(HWP2,2))%45) >0.01: #add some tolerance
-        print(np.abs((HWP1 - HWP2)%45))
+        # print(np.abs((HWP1 - HWP2)%45))
         print("Error, halfwave plate angles (%f, %f) are not orthogonal."%(HWP1,HWP2))
         return None
     else:
@@ -149,9 +149,9 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
                 sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
                 sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
             signs = np.sign(sampling_angles_2 - sampling_angles_1) # 0 - 45 is +q, 22.5 - 67.5 is +u
-            print(sampling_angles_1)
-            print(sampling_angles_2)
-            print(signs)
+            # print(sampling_angles_1)
+            # print(sampling_angles_2)
+            # print(signs)
             #q's are those with sampling_angles_1 = 0 or 90 and sampling_angles_2 = 90 or 0
             q_ind = np.where(np.logical_or(sampling_angles_1 == 0, sampling_angles_1 == 90))
             u_ind = np.where(np.logical_or(sampling_angles_1 == 45, sampling_angles_1 == 135))
@@ -179,9 +179,9 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             elif sign=='+':
                 sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
                 sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg.    
-            print(HWP1, HWP2)             
-            print(sampling_angles_1)
-            print(sampling_angles_2)
+            # print(HWP1, HWP2)             
+            # print(sampling_angles_1)
+            # print(sampling_angles_2)
             #indices (non elegant solution...)
             ind0_0 =   np.where(sampling_angles_1 == 0)[0]
             ind0_90 =  np.where(sampling_angles_1 == 90)[0]

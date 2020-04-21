@@ -84,7 +84,7 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True):
 
                         #Now with the update cutout backgrounds
                         args = [(fname,source_pos,bkg_fnames,
-                        outdir,"",verbose,bkg_method,npca,True,False,nclosest,same_HWP) for fname in filelist]
+                        outdir2,"",verbose,bkg_method,npca,True,False,nclosest,same_HWP) for fname in filelist]
                         outputs = pool.map(extract_single_file_parallel_helper,args) 
                 #Or not
                 else: 
@@ -132,7 +132,7 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True):
                     if bkg_method != "cutout_median":
                         #Now with the update cutout backgrounds
                         args = [(fname,source_pos,bkg_fnames,
-                        outdir,"",verbose,bkg_method,None,True,False,nclosest,same_HWP) for fname in filelist]
+                        outdir2,"",verbose,bkg_method,None,True,False,nclosest,same_HWP) for fname in filelist]
                         outputs = pool.map(extract_single_file_parallel_helper,args) 
 
             else:

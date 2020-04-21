@@ -1325,3 +1325,71 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     
     else:
         print('Unsupported datatype for variable: num_PCA_modes. Variable must be either int or 1-D np.ndarray')
+
+def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair):
+    '''
+    Apply the system calibration to q and u measurements. 
+    We treat the two channels as separate polarimeters, so we need the qind and uind outputs from compute_qu
+    We also propagate the errors. 
+
+    The current version uses a 3rd-order polynomial fit in wavelength to the q and u efficiencies and crosstalks. 
+    The polynomial coefficients were derived by fitting measurements of Elias2-14, Elias2-25 
+
+    Inputs: 
+    wvs  -   An array of wavelength values in microns (the calibration is wavelength dependent)
+    q    -   An array of q values at the wavelengths in wvs
+    u    -   An array of u values at the wavelengths in wvs
+    qerr -   An array of error values on q at the wavelengths in wvs
+    uerr -   An array of error values on u at the wavelengths in wvs
+    trace_pair - Either 0 or 1 corresponding to which trace pair was used to measure q and u. 
+                Correponds to the output of qind and uind from compute_qu
+    '''
+
+    if trace_pair == 0:
+        #The significant digits obviously do not reflect any sort of precision, they were just copied from a print statement
+        polynomial_coefficients = [1.6477782623867219, -2.6619913594263984, -1.3880760013283464, 3.5265724446527824, 
+        1.5669088687232982, -2.3701761563864094, -1.3506864071947193, 1.3046726746225115, 1.7750975604969117, 
+        -3.010929180891981, -1.4983381654459964, 2.6685271976001266, 0.7258410286838721, -1.3707192238025123, 
+        -0.9182448807929033, 1.3167926564800316]
+    elif trace_pair == 1:
+        polynomial_coefficients = [1.8895680449857497, -2.851400093622781, -1.4817618706454487, 3.3221509031428678, 
+        1.5865153415820337, -2.4078681590207367, -1.3348484514491865, 1.4718994079324408, 0.38548840806926216, 
+        -0.9873382350200544, -0.40396972136778175, 0.9212326771292534, -1.3642462301380869, 1.6288998403563666, 
+        0.8789727920990238, -1.4860215070957505]
+    else: 
+        raise ValueError("trace_pair must be 0 or 1")
+
+    calibrated_q = copy.deepcopy(q)
+    calibrated_u = copy.deepcopy(u)
+    calibrated_q_err = copy.deepcopy(qerr)
+    calibrated_u_err = copy.deepcopy(uerr)
+    
+    #For each wavelength, invert 2x2 matrix
+    for i in range(len(wvs)):
+        qu = np.linalg.solve(np.array([[np.polyval(polynomial_coefficients[:4],wvs[i]),np.polyval(polynomial_coefficients[8:12],wvs[i])],
+                                    [np.polyval(polynomial_coefficients[12:],wvs[i]),np.polyval(polynomial_coefficients[4:8],wvs[i])]]),
+                                    [q[i],u[i]])
+        calibrated_q[i] = qu[0]
+        calibrated_u[i] = qu[1]
+    
+        #Get the inverse to calculate the errors
+        inverse_matrix = np.linalg.inv([[np.polyval(polynomial_coefficients[:4],wvs[i]),np.polyval(polynomial_coefficients[8:12],wvs[i])],
+                                    [np.polyval(polynomial_coefficients[12:],wvs[i]),np.polyval(polynomial_coefficients[4:8],wvs[i])]])
+
+        #A covariance matrix
+        cov = np.diag(np.array([qerr[i]**2,uerr[i]**2]))
+
+        if i == 50:
+            # print(inverse_matrix)
+            # print(cov)
+            # print(inverse_matrix.T)
+            print(np.diag(inverse_matrix@cov@inverse_matrix.T))
+        #Get the new error
+        cov_new = inverse_matrix@cov@inverse_matrix.T
+
+        calibrated_q_err[i] = np.sqrt(np.diag(cov_new)[0])
+        calibrated_u_err[i] = np.sqrt(np.diag(cov_new)[1])
+    
+    return calibrated_q,calibrated_u,calibrated_q_err,calibrated_u_err
+
+
