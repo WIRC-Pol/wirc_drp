@@ -354,7 +354,8 @@ class wirc_data(object):
         same_HWP: If True, only use bkg_fns with the same HWP angle as the science image
         """
         #put bkg_fns into a list
-        print(bkg_fns)
+        # print(bkg_fns)
+        
         if type(bkg_fns) == str:
             print('Put background name in list')
             bkg_fns = np.array([bkg_fns])
@@ -401,6 +402,8 @@ class wirc_data(object):
                 raise ValueError('No background file matching your criteria, try setting same_HWP = False')
             #for debugging
             # print(bkg_fns)
+            
+            self.ref_lib = bkg_fns
         
         #default shift and subtract method
         if method == 'shift_and_subtract':
@@ -412,6 +415,7 @@ class wirc_data(object):
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
             if bkg_fns is not None:
                 ref_lib = bkg_fns
+                
 
             if num_PCA_modes is not None:
                 #Do the PCA subtraction, save the model image to self.bkg_image. It also outputs a subtracted image, ignore that for now.
@@ -1427,7 +1431,7 @@ class wircpol_source(object):
         else:
             plt.switch_backend(default_back)
 
-    def generate_cutout_backgrounds(self,update=False,method='median'):
+    def generate_cutout_backgrounds(self,update=False,method='median',mask_diag = True):
         '''
         Generate or update cutout backgrounds.
     
@@ -1441,14 +1445,49 @@ class wircpol_source(object):
             #Get the median
             if update:
                 if self.trace_bkg[i] is not None:
-                    mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:]-self.trace_bkg[i], sigma=3.0)
+                    to_update = self.trace_images[i,:,:]-self.trace_bkg[i]
+                    if mask_diag:
+                        mask = wircpol_masks.makeDiagMask(to_update.shape[0],30)
+                        mask = np.logical_not(mask)
+                        mask = mask[::-1]
+                        if i < 2:
+                            mask = mask[:,::-1]
+                        to_update = to_update*mask
+                    
+                        # plt.figure()
+                        # plt.imshow(to_update,origin='lower',vmin=-100,vmax=100,cmap='RdBu')
+                    to_update[to_update == 0.00] = np.nan
+                    mn,md,std = sigma_clipped_stats(to_update[np.isfinite(to_update)], sigma=3.0)
+                    # print(md)
+                    # fig,axes = plt.subplots(1,2)
+                    # axes[0].imshow(to_update,origin='lower',vmin=-100,vmax=100,cmap='RdBu')
+                    # axes[1].imshow(to_update-md,origin='lower',vmin=-100,vmax=100,cmap='RdBu')
+                    
                     self.trace_bkg[i] += md
                 else:
                     print("Can't update if there isn't already a trace_bkg")
-                    mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:], sigma=3.0)
+                    to_update = self.trace_images[i,:,:]
+                    if mask_diag:
+                        mask = wircpol_masks.makeDiagMask(to_update.shape[0],30)
+                        mask = np.logical_not(mask)
+                        mask = mask[::-1]
+                        if i < 2:
+                            mask = mask[:,::-1]
+                        to_update = to_update*mask
+                        to_update[to_update == 0.00] = np.nan
+                    mn,md,std = sigma_clipped_stats(to_update, sigma=3.0)
                     self.trace_bkg[i] = md
             else:
-                mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:], sigma=3.0)
+                to_update = self.trace_images[i,:,:]
+                if mask_diag:
+                    mask = wircpol_masks.makeDiagMask(to_update.shape[0],30)
+                    mask = np.logical_not(mask)
+                    mask = mask[::-1]
+                    if i < 2:
+                        mask = mask[:,::-1]
+                    to_update = to_update*mask
+                    to_update[to_update == 0.00] = np.nan
+                mn,md,std = sigma_clipped_stats(to_update, sigma=3.0)
                 self.trace_bkg[i] = self.trace_images[i,:,:]*0. + md
         
         self.trace_bkg = np.array(self.trace_bkg)
