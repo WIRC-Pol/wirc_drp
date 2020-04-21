@@ -1379,11 +1379,6 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair):
         #A covariance matrix
         cov = np.diag(np.array([qerr[i]**2,uerr[i]**2]))
 
-        if i == 50:
-            # print(inverse_matrix)
-            # print(cov)
-            # print(inverse_matrix.T)
-            print(np.diag(inverse_matrix@cov@inverse_matrix.T))
         #Get the new error
         cov_new = inverse_matrix@cov@inverse_matrix.T
 
