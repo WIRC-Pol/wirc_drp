@@ -354,7 +354,8 @@ class wirc_data(object):
         same_HWP: If True, only use bkg_fns with the same HWP angle as the science image
         """
         #put bkg_fns into a list
-        print(bkg_fns)
+        # print(bkg_fns)
+        
         if type(bkg_fns) == str:
             print('Put background name in list')
             bkg_fns = np.array([bkg_fns])
@@ -381,6 +382,8 @@ class wirc_data(object):
                 times_diff = np.abs(time_obs - times)
 
             if same_HWP:
+                if verbose: 
+                    print("Selecting only background frames with the same HWP angle")
                 inds_same_HWP = np.abs(hwps - self.header['HWP_ANG'] ) < 0.1 #some threshold 
                 bkg_fns = bkg_fns[inds_same_HWP]
                 times_diff = times_diff[inds_same_HWP]
@@ -388,12 +391,19 @@ class wirc_data(object):
             if nclosest is not None: #Get n numbers of bkg_fns with smallest time difference to 
                 inds = times_diff.argsort() #these indices are sorted by absolute time difference
                 bkg_fns = (bkg_fns[inds])[0:nclosest] #Then sort bkg_fns based on that, and pick the n closest ones
+                if verbose: 
+                    print("Selection {} closest background frames".format(nclosest))
+            
+            if verbose: 
+                print("Using background files: {}".format(bkg_fns))
 
             #Catch an error if there's no background fitting the criteria
             if len(bkg_fns) == 0:
                 raise ValueError('No background file matching your criteria, try setting same_HWP = False')
             #for debugging
             # print(bkg_fns)
+            
+            self.ref_lib = bkg_fns
         
         #default shift and subtract method
         if method == 'shift_and_subtract':
@@ -405,6 +415,7 @@ class wirc_data(object):
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
             if bkg_fns is not None:
                 ref_lib = bkg_fns
+                
 
             if num_PCA_modes is not None:
                 #Do the PCA subtraction, save the model image to self.bkg_image. It also outputs a subtracted image, ignore that for now.
@@ -431,7 +442,8 @@ class wirc_data(object):
                     for i in range(len(ref_lib)):
                         bkg_frames.append(fits.getdata(ref_lib[i]))
                     if verbose:
-                        print('Subtracting background using median reference frame.')        
+                        print('Subtracting background using median reference frame.')
+                    # import pdb;pdb.set_trace()
                     self.bkg_image = np.nanmedian(np.array(bkg_frames), axis=0)        
             else:
                 print('Must provide a list of reference files to perform PCA subtraction, either as a keyword argument "ref_lib" or in self.ref_lib.')
@@ -954,7 +966,8 @@ class wirc_data(object):
             hdulist.close()
             #print ("ending iteration #",i)
 
-    def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,update_w_chi2_shift=False):
+    def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,
+    update_w_chi2_shift=False,verbose=False):
         """
         Finds the number of sources in the image.
 
@@ -973,11 +986,11 @@ class wirc_data(object):
         #self.source_list, self.trace_fluxes = image_utils.find_sources_in_direct_image_v2(self.full_image, self.cross_correlation_template, sigma_threshold=sigma_threshold, show_plots=show_plots)
 		#make sure the source_list format is correct
         if bkg_im is not None:
-            loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
-            bkg_im=bkg_im, sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
+            loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image-bkg_im, self.cross_correlation_template,
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)
         elif bkg_im is None:
             loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold)
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)
 
         if self.source_list:
             print('emptying source list to find sources again.')
@@ -1418,7 +1431,7 @@ class wircpol_source(object):
         else:
             plt.switch_backend(default_back)
 
-    def generate_cutout_backgrounds(self,update=False,method='median'):
+    def generate_cutout_backgrounds(self,update=False,method='median',mask_diag = True):
         '''
         Generate or update cutout backgrounds.
     
@@ -1432,14 +1445,49 @@ class wircpol_source(object):
             #Get the median
             if update:
                 if self.trace_bkg[i] is not None:
-                    mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:]-self.trace_bkg[i], sigma=3.0)
+                    to_update = self.trace_images[i,:,:]-self.trace_bkg[i]
+                    if mask_diag:
+                        mask = wircpol_masks.makeDiagMask(to_update.shape[0],30)
+                        mask = np.logical_not(mask)
+                        mask = mask[::-1]
+                        if i < 2:
+                            mask = mask[:,::-1]
+                        to_update = to_update*mask
+                    
+                        # plt.figure()
+                        # plt.imshow(to_update,origin='lower',vmin=-100,vmax=100,cmap='RdBu')
+                    to_update[to_update == 0.00] = np.nan
+                    mn,md,std = sigma_clipped_stats(to_update[np.isfinite(to_update)], sigma=3.0)
+                    # print(md)
+                    # fig,axes = plt.subplots(1,2)
+                    # axes[0].imshow(to_update,origin='lower',vmin=-100,vmax=100,cmap='RdBu')
+                    # axes[1].imshow(to_update-md,origin='lower',vmin=-100,vmax=100,cmap='RdBu')
+                    
                     self.trace_bkg[i] += md
                 else:
                     print("Can't update if there isn't already a trace_bkg")
-                    mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:], sigma=3.0)
+                    to_update = self.trace_images[i,:,:]
+                    if mask_diag:
+                        mask = wircpol_masks.makeDiagMask(to_update.shape[0],30)
+                        mask = np.logical_not(mask)
+                        mask = mask[::-1]
+                        if i < 2:
+                            mask = mask[:,::-1]
+                        to_update = to_update*mask
+                        to_update[to_update == 0.00] = np.nan
+                    mn,md,std = sigma_clipped_stats(to_update, sigma=3.0)
                     self.trace_bkg[i] = md
             else:
-                mn,md,std = sigma_clipped_stats(self.trace_images[i,:,:], sigma=3.0)
+                to_update = self.trace_images[i,:,:]
+                if mask_diag:
+                    mask = wircpol_masks.makeDiagMask(to_update.shape[0],30)
+                    mask = np.logical_not(mask)
+                    mask = mask[::-1]
+                    if i < 2:
+                        mask = mask[:,::-1]
+                    to_update = to_update*mask
+                    to_update[to_update == 0.00] = np.nan
+                mn,md,std = sigma_clipped_stats(to_update, sigma=3.0)
                 self.trace_bkg[i] = self.trace_images[i,:,:]*0. + md
         
         self.trace_bkg = np.array(self.trace_bkg)
