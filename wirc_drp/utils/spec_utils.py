@@ -677,7 +677,7 @@ def background_subtraction(thumbnails, sub_background_method = 'median',
     return bkg_sub, bkg
 
 def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
-    bad_pix_masking = 0, width_scale=1., diag_mask = False, trace_angle = None, mode = 'pol', spatial_sigma = 5, fixed_width = None, verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
+    bad_pix_masking = 0, width_scale=1., diag_mask = False, diag_mask_width = 70, trace_angle = None, mode = 'pol', spatial_sigma = 5, fixed_width = None, verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
     spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None, plot_optimal_extraction = False, plot_findTrace = False, plot_result = True,):
     """
     This is the main function to perform spectral extraction on the spectral image
@@ -879,7 +879,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
                     print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
             if diag_mask and mode=='pol':
-                mask = makeDiagMask(np.shape(thumbnail)[0],70)
+                mask = makeDiagMask(np.shape(thumbnail)[0],diag_mask_width)
                 thumbnail[~mask] = 0.0
                 bkg[~mask] = 0.0
                 DQ_copy[j,:,:][~mask] = 0.0
