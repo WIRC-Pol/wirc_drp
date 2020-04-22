@@ -179,9 +179,9 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             elif sign=='+':
                 sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
                 sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg.    
-            print(HWP1, HWP2)             
-            print(sampling_angles_1)
-            print(sampling_angles_2)
+            # print(HWP1, HWP2)             
+            # print(sampling_angles_1)
+            # print(sampling_angles_2)
             #indices (non elegant solution...)
             ind0_0 =   np.where(sampling_angles_1 == 0)[0]
             ind0_90 =  np.where(sampling_angles_1 == 90)[0]
