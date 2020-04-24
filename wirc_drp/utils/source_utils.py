@@ -279,7 +279,8 @@ def group_HWP(HWP_set):
 #     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
 #     return pairs_0, pairs_225   
 
-def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, method = 'flux_ratio', sign = '-'):
+def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, 
+                                method = 'flux_ratio', sign = '-', broadband=False):
     """
     This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
     and call compute_qu to measure polarization q and u. 
@@ -289,10 +290,14 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
         HWP_set: a vector of length N, prescribing the half wave plate angle for each of the frame in obs_set. Values should be 0, 45, 22.5, 67.5 for double diff. 
                  if there is an offset from this orthogonal set, indicae so in HWP_offset
         HWP_offset: a float indicating the zeropoint of the HWP angle. We proceed with HWP_set - HWP_offset.
+        method: either the flux ratio method ("flux_ratio";Kaew to insert reference here) or double differencing ("double_difference")
 
     Output:
         q, q_err, u, u_err **currently single differencing in time. Can do double difference manually afterward. This may change. 
     """
+
+
+    
     #First, check length
     if spectra_cube.shape[0] != len(HWP_set):
         raise ValueError("Lengths of spectra_cube and HWP_set are not equal.")
@@ -307,6 +312,11 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     all_ang = set([0,45,22.5,67.5])
     if set(HWP_final) != all_ang:
         raise ValueError("HWP set doesn't have all 4 angles or have wrong angles: %s"%str(set(HWP_final)))
+
+    #If we only want the broadband value, then collapse all the spetra
+    if broadband: 
+        spectra_cube = np.sum(spectra_cube,axis=3)
+
 
     #Arrange the sequence into best pairs of 0/45 and 22.5/67.5 to compute qu
     pairs_0, pairs_225 = group_HWP(HWP_final)
