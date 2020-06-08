@@ -443,19 +443,15 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
 
-
-
-
-
-
 def find_best_background(list_of_files, separation_threshold = 2, verbose = False):
     """
     find_best_background takes a list of headers from WIRC+Pol observations and find best background frame for each element. 
     Here are the conditions: 
-        Same HWP angle
-        With telescope offset greater than 'separation_threshold' (default at 2 arcsec)
-        Closest in time
-        Not already used by another frame (this condition is relaxed if every frame is used up. Say we have extra set of exposures at position A)
+    
+    Same HWP angle
+    With telescope offset greater than 'separation_threshold' (default at 2 arcsec)
+    Closest in time
+    Not already used by another frame (this condition is relaxed if every frame is used up. Say we have extra set of exposures at position A)
 
     Input:
         list_of_headers: a list of fits headers of the observations. 
@@ -606,8 +602,8 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
     p_dd = np.sqrt(q_dd**2+u_dd**2)
     theta_dd = 0.5*np.degrees(np.arctan2(u_dd,q_dd))
     theta_dd[theta_dd < 0] +=180
-   # q_dd = q
-   # u_dd = u
+    #    q_dd = q
+    #    u_dd = u
 
     #Doing this because of how things changed in compute polarization
 
@@ -694,8 +690,8 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
     theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
     theta_mean[theta_mean < theta_wrap] +=180
 
-    q_mean_err = np.sqrt(np.sum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
-    u_mean_err = np.sqrt(np.sum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
+    q_mean_err = np.sqrt(np.nansum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
+    u_mean_err = np.sqrt(np.nansum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
     p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
     p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
     theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
@@ -1021,7 +1017,7 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
     time_snip = spec_cube.shape[0] % (n_time_bins*4)
     time_bin_size = (spec_cube.shape[0]-time_snip)//n_time_bins
 
-    good_wvs = (master_wvs > 1.175) & (master_wvs < 1.325)
+    good_wvs = (master_wvs > 1.17) & (master_wvs < 1.32)
     spec_cube = copy.deepcopy(spec_cube[:,:,:,good_wvs])
     master_wvs = copy.deepcopy(master_wvs[good_wvs])
     master_spec = copy.deepcopy(master_spec[good_wvs])
@@ -1097,8 +1093,8 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
         theta_mean[theta_mean < theta_wrap] +=180
 
-        q_mean_err = np.sqrt(np.sum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
-        u_mean_err = np.sqrt(np.sum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
+        q_mean_err = np.sqrt(np.nansum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
+        u_mean_err = np.sqrt(np.nansum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
         p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
         p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
         theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
