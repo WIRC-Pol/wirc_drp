@@ -11,7 +11,7 @@ import astropy.units as u
 def reduce_dataset(filelist, source_pos, bkg_fnames = None, output_path = "./",verbose=True, 
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
 "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,less_verbose=True,
-parallel=False,n_processes=None,nclosest=None,same_HWP=True):
+parallel=False,n_processes=None,nclosest=None,same_HWP=True,sub_bar=False):
     '''
     A function that reduces a dataset given a list of calibrated science and background files
 
@@ -79,13 +79,14 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True):
                         
                         #Package up the arguments: 
                         args = [(fname,source_pos,bkg_fnames,
-                        outdir,"",verbose,bkg_method,npca,False,False,nclosest,same_HWP) for fname in filelist]
+                        outdir,"",verbose,bkg_method,npca,False,False,nclosest,same_HWP,sub_bar) for fname in filelist]
                         outputs = pool.map(extract_single_file_parallel_helper,args) 
 
+                        if not in_slit:
                         #Now with the update cutout backgrounds
-                        args = [(fname,source_pos,bkg_fnames,
-                        outdir2,"",verbose,bkg_method,npca,True,False,nclosest,same_HWP) for fname in filelist]
-                        outputs = pool.map(extract_single_file_parallel_helper,args) 
+                            args = [(fname,source_pos,bkg_fnames,
+                            outdir2,"",verbose,bkg_method,npca,True,False,nclosest,same_HWP,sub_bar) for fname in filelist]
+                            outputs = pool.map(extract_single_file_parallel_helper,args) 
                 #Or not
                 else: 
                 
@@ -94,11 +95,11 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True):
                             print("File {} of {} with bkg_method = {}{}: {}".format(i+1,len(filelist),bkg_method,npca,fname))
                         
                         extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir,verbose=verbose,bkg_method=bkg_method,
-                        num_PCA_modes=npca,nclosest=nclosest,same_HWP=same_HWP)
+                        num_PCA_modes=npca,sub_bar=sub_bar,nclosest=nclosest,same_HWP=same_HWP)
 
                         if not in_slit:
                             extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
-                            num_PCA_modes=npca,update_cutout_backgrounds=True,nclosest=nclosest,same_HWP=same_HWP)
+                            num_PCA_modes=npca,update_cutout_backgrounds=True,sub_bar=sub_bar,nclosest=nclosest,same_HWP=same_HWP)
         
         else:
 
@@ -126,13 +127,13 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True):
                 
                     #Package up the arguments: 
                     args = [(fname,source_pos,bkg_fnames,
-                    outdir,"",verbose,bkg_method,None,False,False,nclosest,same_HWP) for fname in filelist]
+                    outdir,"",verbose,bkg_method,None,False,False,nclosest,same_HWP,sub_bar) for fname in filelist]
                     outputs = pool.map(extract_single_file_parallel_helper,args) 
 
-                    if bkg_method != "cutout_median":
+                    if bkg_method != "cutout_median" and not in_slit:
                         #Now with the update cutout backgrounds
                         args = [(fname,source_pos,bkg_fnames,
-                        outdir2,"",verbose,bkg_method,None,True,False,nclosest,same_HWP) for fname in filelist]
+                        outdir2,"",verbose,bkg_method,None,True,False,nclosest,same_HWP,sub_bar) for fname in filelist]
                         outputs = pool.map(extract_single_file_parallel_helper,args) 
 
             else:
@@ -141,10 +142,10 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True):
                     if verbose or less_verbose:
                         print("File {} of {} with bkg_method = {}: {}".format(i+1,len(filelist),bkg_method,fname))
                     extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir,verbose=verbose,
-                    bkg_method=bkg_method,nclosest=nclosest,same_HWP=same_HWP)
+                    bkg_method=bkg_method,nclosest=nclosest,sub_bar=sub_bar,same_HWP=same_HWP)
                     if bkg_method != "cutout_median" and not in_slit:
                         extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
-                        update_cutout_backgrounds=True,nclosest=nclosest,same_HWP=same_HWP)
+                        update_cutout_backgrounds=True,nclosest=nclosest,sub_bar=sub_bar,same_HWP=same_HWP)
         # except:
             # print("Couldn't finish reduction on file {} for bkg_method {}".format(fname,bkg_method))
             # pass
@@ -164,7 +165,12 @@ nclosest=None,same_HWP=True):
         tmp_data = wo.wirc_data(wirc_object_filename=filename,verbose=verbose)
         tmp_data.source_list = []
         tmp_data.n_sources = 0
-        
+
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(tmp_data.full_image)
+        # plt.show()
+
         if bkg_method is not None and bkg_method != "cutout_median":
             tmp_data.generate_bkg(method=bkg_method,verbose=verbose,
                                 bkg_by_quadrants=True,
@@ -172,14 +178,27 @@ nclosest=None,same_HWP=True):
                                 nclosest=nclosest,
                                 same_HWP=same_HWP)
 
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(tmp_data.full_image)
+        # plt.show()
 
-        tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=True,sub_bkg=True)
+        tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=False,sub_bkg=True)
 
         wp_source = tmp_data.source_list[0]
         wp_source.get_cutouts(tmp_data.full_image,tmp_data.DQ_image,'J',
                                 replace_bad_pixels=True,method='interpolate',
                                 bkg_image = tmp_data.bkg_image,sub_bar=sub_bar)
         
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(tmp_data.full_image)
+        # plt.show()
+        # wp_source.plot_cutouts()
+        # wp_source.plot_cutouts(plot_bkg=True)
+        # wp_source.plot_cutouts(plot_bkg_sub=True)
+
+
         if bkg_method == "cutout_median":
             wp_source.generate_cutout_backgrounds(update=False)
         if update_cutout_backgrounds:
@@ -187,7 +206,8 @@ nclosest=None,same_HWP=True):
 
         wp_source.extract_spectra(verbose=verbose,
                                 plot_findTrace=False,plot_optimal_extraction=False,
-                                spatial_sigma=3,diag_mask=True)
+                                spatial_sigma=3,diag_mask=True,
+                                diag_mask_width = 50)
 
         tmp_data.source_list.append(wp_source)
         tmp_data.n_sources += 1
@@ -206,69 +226,59 @@ def extract_single_file_parallel_helper(args):
     try: 
         extract_single_file(args[0],args[1],args[2],output_path = args[3],output_suffix = args[4],
         verbose = args[5],bkg_method = args[6],num_PCA_modes = args[7],
-        update_cutout_backgrounds = args[8], save_full_image=args[9],nclosest=args[10],same_HWP=args[11])
+        update_cutout_backgrounds = args[8], save_full_image=args[9],nclosest=args[10],same_HWP=args[11],
+        sub_bar=args[12])
     except Exception as e:
         print("Some error with file {}".format(args[0]))
         print(e)
 
-# def reduce_ABAB_dataset(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
-# bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
-# "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,parallel=False,
-# n_processes=None):
-#     '''
-     
-#      THIS FUNCTION IS BAD, DON'T USE IT. 
+def reduce_ABAB_dataset(filelist, source_posA, source_posB,output_path = "./",verbose=False, less_verbose=True,
+bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
+"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,parallel=False,
+n_processes=None,n_per_group=4,nclosest=None,same_HWP=True,sub_bar=False):
+    '''
+    A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
+    It uses each position as backgrond for the other. 
+    
+    It assumes by default that you have 4 images per dither position, but you can change this with the
+    n_per_group keyword
 
+    Inputs:
+        filelist    -   A python list of filepaths
+        background_list -   A python list of background files (this can be one file)
+    '''
 
-#     A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
-#     It uses each position as backgrond for the other. 
+    nfiles = np.size(filelist)
+    ngroups = nfiles//(2*n_per_group)
 
-#     Inputs:
-#         filelist    -   A python list of filepaths
-#         background_list -   A python list of background files (this can be one file)
-#     '''
+    groupA = []
+    groupB = []
+    for i in range(ngroups):
+        groupA.append(np.arange(i*n_per_group*2,(2*i+1)*n_per_group))
+        groupB.append(np.arange((2*i+1)*n_per_group,(2*i+2)*n_per_group))
 
-#     #Separate them into two dithers - Assuming dither only in the RA direction
-#     list_of_headers = []
-#     for i in filelist:
-#         list_of_headers += [fits.getheader(i)]
-#     #closest in time, some distance away, same HWP
-#     all_hdr = list_of_headers
-#     #get some useful quantities
-#     coords = np.array([ SkyCoord(x['RA'], x['DEC'], unit = (u.hourangle, u.deg)) for x in all_hdr ])
-#     ras = np.array([x.ra.degree for x in coords])
+    groupA=np.hstack(groupA)
+    groupB=np.hstack(groupB)
+    
+    # Reduce them all with all the possible background subtraction methods - Dither position 1
+    reduce_dataset(filelist[groupA], source_posA, bkg_fnames = filelist[groupB], 
+                            bkg_methods = bkg_methods,
+                            output_path = output_path,
+                            verbose=verbose,
+                            less_verbose=less_verbose,
+                            n_pca=n_pca, in_slit=in_slit,
+                            parallel=parallel,n_processes=n_processes,
+                            nclosest=nclosest,same_HWP=same_HWP,sub_bar=sub_bar)
 
-#     #Let's get the moving mean to help us distinguish between the two dither positions, 
-#     #knowing that it could drift over time. 
-#     moving_mean = []
-#     inds = np.arange(len(ras))
-
-#     for i in range(len(ras)):
-#         dist = np.sqrt((inds-i)**2)
-#         dist_args = np.argsort(dist)
-#         good_inds = inds[dist_args][:8]
-#         moving_mean.append(np.mean(ras[good_inds]))
-
-#     groupA = np.where(ras-moving_mean<0)
-#     groupB = np.where(ras-moving_mean>0)
-
-#     #Reduce them all with all the possible background subtraction methods - Dither position 1
-#     reduce_dataset(filelist[groupA], source_pos, bkg_fnames = filelist[groupB], 
-#                             bkg_methods = bkg_methods,
-#                             output_path = output_path,
-#                             verbose=verbose,
-#                             less_verbose=less_verbose,
-#                             n_pca=n_pca, in_slit=in_slit,
-#                             parallel=parallel,n_processes=n_processes)
-
-#     #Reduce them all with all the possible background subtraction methods - Dither position 2
-#     reduce_dataset(filelist[groupB], source_pos, bkg_fnames = filelist[groupA], 
-#                             bkg_methods = bkg_methods,
-#                             output_path = output_path,
-#                             verbose=verbose,
-#                             less_verbose=less_verbose,
-#                             n_pca=n_pca, in_slit=in_slit,
-#                             parallel=parallel,n_processes=n_processes)
+    #Reduce them all with all the possible background subtraction methods - Dither position 2
+    reduce_dataset(filelist[groupB], source_posB, bkg_fnames = filelist[groupA], 
+                            bkg_methods = bkg_methods,
+                            output_path = output_path,
+                            verbose=verbose,
+                            less_verbose=less_verbose,
+                            n_pca=n_pca, in_slit=in_slit,
+                            parallel=parallel,n_processes=n_processes,
+                            nclosest=nclosest,same_HWP=same_HWP,sub_bar=sub_bar)
 
 def reduce_dataset_distance(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
