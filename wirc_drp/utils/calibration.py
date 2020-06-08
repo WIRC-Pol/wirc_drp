@@ -16,6 +16,7 @@ from astropy.stats import sigma_clip
 from scipy.stats import mode
 from scipy.ndimage import median_filter, shift, rotate
 from scipy import interpolate
+from scipy.optimize import minimize
 import copy
 import cv2
 import os
@@ -28,6 +29,7 @@ from wirc_drp.masks.wircpol_masks import * ### Make sure that the wircpol/DRP/ma
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 import copy
 from astropy.stats import sigma_clipped_stats
+# from wirc_drp.utils.source_utils import serkowski_polarization
 
 def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad_pix = 3, \
                 global_sig_bad_pix = 9, local_box_size = 11,  hotp_map_fname = None, verbose=False,
@@ -1326,7 +1328,7 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     else:
         print('Unsupported datatype for variable: num_PCA_modes. Variable must be either int or 1-D np.ndarray')
 
-def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair):
+def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None):
     '''
     Apply the system calibration to q and u measurements. 
     We treat the two channels as separate polarimeters, so we need the qind and uind outputs from compute_qu
@@ -1345,18 +1347,23 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair):
                 Correponds to the output of qind and uind from compute_qu
     '''
 
-    if trace_pair == 0:
-        #The significant digits obviously do not reflect any sort of precision, they were just copied from a print statement
-        polynomial_coefficients = [1.0661088786177235, -1.7766660078904966, -0.9104631784841992, 2.64385024405191, 1.5556061450161307, 
-        -2.2859691699493196, -1.3236229169762028, 1.1997075732954565, 1.5948731326729078, -2.7313632656048603, -1.336150812645815, 
-        2.4183673050376795, 0.7061071621209151, -1.3258240570135162, -0.8934473062537349, 1.278423011227312]
-    elif trace_pair == 1:
-        polynomial_coefficients = [2.0007323143773106, -3.0369726347949255, -1.6047715137239809, 3.520169106554172, 1.0160466675010955, 
-        -1.506184150325796, -0.8435650594122575, 0.5977833961415223, 0.970243805370234, -1.844184514283156, -0.8705549135207251, 
-        1.729607916941225, -1.4177309303796624, 1.7492484823597478, 0.9317500283173318, -1.6170943302985021]
-    else: 
-        raise ValueError("trace_pair must be 0 or 1")
-
+    if polynomial_coefficients is None:
+        #Use a default - This may not be the best. 
+        p_order = 3
+        if trace_pair == 0:
+            #The significant digits obviously do not reflect any sort of precision, they were just copied from a print statement
+            polynomial_coefficients = [1.0661088786177235, -1.7766660078904966, -0.9104631784841992, 2.64385024405191, 1.5556061450161307, 
+            -2.2859691699493196, -1.3236229169762028, 1.1997075732954565, 1.5948731326729078, -2.7313632656048603, -1.336150812645815, 
+            2.4183673050376795, 0.7061071621209151, -1.3258240570135162, -0.8934473062537349, 1.278423011227312]
+        elif trace_pair == 1:
+            polynomial_coefficients = [2.0007323143773106, -3.0369726347949255, -1.6047715137239809, 3.520169106554172, 1.0160466675010955, 
+            -1.506184150325796, -0.8435650594122575, 0.5977833961415223, 0.970243805370234, -1.844184514283156, -0.8705549135207251, 
+            1.729607916941225, -1.4177309303796624, 1.7492484823597478, 0.9317500283173318, -1.6170943302985021]
+        else: 
+            raise ValueError("trace_pair must be 0 or 1 if you're not going to provide polynomial coefficients yourself")
+    else:
+        p_order = len(polynomial_coefficients)//4-1
+    
     calibrated_q = copy.deepcopy(q)
     calibrated_u = copy.deepcopy(u)
     calibrated_q_err = copy.deepcopy(qerr)
@@ -1364,15 +1371,22 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair):
     
     #For each wavelength, invert 2x2 matrix
     for i in range(len(wvs)):
-        qu = np.linalg.solve(np.array([[np.polyval(polynomial_coefficients[:4],wvs[i]),np.polyval(polynomial_coefficients[8:12],wvs[i])],
-                                    [np.polyval(polynomial_coefficients[12:],wvs[i]),np.polyval(polynomial_coefficients[4:8],wvs[i])]]).T,
+        # print(wvs[i])
+        # print(np.array([[np.poly1d(polynomial_coefficients[:(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[1*(p_order+1):2*(p_order+1)])(wvs[i])],
+                                    # [np.poly1d(polynomial_coefficients[2*(p_order+1):3*(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[3*(p_order+1):])(wvs[i])]]))
+        # qu = np.linalg.solve(np.array([[np.poly1d(polynomial_coefficients[:(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[(p_order+1):2*(p_order+1)])(wvs[i])],
+                                    # [np.poly1d(polynomial_coefficients[2*(p_order+1):3*(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[3*(p_order+1):])(wvs[i])]]),
+                                    # [q[i],u[i]])
+
+        qu = np.linalg.solve(np.array([[np.poly1d(polynomial_coefficients[:(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[2*(p_order+1):3*(p_order+1)])(wvs[i])],
+                                    [np.poly1d(polynomial_coefficients[1*(p_order+1):2*(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[3*(p_order+1):])(wvs[i])]]),
                                     [q[i],u[i]])
         calibrated_q[i] = qu[0]
         calibrated_u[i] = qu[1]
     
         #Get the inverse to calculate the errors
-        inverse_matrix = np.linalg.inv([[np.polyval(polynomial_coefficients[:4],wvs[i]),np.polyval(polynomial_coefficients[8:12],wvs[i])],
-                                    [np.polyval(polynomial_coefficients[12:],wvs[i]),np.polyval(polynomial_coefficients[4:8],wvs[i])]])
+        inverse_matrix = np.linalg.inv([[np.polyval(polynomial_coefficients[:(p_order+1)],wvs[i]),np.polyval(polynomial_coefficients[(p_order+1):2*(p_order+1)],wvs[i])],
+                                    [np.polyval(polynomial_coefficients[2*(p_order+1):3*(p_order+1)],wvs[i]),np.polyval(polynomial_coefficients[3*(p_order):],wvs[i])]])
 
         #A covariance matrix
         cov = np.diag(np.array([qerr[i]**2,uerr[i]**2]))
@@ -1386,3 +1400,778 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair):
     return calibrated_q,calibrated_u,calibrated_q_err,calibrated_u_err
 
 
+def make_instrument_calibration(wvs,dir_list,serkowski_array,names,p_order=3,
+            plot_residuals=True,plot_starting_position=False,plot_best_fit=True,
+            plot_best_fit_on_sky=True,plot_residuals_on_sky=True,
+            plot_mueller_matrix=True):
+    """
+    A function that will create an instrument calibration based on the input measurements, 
+    q_list and ulist, and the expected on_sky polarization p_known_list and theta_known_list.
+
+    The basic idea is that you'll have a bunch of polarized standard stars and their expected polarization
+    and you plug it in here and it'll pop out an instrument calibration. 
+
+    Inputs: 
+    wvs     - An array of length n, that gives the wavelengths in microns
+    dir_list - A list of length m of directories where we can find qu datafiles
+    serkowski_array - An array of shape [m,4] that holds the [p_max,lambda_max, K, theta] values for corresponding to each directory in the dir_list
+    p_order  - The order of the polynomial that we'll fit. 
+    """
+
+    assert serkowski_array.shape[0] == len(dir_list), "The number of data directories doesn't match the length of your serkowski array"
+
+    # assert p_order > 2, "You really want p_order > 2"
+
+
+    good_inds = np.where((wvs>1.165) & (wvs<1.325))
+    good_wvs = wvs[good_inds]
+
+    ###Cycle through the serkowski array and generate the expected polarization
+    serkowski_q = np.zeros([wvs.shape[0],serkowski_array.shape[0]]) #The expected q shape [n_waves,n_datasets]
+    serkowski_u = np.zeros([wvs.shape[0],serkowski_array.shape[0]]) #The expected u shape [n_waves,n_datasets]
+
+    for i in range(serkowski_q.shape[1]):
+        _,q,u = serkowski_polarization(wvs,serkowski_array[i,1],
+                            serkowski_array[i,0],serkowski_array[i,2],serkowski_array[i,3])
+        serkowski_q[:,i] = q
+        serkowski_u[:,i] = u
+    
+    ###Now let's read in all the data
+    data_q_pair1 = np.zeros([wvs.shape[0],len(dir_list)]) #The data q shape [n_waves,n_datasets]
+    data_u_pair1 = np.zeros([wvs.shape[0],len(dir_list)]) #The data u
+    data_qerrs_pair1 = np.zeros([wvs.shape[0],len(dir_list)]) #The data q errors
+    data_uerrs_pair1 = np.zeros([wvs.shape[0],len(dir_list)]) #The data u errors
+
+    data_q_pair2 = np.zeros([wvs.shape[0],len(dir_list)]) #The data q
+    data_u_pair2 = np.zeros([wvs.shape[0],len(dir_list)]) #The data u
+    data_qerrs_pair2 = np.zeros([wvs.shape[0],len(dir_list)]) #The data q errors
+    data_uerrs_pair2 = np.zeros([wvs.shape[0],len(dir_list)]) #The data u errors
+
+    for i in range(len(dir_list)):
+        directory = dir_list[i]
+
+        qu_data = np.load(directory+"/qu_data.npy")
+        qu_inds = np.load(directory+"/qu_ind.npy")
+    
+        #Expand the data back out
+        qs = qu_data[0]
+        us = qu_data[1]
+        q_errs = qu_data[2]
+        u_errs = qu_data[3]
+        #Expand the indices
+        qind = qu_inds[0]
+        uind = qu_inds[1]
+
+        data_q_pair1[:,i] = np.mean(qs[qind==0],axis=0)
+        data_u_pair1[:,i] = np.mean(us[qind==0],axis=0)
+        data_qerrs_pair1[:,i] = np.sqrt(np.nanmean(q_errs[qind==0]**2))
+        data_uerrs_pair1[:,i] = np.sqrt(np.nanmean(u_errs[uind==0]**2))
+
+        data_q_pair2[:,i] = np.nanmean(qs[qind==1],axis=0)
+        data_u_pair2[:,i] = np.nanmean(us[qind==1],axis=0)
+        data_qerrs_pair2[:,i] = np.sqrt(np.nanmean(q_errs[qind==1]**2))
+        data_uerrs_pair2[:,i] = np.sqrt(np.nanmean(u_errs[uind==1]**2))
+
+
+    #Ok Data Loaded. 
+
+    ## Define a bunch of functions
+    def forward_model_detector_qu(p,wvs,serkowski_qu):
+        '''
+        Calculates the detector qu for a given trace pair, give the polynomial 
+        coefficients, p, the wavelengths and input serkowski q and u
+
+        Input:
+        p   - An array of length 4*(p_order+1) that contains the coefficients
+              for the q and u crosstalks and efficiencies
+        '''
+
+        #Detector q = serkowski_q*q_efficiency + serkowski_u*u->q crosstalk
+        detector_q = serkowski_qu[0]*np.poly1d(p[:p_order+1])(wvs) + serkowski_qu[1]*np.poly1d(p[p_order+1:2*(p_order+1)])(wvs)
+
+        #Detector u = serkowski_q*q-u crosstalk + serkowski_u*u_efficiency
+        detector_u = serkowski_qu[0]*np.poly1d(p[2*(p_order+1):3*(p_order+1)])(wvs) + serkowski_qu[1]*np.poly1d(p[3*(p_order+1):])(wvs)
+
+        return detector_q,detector_u
+
+    def residuals(p,wvs,serkowski_q,serkowski_u,data_q,data_u):
+        '''
+        Calculate the residuals 
+        '''
+        good_wvs = np.where((wvs > 1.165) & (wvs < 1.325))
+        q_residuals = []
+        u_residuals = []        
+
+        for i in range(serkowski_array.shape[0]):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            detector_q,detector_u = forward_model_detector_qu(p,wvs,serkowski_qu)
+            q_residuals.append((data_q[:,i]-detector_q)[good_wvs])
+            u_residuals.append((data_u[:,i]-detector_u)[good_wvs])
+        
+        q_residuals = np.swapaxes(np.array(q_residuals),0,1)
+        u_residuals = np.swapaxes(np.array(u_residuals),0,1)
+
+        return q_residuals,u_residuals
+    
+    def to_minimize(p,wvs,serkowski_q,serkowski_u,data_q,data_u,data_qerrs,data_uerrs):
+        good_wvs = np.where((wvs > 1.165) & (wvs < 1.325))
+        q_residuals,u_residuals = residuals(p,wvs,serkowski_q,serkowski_u,data_q,data_u)
+        
+        return np.sqrt(np.nansum(((q_residuals/data_qerrs[good_wvs])**2))+np.sum(((u_residuals/data_uerrs[good_wvs])**2)))
+
+    ### We'll use a previous fit as a starting point. 
+    p0_tracepair1 =[1.0661088786177235, -1.7766660078904966, -0.9104631784841992, 2.64385024405191, 1.5556061450161307, 
+    -2.2859691699493196, -1.3236229169762028, 1.1997075732954565, 1.5948731326729078, -2.7313632656048603, -1.336150812645815, 
+    2.4183673050376795, 0.7061071621209151, -1.3258240570135162, -0.8934473062537349, 1.278423011227312]
+    p0_tracepair2 = [2.0007323143773106, -3.0369726347949255, -1.6047715137239809, 3.520169106554172, 1.0160466675010955, 
+    -1.506184150325796, -0.8435650594122575, 0.5977833961415223, 0.970243805370234, -1.844184514283156, -0.8705549135207251, 
+    1.729607916941225, -1.4177309303796624, 1.7492484823597478, 0.9317500283173318, -1.6170943302985021]
+
+    if p_order == 3:
+        pstart_tracepair1 = p0_tracepair1
+        pstart_tracepair2 = p0_tracepair2
+
+    #If we want higher orders will still start at the same place, but fill in zeros elsewhere. 
+    elif p_order ==2:
+        pstart_tracepair1 = np.zeros([4*(p_order+1)])
+        pstart_tracepair2 = np.zeros([4*(p_order+1)])
+
+        pstart_tracepair1[0] = 1
+        pstart_tracepair1[8] = 1
+    
+    else:
+        pstart_tracepair1 = np.zeros([4*(p_order+1)])
+        pstart_tracepair2 = np.zeros([4*(p_order+1)])
+
+        for i in range(4):
+            pstart_tracepair1[i*(p_order+1):i*(p_order+1)+4] = p0_tracepair1[i*4:(i+1)*4]
+            pstart_tracepair2[i*(p_order+1):i*(p_order+1)+4] = p0_tracepair2[i*4:(i+1)*4]
+
+            pstart_tracepair1
+
+
+    # print(pstart_tracepair1)
+    ### Start the fitting! 
+    results1 = minimize(to_minimize,pstart_tracepair1,
+                        args=(wvs,serkowski_q,serkowski_u,data_q_pair1,data_u_pair1,
+                        data_qerrs_pair1,data_uerrs_pair1))
+    # print(results1)
+    results2 = minimize(to_minimize,pstart_tracepair1,
+                        args=(wvs,serkowski_q,serkowski_u,data_q_pair2,data_u_pair2,
+                        data_qerrs_pair2,data_uerrs_pair2))
+
+    '''
+    For each trace_pair we'll make 6 plots: 
+        - The forward modelled serkowski curves with the starting position and data overlaid
+        - The forward modelled serkowski curves with the best fit position and data overlaid
+        - The residuals of the new fits. 
+    '''
+
+    # plot=True
+    # if plot:
+    #     fig,axes = plt.subplots(2,2)
+
+    #     axes[0,0].plot(wvs,np.poly1d(results1.x[:(p_order+1)])(wvs))
+    #     axes[0,1].plot(wvs,np.poly1d(results1.x[1*(p_order+1):2*(p_order+1)])(wvs))
+    #     axes[1,0].plot(wvs,np.poly1d(results1.x[1*(p_order+1):2*(p_order+1)])(wvs))
+    #     axes[1,1].plot(wvs,np.poly1d(results1.x[3*(p_order+1):])(wvs))
+    
+    #     axes[0,0].set_xlim(1.165,1.325)
+    #     axes[0,1].set_xlim(1.165,1.325)
+    #     axes[1,0].set_xlim(1.165,1.325)
+    #     axes[1,1].set_xlim(1.165,1.325)
+
+    if plot_starting_position:
+
+        ###################################
+        ####### FIRST TRACE PAIR 1 ########
+        ###################################
+        
+
+        fig1,big_axes1 = plt.subplots(1,2,figsize=(20,5))
+
+        fig1.suptitle("Trace Pair 1 Starting Positions")
+        # fig1.suptitle("Trace Pair 1")
+
+        ### The start positions
+        start_ax_q = big_axes1[0]
+        start_ax_u = big_axes1[1]
+        #Generate the starting positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            print(serkowski_qu)
+            starting_detector_q,starting_detector_u = forward_model_detector_qu(pstart_tracepair1,wvs,serkowski_qu)
+            start_ax_q.plot(wvs,100*starting_detector_q,color='C{:d}'.format(i))
+            start_ax_u.plot(wvs,100*starting_detector_u,color='C{:d}'.format(i))
+            
+            #Add the data
+            start_ax_q.plot(wvs,100*data_q_pair1[:,i],'o',color='C{:d}'.format(i))
+            start_ax_u.plot(wvs,100*data_u_pair1[:,i],'o',color='C{:d}'.format(i),label=names[i])
+        
+        start_ax_u.legend()
+
+        start_ax_q.set_xlim(1.15,1.35)
+        start_ax_q.set_ylim(-6,6)
+        start_ax_u.set_xlim(1.15,1.35)
+        start_ax_u.set_ylim(-6,6)
+
+        start_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        start_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        start_ax_q.set_ylabel(r"q (%)")
+        start_ax_u.set_ylabel(r"u (%)")
+
+
+        #############################
+        ####### TRACE PAIR 2 ########
+        #############################
+
+        fig1,big_axes1 = plt.subplots(1,2,figsize=(20,5))
+
+        fig1.suptitle("Trace Pair 2 Starting Positions")
+        # fig1.suptitle("Trace Pair 1")
+
+        ### The start positions
+        start_ax_q = big_axes1[0]
+        start_ax_u = big_axes1[1]
+        #Generate the starting positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            starting_detector_q,starting_detector_u = forward_model_detector_qu(pstart_tracepair2,wvs,serkowski_qu)
+            start_ax_q.plot(wvs,100*starting_detector_q,color='C{:d}'.format(i))
+            start_ax_u.plot(wvs,100*starting_detector_u,color='C{:d}'.format(i))
+            
+            #Add the data
+            start_ax_q.plot(wvs,100*data_q_pair1[:,i],'o',color='C{:d}'.format(i))
+            start_ax_u.plot(wvs,100*data_u_pair1[:,i],'o',color='C{:d}'.format(i),label=names[i])
+        
+        start_ax_u.legend()
+
+        start_ax_q.set_xlim(1.15,1.35)
+        start_ax_q.set_ylim(-6,6)
+        start_ax_u.set_xlim(1.15,1.35)
+        start_ax_u.set_ylim(-6,6)
+
+        start_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        start_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        start_ax_q.set_ylabel(r"q (%)")
+        start_ax_u.set_ylabel(r"u (%)")
+
+    if plot_best_fit:
+
+        fig1,axes = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 1 Best Fit Forward Model")
+
+        fit_ax_q = axes[0]
+        fit_ax_u = axes[1]
+        # fit_ax_q = fig1.add_subplot(1,2,1)
+        # fit_ax_u = fig1.add_subplot(1,2,2)
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+            fit_ax_q.plot(wvs,100*fit_detector_q)
+            fit_ax_u.plot(wvs,100*fit_detector_u)
+
+            #Add the data
+            fit_ax_q.plot(wvs,100*data_q_pair1[:,i],'o',color='C{:d}'.format(i))
+            fit_ax_u.plot(wvs,100*data_u_pair1[:,i],'o',color='C{:d}'.format(i))
+        
+        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_ylim(-6,6)
+        fit_ax_u.set_xlim(1.15,1.35)
+        fit_ax_u.set_ylim(-6,6)
+
+        fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_q.set_ylabel(r"q (%)")
+        fit_ax_u.set_ylabel(r"u (%)")
+
+
+        #############################
+        ####### TRACE PAIR 2 ########
+        #############################
+
+        fig1,axes = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 2 Best Fit Forward Model")
+
+        fit_ax_q = axes[0]
+        fit_ax_u = axes[1]
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            fit_detector_q,fit_detector_u = forward_model_detector_qu(results2.x,wvs,serkowski_qu)
+            fit_ax_q.plot(wvs,100*fit_detector_q)
+            fit_ax_u.plot(wvs,100*fit_detector_u)
+
+            #Add the data
+            fit_ax_q.plot(wvs,100*data_q_pair2[:,i],'o',color='C{:d}'.format(i))
+            fit_ax_u.plot(wvs,100*data_u_pair2[:,i],'o',color='C{:d}'.format(i))
+        
+        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_ylim(-6,6)
+        fit_ax_u.set_xlim(1.15,1.35)
+        fit_ax_u.set_ylim(-6,6)
+
+        fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_q.set_ylabel(r"q (%)")
+        fit_ax_u.set_ylabel(r"u (%)")
+
+    if plot_best_fit_on_sky:
+
+        fig1,axes = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 1 Best Fit On-Sky")
+
+        fit_ax_q = axes[0]
+        fit_ax_u = axes[1]
+        # fit_ax_q = fig1.add_subplot(1,2,1)
+        # fit_ax_u = fig1.add_subplot(1,2,2)
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+            fit_ax_q.plot(wvs,100*serkowski_q[:,i])
+            fit_ax_u.plot(wvs,100*serkowski_u[:,i])
+
+            cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,data_q_pair1[:,i][good_inds],data_u_pair1[:,i][good_inds],
+            data_qerrs_pair1[:,i][good_inds],data_uerrs_pair1[:,i][good_inds],polynomial_coefficients=results1.x)
+
+            # cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,fit_detector_q[good_inds],fit_detector_u[good_inds],
+            # data_qerrs_pair1[:,i][good_inds],data_uerrs_pair1[:,i][good_inds],polynomial_coefficients=results1.x)
+
+            #Add the data 
+            fit_ax_q.plot(good_wvs,100*cal_q,'o',color='C{:d}'.format(i))
+            fit_ax_u.plot(good_wvs,100*cal_u,'o',color='C{:d}'.format(i))
+        
+        fit_ax_q.set_xlim(1.15,1.35)
+        # fit_ax_q.set_ylim(-6,6)
+        fit_ax_u.set_xlim(1.15,1.35)
+        # fit_ax_u.set_ylim(-6,6)
+
+        fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_q.set_ylabel(r"q (%)")
+        fit_ax_u.set_ylabel(r"u (%)")
+
+
+        #############################
+        ####### TRACE PAIR 2 ########
+        #############################
+
+        fig1,axes = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 2 Best Fit On-Sky")
+
+        fit_ax_q = axes[0]
+        fit_ax_u = axes[1]
+        # fit_ax_q = fig1.add_subplot(1,2,1)
+        # fit_ax_u = fig1.add_subplot(1,2,2)
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            # fit_detector_q,fit_detector_u = forward_model_detector_qu(results2.x,wvs,serkowski_qu)
+            fit_ax_q.plot(wvs,100*serkowski_q[:,i])
+            fit_ax_u.plot(wvs,100*serkowski_u[:,i])
+
+            cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,data_q_pair2[:,i][good_inds],data_u_pair2[:,i][good_inds],
+            data_qerrs_pair2[:,i][good_inds],data_uerrs_pair2[:,i][good_inds],polynomial_coefficients=results2.x)
+
+            # cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,fit_detector_q[good_inds],fit_detector_u[good_inds],
+            # data_qerrs_pair1[:,i][good_inds],data_uerrs_pair1[:,i][good_inds],polynomial_coefficients=results1.x)
+
+            #Add the data 
+            fit_ax_q.plot(good_wvs,100*cal_q,'o',color='C{:d}'.format(i))
+            fit_ax_u.plot(good_wvs,100*cal_u,'o',color='C{:d}'.format(i))
+        
+        fit_ax_q.set_xlim(1.15,1.35)
+        # fit_ax_q.set_ylim(-6,6)
+        fit_ax_u.set_xlim(1.15,1.35)
+        # fit_ax_u.set_ylim(-6,6)
+
+        fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_q.set_ylabel(r"q (%)")
+        fit_ax_u.set_ylabel(r"u (%)")
+
+    if plot_residuals:
+
+        #############################
+        ####### TRACE PAIR 1 ########
+        #############################
+
+        fig1,big_axes1 = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 1 Residuals")
+
+        #Residuals
+        residuals_ax_q = big_axes1[0]
+        residuals_ax_u = big_axes1[1]
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+            residuals_ax_q.plot(wvs,100*(data_q_pair1[:,i]-fit_detector_q),color='C{:d}'.format(i))
+            residuals_ax_u.plot(wvs,100*(data_u_pair1[:,i]-fit_detector_u),color='C{:d}'.format(i))
+
+        residuals_ax_q.set_xlim(1.15,1.35)
+        residuals_ax_q.set_ylim(-1,1)
+        residuals_ax_u.set_xlim(1.15,1.35)
+        residuals_ax_u.set_ylim(-1,1)
+
+        residuals_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        residuals_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        residuals_ax_q.set_ylabel(r"q (%)")
+        residuals_ax_u.set_ylabel(r"u (%)")
+
+        #############################
+        ####### TRACE PAIR 1 ########
+        #############################
+        fig1,big_axes1 = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 2 Residuals")
+
+        #Residuals
+        residuals_ax_q = big_axes1[0]
+        residuals_ax_u = big_axes1[1]
+         #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            fit_detector_q,fit_detector_u = forward_model_detector_qu(results2.x,wvs,serkowski_qu)
+            residuals_ax_q.plot(wvs,100*(data_q_pair2[:,i]-fit_detector_q),color='C{:d}'.format(i))
+            residuals_ax_u.plot(wvs,100*(data_u_pair2[:,i]-fit_detector_u),color='C{:d}'.format(i))
+
+        residuals_ax_q.set_xlim(1.15,1.35)
+        residuals_ax_q.set_ylim(-1,1)
+        residuals_ax_u.set_xlim(1.15,1.35)
+        residuals_ax_u.set_ylim(-1,1)
+
+        residuals_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        residuals_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        residuals_ax_q.set_ylabel(r"q (%)")
+        residuals_ax_u.set_ylabel(r"u (%)")
+    
+        plt.tight_layout()
+        plt.show()
+
+    if plot_residuals_on_sky: 
+
+        ###########################################################
+        ############ Trace Pair 1 On-Sky Residuals ################
+        ###########################################################
+
+        fig1,axes = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 1 Residuals On-Sky")
+
+        fit_ax_q = axes[0]
+        fit_ax_u = axes[1]
+        # fit_ax_q = fig1.add_subplot(1,2,1)
+        # fit_ax_u = fig1.add_subplot(1,2,2)
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            # fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+            p = 100*np.sqrt(serkowski_q[:,i]**2+serkowski_u[:,i]**2)
+            theta = 0.5*np.degrees(np.arctan2(serkowski_u[:,i],serkowski_q[:,i]))
+            fit_ax_q.plot(wvs,p)
+            fit_ax_u.plot(wvs,theta,label=names[i])
+
+            cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,data_q_pair1[:,i][good_inds],data_u_pair1[:,i][good_inds],
+            data_qerrs_pair1[:,i][good_inds],data_uerrs_pair1[:,i][good_inds],polynomial_coefficients=results1.x)
+
+            cal_p = 100*np.sqrt(cal_q**2+cal_u**2)
+            cal_theta = 0.5*np.degrees(np.arctan2(cal_u,cal_q))
+            cal_theta[cal_theta < -50] +=180
+
+            #Add the data 
+            fit_ax_q.plot(good_wvs,cal_p,'o',color='C{:d}'.format(i))
+            fit_ax_u.plot(good_wvs,cal_theta,'o',color='C{:d}'.format(i))
+        
+        fit_ax_q.set_xlim(1.15,1.35)
+        # fit_ax_q.set_ylim(-6,6)
+        fit_ax_u.set_xlim(1.15,1.375)
+        fit_ax_u.legend()
+        # fit_ax_u.set_ylim(-6,6)
+
+        fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_q.set_ylabel(r"p (%)")
+        fit_ax_u.set_ylabel(r"$theta$")
+
+        ####################################################################
+        ############ Trace Pair 1 On-Sky Relative Residuals ################
+        ####################################################################
+        fig1,axes = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 1 Relative Residuals On-Sky")
+
+        fit_ax_q = axes[0]
+        fit_ax_u = axes[1]
+        # fit_ax_q = fig1.add_subplot(1,2,1)
+        # fit_ax_u = fig1.add_subplot(1,2,2)
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            # fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+            p = 100*np.sqrt(serkowski_q[:,i]**2+serkowski_u[:,i]**2)
+            theta = 0.5*np.degrees(np.arctan2(serkowski_u[:,i],serkowski_q[:,i]))
+            # fit_ax_q.plot(wvs,p)
+            # fit_ax_u.plot(wvs,theta)
+
+            cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,data_q_pair1[:,i][good_inds],data_u_pair1[:,i][good_inds],
+            data_qerrs_pair1[:,i][good_inds],data_uerrs_pair1[:,i][good_inds],polynomial_coefficients=results1.x)
+
+            cal_p = 100*np.sqrt(cal_q**2+cal_u**2)
+            cal_theta = 0.5*np.degrees(np.arctan2(cal_u,cal_q))
+
+            delta_theta = (theta[good_inds]-cal_theta)%180
+            delta_theta[delta_theta > 90] -= 180
+            relative_delta_p = (p[good_inds]-cal_p)/p[good_inds]
+            # cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,fit_detector_q[good_inds],fit_detector_u[good_inds],
+            # data_qerrs_pair1[:,i][good_inds],data_uerrs_pair1[:,i][good_inds],polynomial_coefficients=results1.x)
+
+            #Add the data 
+            fit_ax_q.plot(good_wvs,relative_delta_p,'o',color='C{:d}'.format(i))
+            fit_ax_u.plot(good_wvs,delta_theta,'o',color='C{:d}'.format(i))
+        
+        fit_ax_q.set_xlim(1.15,1.35)
+        # fit_ax_q.set_ylim(-6,6)
+        fit_ax_u.set_xlim(1.15,1.35)
+        # fit_ax_u.set_ylim(-6,6)
+
+        fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_q.set_ylabel(r"$\Delta$ p / p")
+        fit_ax_u.set_ylabel(r"$\Delta\theta$")
+
+
+        ###########################################################
+        ############ Trace Pair 2 On-Sky Residuals ################
+        ###########################################################
+
+        fig1,axes = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 2 Residuals On-Sky")
+
+        fit_ax_q = axes[0]
+        fit_ax_u = axes[1]
+        # fit_ax_q = fig1.add_subplot(1,2,1)
+        # fit_ax_u = fig1.add_subplot(1,2,2)
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            # fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+            p = 100*np.sqrt(serkowski_q[:,i]**2+serkowski_u[:,i]**2)
+            theta = 0.5*np.degrees(np.arctan2(serkowski_u[:,i],serkowski_q[:,i]))
+            fit_ax_q.plot(wvs,p)
+            fit_ax_u.plot(wvs,theta,label=names[i])
+
+            cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,data_q_pair2[:,i][good_inds],data_u_pair2[:,i][good_inds],
+            data_qerrs_pair2[:,i][good_inds],data_uerrs_pair2[:,i][good_inds],polynomial_coefficients=results2.x)
+
+            cal_p = 100*np.sqrt(cal_q**2+cal_u**2)
+            cal_theta = 0.5*np.degrees(np.arctan2(cal_u,cal_q))
+            cal_theta[cal_theta < -50] +=180
+
+            #Add the data 
+            fit_ax_q.plot(good_wvs,cal_p,'o',color='C{:d}'.format(i))
+            fit_ax_u.plot(good_wvs,cal_theta,'o',color='C{:d}'.format(i))
+        
+        fit_ax_q.set_xlim(1.15,1.35)
+        # fit_ax_q.set_ylim(-6,6)
+        fit_ax_u.set_xlim(1.15,1.375)
+        fit_ax_u.legend()
+        # fit_ax_u.set_ylim(-6,6)
+
+        fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_q.set_ylabel(r"p (%)")
+        fit_ax_u.set_ylabel(r"$theta$")
+
+        ####################################################################
+        ############ Trace Pair 1 On-Sky Relative Residuals ################
+        ####################################################################
+        fig1,axes = plt.subplots(1,2,figsize=(20,5))
+        fig1.suptitle("Trace Pair 2 Relative Residuals On-Sky")
+
+        fit_ax_q = axes[0]
+        fit_ax_u = axes[1]
+        # fit_ax_q = fig1.add_subplot(1,2,1)
+        # fit_ax_u = fig1.add_subplot(1,2,2)
+        #Generate the best fit positions
+        for i in range(len(dir_list)):
+            serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+            # fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+            p = 100*np.sqrt(serkowski_q[:,i]**2+serkowski_u[:,i]**2)
+            theta = 0.5*np.degrees(np.arctan2(serkowski_u[:,i],serkowski_q[:,i]))
+            # fit_ax_q.plot(wvs,p)
+            # fit_ax_u.plot(wvs,theta)
+
+            cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,data_q_pair2[:,i][good_inds],data_u_pair2[:,i][good_inds],
+            data_qerrs_pair2[:,i][good_inds],data_uerrs_pair2[:,i][good_inds],polynomial_coefficients=results2.x)
+
+            cal_p = 100*np.sqrt(cal_q**2+cal_u**2)
+            cal_theta = 0.5*np.degrees(np.arctan2(cal_u,cal_q))
+
+            delta_theta = (theta[good_inds]-cal_theta)%180
+            delta_theta[delta_theta > 90] -= 180
+            relative_delta_p = (p[good_inds]-cal_p)/p[good_inds]
+            # cal_q,cal_u,cal_qerr,cal_uerr = calibrate_qu(good_wvs,fit_detector_q[good_inds],fit_detector_u[good_inds],
+            # data_qerrs_pair1[:,i][good_inds],data_uerrs_pair1[:,i][good_inds],polynomial_coefficients=results1.x)
+
+            #Add the data 
+            fit_ax_q.plot(good_wvs,relative_delta_p,'o',color='C{:d}'.format(i))
+            fit_ax_u.plot(good_wvs,delta_theta,'o',color='C{:d}'.format(i))
+        
+        fit_ax_q.set_xlim(1.15,1.35)
+        # fit_ax_q.set_ylim(-6,6)
+        fit_ax_u.set_xlim(1.15,1.35)
+        # fit_ax_u.set_ylim(-6,6)
+
+        fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+        fit_ax_q.set_ylabel(r"$\Delta$ p / p")
+        fit_ax_u.set_ylabel(r"$\Delta\theta$")
+    
+    if plot_mueller_matrix: 
+        fig,axes = plt.subplots(2,2,figsize=(10,10))
+
+        fig.suptitle("Best-Fit Efficiencies and Crosstalks")
+
+        axes[0,0].plot(wvs,np.poly1d(results1.x[:(p_order+1)])(wvs))
+        axes[0,1].plot(wvs,np.poly1d(results1.x[1*(p_order+1):2*(p_order+1)])(wvs))
+        axes[1,0].plot(wvs,np.poly1d(results1.x[1*(p_order+1):2*(p_order+1)])(wvs))
+        axes[1,1].plot(wvs,np.poly1d(results1.x[3*(p_order+1):])(wvs))
+    
+        axes[0,0].plot(wvs,np.poly1d(results2.x[:(p_order+1)])(wvs))
+        axes[0,1].plot(wvs,np.poly1d(results2.x[1*(p_order+1):2*(p_order+1)])(wvs))
+        axes[1,0].plot(wvs,np.poly1d(results2.x[1*(p_order+1):2*(p_order+1)])(wvs))
+        axes[1,1].plot(wvs,np.poly1d(results2.x[3*(p_order+1):])(wvs))
+
+        axes[0,0].set_xlim(1.165,1.325)
+        axes[0,1].set_xlim(1.165,1.325)
+        axes[1,0].set_xlim(1.165,1.325)
+        axes[1,1].set_xlim(1.165,1.325)
+
+        axes[0,0].set_ylim(0.,1)
+        axes[0,1].set_ylim(-0.5,0)
+        axes[1,0].set_ylim(-0.5,0)
+        axes[1,1].set_ylim(-1.,0)
+    
+        axes[0,0].set_ylabel(r"$\eta_Q$")
+        axes[0,1].set_ylabel(r"$\chi_{U\rightarrow Q}$")
+        axes[1,0].set_ylabel(r"$\chi_{Q\rightarrow U}$")
+        axes[1,1].set_ylabel(r"$\eta_U$")
+
+        axes[0,0].set_xlabel(r"Wavelength ($\mu m$)")
+        axes[0,1].set_xlabel(r"Wavelength ($\mu m$)")
+        axes[1,0].set_xlabel(r"Wavelength ($\mu m$)")
+        axes[1,1].set_xlabel(r"Wavelength ($\mu m$)")
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    return results1.x,results2.x        
+
+
+
+
+def serkowski_polarization(wl, wl_max, p_max, K, theta = None):
+    """Compute the polarization spectrum expected from ISP Serkowski law
+    p_serk = p_max * exp(-K ln^2(wl_max/wl))
+    """
+    p_spec = p_max * np.exp( -K * (np.log(wl_max/wl))**2)
+    if theta is None:
+        return p_spec 
+    else:
+        return p_spec, p_spec*np.cos(2*np.radians(theta)), p_spec*np.sin(2*np.radians(theta)) 
+
+
+# if plot_starting:
+#         '''
+#         For each trace_pair we'll make 6 plots: 
+#             - The forward modelled serkowski curves with the starting position and data overlaid
+#             - The forward modelled serkowski curves with the best fit position and data overlaid
+#             - The residuals of the new fits. 
+#         '''
+#         ###################################
+#         ####### FIRST TRACE PAIR 1 ########
+#         ###################################
+        
+
+#         fig1,big_axes1 = plt.subplots(3,1,figsize=(20,20))
+
+#         # fig1.suptitle("Trace Pair 1")
+
+#         #This is an overly complicated way to generate row titles from this post: https://stackoverflow.com/questions/27426668/row-titles-for-matplotlib-subplot
+#         row_titles = ["Starting Position","Best Fit","Residuals"]
+#         for row, big_ax in enumerate(big_axes1,start=1):
+#             big_ax.set_title(row_titles[row-1], fontsize=20)
+#             big_ax.tick_params(labelcolor=(1.,1.,1.,0.0),top='off',bottom='off',
+#                                   left='off',right='off')
+#             big_ax._frameon = False
+
+#         ### The start positions
+#         start_ax_q = fig1.add_subplot(3,2,1)
+#         start_ax_u = fig1.add_subplot(3,2,2)
+#         #Generate the starting positions
+#         for i in range(len(dir_list)):
+#             serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+#             starting_detector_q,starting_detector_u = forward_model_detector_qu(pstart_tracepair1,wvs,serkowski_qu)
+#             start_ax_q.plot(wvs,100*starting_detector_q,color='C{:d}'.format(i))
+#             start_ax_u.plot(wvs,100*starting_detector_u,color='C{:d}'.format(i))
+            
+#             #Add the data
+#             start_ax_q.plot(wvs,100*data_q_pair1[:,i],'o',color='C{:d}'.format(i))
+#             start_ax_u.plot(wvs,100*data_u_pair1[:,i],'o',color='C{:d}'.format(i),label=names[i])
+        
+#         start_ax_u.legend()
+
+#         start_ax_q.set_xlim(1.15,1.35)
+#         start_ax_q.set_ylim(-6,6)
+#         start_ax_u.set_xlim(1.15,1.35)
+#         start_ax_u.set_ylim(-6,6)
+
+#         start_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+#         start_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+#         start_ax_q.set_ylabel(r"q (%)")
+#         start_ax_u.set_ylabel(r"u (%)")
+
+#         fit_ax_q = fig1.add_subplot(3,2,3)
+#         fit_ax_u = fig1.add_subplot(3,2,4)
+#         #Generate the best fit positions
+#         for i in range(len(dir_list)):
+#             serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+#             fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+#             fit_ax_q.plot(wvs,100*fit_detector_q)
+#             fit_ax_u.plot(wvs,100*fit_detector_u)
+
+#             #Add the data
+#             fit_ax_q.plot(wvs,100*data_q_pair1[:,i],'o',color='C{:d}'.format(i))
+#             fit_ax_u.plot(wvs,100*data_u_pair1[:,i],'o',color='C{:d}'.format(i))
+        
+#         fit_ax_q.set_xlim(1.15,1.35)
+#         fit_ax_q.set_ylim(-6,6)
+#         fit_ax_u.set_xlim(1.15,1.35)
+#         fit_ax_u.set_ylim(-6,6)
+
+#         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+#         fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+#         fit_ax_q.set_ylabel(r"q (%)")
+#         fit_ax_u.set_ylabel(r"u (%)")
+
+#         #Residuals
+#         residuals_ax_q = fig1.add_subplot(3,2,5)
+#         residuals_ax_u = fig1.add_subplot(3,2,6)
+#         #Generate the best fit positions
+#         for i in range(len(dir_list)):
+#             serkowski_qu = [serkowski_q[:,i],serkowski_u[:,i]]
+#             fit_detector_q,fit_detector_u = forward_model_detector_qu(results1.x,wvs,serkowski_qu)
+#             residuals_ax_q.plot(wvs,100*(data_q_pair1[:,i]-fit_detector_q),color='C{:d}'.format(i))
+#             residuals_ax_u.plot(wvs,100*(data_u_pair1[:,i]-fit_detector_u),color='C{:d}'.format(i))
+
+#         residuals_ax_q.set_xlim(1.15,1.35)
+#         residuals_ax_q.set_ylim(-0.5,0.5)
+#         residuals_ax_u.set_xlim(1.15,1.35)
+#         residuals_ax_u.set_ylim(-0.5,0.5)
+
+#         residuals_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
+#         residuals_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
+#         residuals_ax_q.set_ylabel(r"q (%)")
+#         residuals_ax_u.set_ylabel(r"u (%)")
+    
+#         plt.tight_layout()
+#         plt.show()
