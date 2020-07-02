@@ -235,30 +235,34 @@ def extract_single_file_parallel_helper(args):
 def reduce_ABAB_dataset(filelist, source_posA, source_posB,output_path = "./",verbose=False, less_verbose=True,
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
 "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,parallel=False,
-n_processes=None,n_per_group=4,nclosest=None,same_HWP=True,sub_bar=False):
+n_processes=None,n_per_group=4,nclosest=None,same_HWP=False,sub_bar=False,groupA=None,
+groupB=None):
     '''
     A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
     It uses each position as backgrond for the other. 
     
     It assumes by default that you have 4 images per dither position, but you can change this with the
-    n_per_group keyword
+    n_per_group keyword, or you can manually input groupA and groupB indices. 
 
     Inputs:
         filelist    -   A python list of filepaths
         background_list -   A python list of background files (this can be one file)
+        groupA      - the indices of the files in position A
+        groupB      - the indicies of the files in position B. Both groupA and groupB must be set. 
     '''
 
     nfiles = np.size(filelist)
     ngroups = nfiles//(2*n_per_group)
 
-    groupA = []
-    groupB = []
-    for i in range(ngroups):
-        groupA.append(np.arange(i*n_per_group*2,(2*i+1)*n_per_group))
-        groupB.append(np.arange((2*i+1)*n_per_group,(2*i+2)*n_per_group))
+    if groupA is None or groupB is None: 
+        groupA = []
+        groupB = []
+        for i in range(ngroups):
+            groupA.append(np.arange(i*n_per_group*2,(2*i+1)*n_per_group))
+            groupB.append(np.arange((2*i+1)*n_per_group,(2*i+2)*n_per_group))
 
-    groupA=np.hstack(groupA)
-    groupB=np.hstack(groupB)
+        groupA=np.hstack(groupA)
+        groupB=np.hstack(groupB)
     
     # Reduce them all with all the possible background subtraction methods - Dither position 1
     reduce_dataset(filelist[groupA], source_posA, bkg_fnames = filelist[groupB], 
@@ -286,6 +290,8 @@ bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_medi
 parallel=False,n_processes=None,parallel_finding=True):
     '''
     A version of reduce_dataset that has an ra distance cutoff to use in determining what background to use. 
+
+    This one works best when you have a bright-ish source that can be automatically found by the source finder. 
     '''
 
     ### Get all the RAS
