@@ -967,7 +967,7 @@ class wirc_data(object):
             #print ("ending iteration #",i)
 
     def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,
-    update_w_chi2_shift=False,verbose=False):
+    update_w_chi2_shift=False, slit_mask=None, verbose=False):
         """
         Finds the number of sources in the image.
 
@@ -987,10 +987,10 @@ class wirc_data(object):
 		#make sure the source_list format is correct
         if bkg_im is not None:
             loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image-bkg_im, self.cross_correlation_template,
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose, slit_mask=slit_mask)
         elif bkg_im is None:
             loc_list, self.trace_fluxes = image_utils.find_sources_in_wircpol_image(self.full_image, self.cross_correlation_template,
-            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose)
+            sigma_threshold=sigma_threshold, show_plots=show_plots,perc_threshold=perc_threshold,verbose=verbose, slit_mask=slit_mask)
 
         if self.source_list:
             print('emptying source list to find sources again.')
@@ -1541,7 +1541,7 @@ class wircpol_source(object):
             thumbnails_dq=self.trace_images_DQ, nsig=nsig, method=method)
 
     def extract_spectra(self, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
-                        bad_pix_masking = 0, width_scale=1., diag_mask=False, trace_angle = None, mode = 'pol', 
+                        bad_pix_masking = 1, width_scale=1., diag_mask=False, diag_mask_width = 70, trace_angle = None, mode = 'pol', 
                         spatial_sigma = 5, fixed_width = None,
                         use_DQ=True, debug_DQ=False,
                         spatial_smooth=1, spectral_smooth=10, fractional_fit_type = False,
@@ -1574,7 +1574,7 @@ class wircpol_source(object):
 
         spectra, spectra_std, spectra_widths, spectra_angles, thumbnail_to_extract =  \
             spec_utils.spec_extraction(self.trace_images, bkg_thumbnails = self.trace_bkg, method = method, niter = niter, sig_clip = sig_clip, 
-                bad_pix_masking = bad_pix_masking, width_scale=width_scale, diag_mask = diag_mask, trace_angle = trace_angle, mode = mode, 
+                bad_pix_masking = bad_pix_masking, width_scale=width_scale, diag_mask = diag_mask, diag_mask_width = diag_mask_width, trace_angle = trace_angle, mode = mode, 
                 spatial_sigma = spatial_sigma, fixed_width = fixed_width, 
                 DQ_thumbnails = self.trace_images_DQ, use_DQ=use_DQ, debug_DQ=debug_DQ, 
                 spatial_smooth=spatial_smooth, spectral_smooth=spectral_smooth, fractional_fit_type=fractional_fit_type, 
@@ -2028,7 +2028,7 @@ class wircspec_source(object):
         plt.show()
 
     def extract_spectra(self, sub_background = False, plot=False, plot_optimal_extraction = False, plot_findTrace = False,
-                         method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, filter_bkg_size = None,\
+                         method = 'optimal_extraction', bad_pix_masking = 1, width_scale=1., diag_mask=False, filter_bkg_size = None,\
                         trace_angle = None, align = True, verbose = True,
                         fractional_fit_type = None,  spatial_sigma = 3):
         """

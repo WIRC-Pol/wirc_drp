@@ -599,7 +599,7 @@ def mask_sources_util(im, trace_template, source_list, trace_fluxes,
 
 def find_sources_in_wircpol_image(im, ref_frame, bkg_im=None, out_fp=None, sigma_threshold=1, grid_res=18,
                     neighborhood_size=50, perc_threshold=95, bgd_subt_perc_threshold=98,
-                   mask_fp=None, boxsize=10, show_plots=True,verbose=True):
+                   mask_fp=None, boxsize=10, slit_mask=None, show_plots=True,verbose=True):
     """
     cross correlates input WIRC+POL image with a reference template to look for sources in image.
     
@@ -639,6 +639,9 @@ def find_sources_in_wircpol_image(im, ref_frame, bkg_im=None, out_fp=None, sigma
             im -= bkg_im
         except:
             im -= fits.getdata(bkg_im)
+
+    if slit_mask is not None:
+        im = im*slit_mask
             
     im_x = im.shape[1]
     im_y = im.shape[0]
@@ -1469,7 +1472,7 @@ def fit_and_subtract_background(cutout, trace_length = 60, seeing_pix = 4, plott
         #return all_res_even, bkg, flux, var
     return cutout - bkg, bkg
 
-def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_mask=False,mode='pol',fractional_fit_type = None):
+def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_mask=False, diag_mask_width = 70, mode='pol',fractional_fit_type = None):
 
     """
     mode='pol' or 'spec'
@@ -1496,7 +1499,7 @@ def findTrace(thumbnail, poly_order = 1, weighted = False, plot = False, diag_ma
 
 
     if diag_mask and mode=='pol':
-        mask = makeDiagMask(np.shape(thumbnail)[0],70)
+        mask = makeDiagMask(np.shape(thumbnail)[0],diag_mask_width)
         thumbnail[~mask] = 0.0
         # plt.imshow(thumbnail)
     
