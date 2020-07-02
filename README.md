@@ -14,11 +14,9 @@ that newer version will have backward compatibility.**
 1) Download or clone the repository and then run:
 > python setup.py develop
 
-2) Set a new environment variable called WIRC_DRP to the base directory of the DRP. 
+2) Install all the dependencies below. 
 
-3) Install all the dependencies below. 
-
-4) For anyone wishing to develop the pipeline: run the bash script "scripts/install-hooks.bash" to enable pre-commit code checks. 
+3) For anyone wishing to develop the pipeline: run the bash script "scripts/install-hooks.bash" to enable pre-commit code checks. 
 
 ## Dependencies
 

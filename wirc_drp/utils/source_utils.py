@@ -279,7 +279,8 @@ def group_HWP(HWP_set):
 #     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
 #     return pairs_0, pairs_225   
 
-def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, method = 'flux_ratio', sign = '-'):
+def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, 
+                                method = 'flux_ratio', sign = '-', broadband=False):
     """
     This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
     and call compute_qu to measure polarization q and u. 
@@ -289,10 +290,14 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
         HWP_set: a vector of length N, prescribing the half wave plate angle for each of the frame in obs_set. Values should be 0, 45, 22.5, 67.5 for double diff. 
                  if there is an offset from this orthogonal set, indicae so in HWP_offset
         HWP_offset: a float indicating the zeropoint of the HWP angle. We proceed with HWP_set - HWP_offset.
+        method: either the flux ratio method ("flux_ratio";Kaew to insert reference here) or double differencing ("double_difference")
 
     Output:
         q, q_err, u, u_err **currently single differencing in time. Can do double difference manually afterward. This may change. 
     """
+
+
+    
     #First, check length
     if spectra_cube.shape[0] != len(HWP_set):
         raise ValueError("Lengths of spectra_cube and HWP_set are not equal.")
@@ -307,6 +312,11 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     all_ang = set([0,45,22.5,67.5])
     if set(HWP_final) != all_ang:
         raise ValueError("HWP set doesn't have all 4 angles or have wrong angles: %s"%str(set(HWP_final)))
+
+    #If we only want the broadband value, then collapse all the spetra
+    if broadband: 
+        spectra_cube = np.sum(spectra_cube,axis=3)
+
 
     #Arrange the sequence into best pairs of 0/45 and 22.5/67.5 to compute qu
     pairs_0, pairs_225 = group_HWP(HWP_final)
@@ -433,19 +443,15 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
 
-
-
-
-
-
 def find_best_background(list_of_files, separation_threshold = 2, verbose = False):
     """
     find_best_background takes a list of headers from WIRC+Pol observations and find best background frame for each element. 
     Here are the conditions: 
-        Same HWP angle
-        With telescope offset greater than 'separation_threshold' (default at 2 arcsec)
-        Closest in time
-        Not already used by another frame (this condition is relaxed if every frame is used up. Say we have extra set of exposures at position A)
+    
+    Same HWP angle
+    With telescope offset greater than 'separation_threshold' (default at 2 arcsec)
+    Closest in time
+    Not already used by another frame (this condition is relaxed if every frame is used up. Say we have extra set of exposures at position A)
 
     Input:
         list_of_headers: a list of fits headers of the observations. 
@@ -596,8 +602,8 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
     p_dd = np.sqrt(q_dd**2+u_dd**2)
     theta_dd = 0.5*np.degrees(np.arctan2(u_dd,q_dd))
     theta_dd[theta_dd < 0] +=180
-   # q_dd = q
-   # u_dd = u
+    #    q_dd = q
+    #    u_dd = u
 
     #Doing this because of how things changed in compute polarization
 
@@ -684,8 +690,8 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
     theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
     theta_mean[theta_mean < theta_wrap] +=180
 
-    q_mean_err = np.sqrt(np.sum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
-    u_mean_err = np.sqrt(np.sum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
+    q_mean_err = np.sqrt(np.nansum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
+    u_mean_err = np.sqrt(np.nansum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
     p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
     p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
     theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
@@ -1011,7 +1017,7 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
     time_snip = spec_cube.shape[0] % (n_time_bins*4)
     time_bin_size = (spec_cube.shape[0]-time_snip)//n_time_bins
 
-    good_wvs = (master_wvs > 1.175) & (master_wvs < 1.325)
+    good_wvs = (master_wvs > 1.17) & (master_wvs < 1.32)
     spec_cube = copy.deepcopy(spec_cube[:,:,:,good_wvs])
     master_wvs = copy.deepcopy(master_wvs[good_wvs])
     master_spec = copy.deepcopy(master_spec[good_wvs])
@@ -1087,8 +1093,8 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
         theta_mean[theta_mean < theta_wrap] +=180
 
-        q_mean_err = np.sqrt(np.sum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
-        u_mean_err = np.sqrt(np.sum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
+        q_mean_err = np.sqrt(np.nansum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
+        u_mean_err = np.sqrt(np.nansum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
         p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
         p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
         theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
