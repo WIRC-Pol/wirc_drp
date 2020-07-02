@@ -1541,7 +1541,7 @@ class wircpol_source(object):
             thumbnails_dq=self.trace_images_DQ, nsig=nsig, method=method)
 
     def extract_spectra(self, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
-                        bad_pix_masking = 0, width_scale=1., diag_mask=False, diag_mask_width = 70, trace_angle = None, mode = 'pol', 
+                        bad_pix_masking = 1, width_scale=1., diag_mask=False, diag_mask_width = 70, trace_angle = None, mode = 'pol', 
                         spatial_sigma = 5, fixed_width = None,
                         use_DQ=True, debug_DQ=False,
                         spatial_smooth=1, spectral_smooth=10, fractional_fit_type = False,
@@ -2028,7 +2028,7 @@ class wircspec_source(object):
         plt.show()
 
     def extract_spectra(self, sub_background = False, plot=False, plot_optimal_extraction = False, plot_findTrace = False,
-                         method = 'optimal_extraction', bad_pix_masking = 0, width_scale=1., diag_mask=False, filter_bkg_size = None,\
+                         method = 'optimal_extraction', bad_pix_masking = 1, width_scale=1., diag_mask=False, filter_bkg_size = None,\
                         trace_angle = None, align = True, verbose = True,
                         fractional_fit_type = None,  spatial_sigma = 3):
         """

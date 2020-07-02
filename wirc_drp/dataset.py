@@ -59,9 +59,10 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True,sub_bar=False):
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
 
-                outdir2 = outdir+"bkg_cutout_update/"
-                if not os.path.exists(outdir2):
-                    os.makedirs(outdir2)
+                if not in_slit:
+                    outdir2 = outdir+"bkg_cutout_update/"
+                    if not os.path.exists(outdir2):
+                        os.makedirs(outdir2)
 
 
                 #Let's reduce the files in parallel!
@@ -87,7 +88,7 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True,sub_bar=False):
                             args = [(fname,source_pos,bkg_fnames,
                             outdir2,"",verbose,bkg_method,npca,True,False,nclosest,same_HWP,sub_bar) for fname in filelist]
                             outputs = pool.map(extract_single_file_parallel_helper,args) 
-                #Or not
+                #Or not parallel
                 else: 
                 
                     for i,fname in enumerate(filelist):
@@ -101,7 +102,7 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True,sub_bar=False):
                             extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
                             num_PCA_modes=npca,update_cutout_backgrounds=True,sub_bar=sub_bar,nclosest=nclosest,same_HWP=same_HWP)
         
-        else:
+        else: #not PCA
 
             #Make a new directory for this bkg_method
             outdir = output_path+bkg_method + "/"
@@ -131,12 +132,13 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True,sub_bar=False):
                     outputs = pool.map(extract_single_file_parallel_helper,args) 
 
                     if bkg_method != "cutout_median" and not in_slit:
+                        #This is to update cutout backgrounds, don't have to do if method is already "cutout_median"
                         #Now with the update cutout backgrounds
                         args = [(fname,source_pos,bkg_fnames,
                         outdir2,"",verbose,bkg_method,None,True,False,nclosest,same_HWP,sub_bar) for fname in filelist]
                         outputs = pool.map(extract_single_file_parallel_helper,args) 
 
-            else:
+            else: #not parallel
 
                 for i,fname in enumerate(filelist):
                     if verbose or less_verbose:
@@ -144,6 +146,7 @@ parallel=False,n_processes=None,nclosest=None,same_HWP=True,sub_bar=False):
                     extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir,verbose=verbose,
                     bkg_method=bkg_method,nclosest=nclosest,sub_bar=sub_bar,same_HWP=same_HWP)
                     if bkg_method != "cutout_median" and not in_slit:
+                        #This is to update cutout backgrounds, don't have to do if method is already "cutout_median"
                         extract_single_file(fname,source_pos, bkg_fnames,output_path=outdir2,verbose=verbose,bkg_method=bkg_method,
                         update_cutout_backgrounds=True,nclosest=nclosest,sub_bar=sub_bar,same_HWP=same_HWP)
         # except:
@@ -166,22 +169,12 @@ nclosest=None,same_HWP=True):
         tmp_data.source_list = []
         tmp_data.n_sources = 0
 
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.imshow(tmp_data.full_image)
-        # plt.show()
-
         if bkg_method is not None and bkg_method != "cutout_median":
             tmp_data.generate_bkg(method=bkg_method,verbose=verbose,
                                 bkg_by_quadrants=True,
                                 bkg_fns=bkg_fnames,num_PCA_modes=num_PCA_modes,
                                 nclosest=nclosest,
                                 same_HWP=same_HWP)
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.imshow(tmp_data.full_image)
-        # plt.show()
 
         tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=False,sub_bkg=True)
 
@@ -190,15 +183,6 @@ nclosest=None,same_HWP=True):
                                 replace_bad_pixels=True,method='interpolate',
                                 bkg_image = tmp_data.bkg_image,sub_bar=sub_bar)
         
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.imshow(tmp_data.full_image)
-        # plt.show()
-        # wp_source.plot_cutouts()
-        # wp_source.plot_cutouts(plot_bkg=True)
-        # wp_source.plot_cutouts(plot_bkg_sub=True)
-
-
         if bkg_method == "cutout_median":
             wp_source.generate_cutout_backgrounds(update=False)
         if update_cutout_backgrounds:
@@ -212,7 +196,6 @@ nclosest=None,same_HWP=True):
         tmp_data.source_list.append(wp_source)
         tmp_data.n_sources += 1
 
-        # import pdb; pdb.set_trace()
         output_fname = output_path+filename.rsplit(".fits")[0].split("/")[-1]+output_suffix+".fits"
         tmp_data.save_wirc_object(output_fname,save_full_image = save_full_image)
     except Exception as e:
