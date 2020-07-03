@@ -9,6 +9,7 @@ from astropy.io import ascii as asci
 from astropy.io import fits 
 from wirc_drp.utils import spec_utils as su
 from wirc_drp.utils.image_utils import findTrace
+from wirc_drp.utils.calibration import calibrate_qu
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib as mpl
@@ -95,9 +96,9 @@ def get_angles_widths_from_list(filelist, data_dir = '', source_number = 0):
             print('Widths or angles not available')
     return np.array(widths), np.array(angles)
 
-#POLARIZATION CALCULATION HELPER
+# POLARIZATION CALCULATION HELPER
 # q, u, q_err, u_err, q_position, u_position = compute_qu(spec1, spec2, HWP1, HWP2)
-#helper function to compute q and u given two spectra cubes
+# helper function to compute q and u given two spectra cubes
 def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ratio', sign = '-'):
     """
     compute_qu is a helper function that takes two spectral cubes, each with the dimensions of (4,3,spec_pix)
@@ -995,7 +996,8 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
 
 def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_bins=1,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
-    save_path=None,legend_loc ="bottom left",all_theta=False,cmap=None,dt=None,period=None):
+    save_path=None,legend_loc ="bottom left",all_theta=False,cmap=None,dt=None,period=None,
+    calibrate=False):
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
@@ -1066,6 +1068,24 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         q_dd_err = qerr
         # u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
         u_dd_err = uerr
+
+        if calibrate: 
+            #Calibrate the data
+            q_cal = []
+            u_cal =[]
+            qerr_cal = []
+            uerr_cal = []
+
+            for i,ind in enumerate(qind):
+                q_new,u_new,qerr_new,uerr_new = calibrate_qu(master_wvs,q[i],u[i],qerr[i],uerr[i],ind)
+                q_cal.append(q_new)
+                u_cal.append(u_new)
+                qerr_cal.append(qerr_new)
+                uerr_cal.append(uerr_new)
+            q = np.array(q_cal)
+            u = np.array(u_cal)
+            qerr = np.array(qerr_cal)
+            uerr = np.array(uerr_cal)
 
         #Now calculate the mean or median
         from astropy import stats

@@ -174,9 +174,15 @@ nclosest=None,same_HWP=True):
                                 bkg_by_quadrants=True,
                                 bkg_fns=bkg_fnames,num_PCA_modes=num_PCA_modes,
                                 nclosest=nclosest,
-                                same_HWP=same_HWP)
+                                same_HWP=same_HWP,
+                                destripe=True)
 
-        tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=False,sub_bkg=True)
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(tmp_data.full_image)
+        # plt.show()
+
+        tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=True,sub_bkg=True,max_offset=20)
 
         wp_source = tmp_data.source_list[0]
         wp_source.get_cutouts(tmp_data.full_image,tmp_data.DQ_image,'J',

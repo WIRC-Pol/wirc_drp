@@ -17,6 +17,9 @@ from astropy.stats import sigma_clipped_stats
 import pdb
 import copy
 
+import wirc_drp
+mask_path = (wirc_drp.__path__)[0]+'/masks/'
+
 class wirc_data(object):
     """
     A wirc data file, that may include reduced data products
@@ -514,13 +517,32 @@ class wirc_data(object):
 
                 self.bkg_image = background
 
+                #Read in the mask. 
+                full_mask = fits.open(mask_path+"full_frame_mask_2019.fits")[0].data
+                full_mask[full_mask==0] = np.nan
+
                 ### If this flag is set, you estimate the scaling by the median of each quadrant, not the whole image. 
                 if bkg_by_quadrants:
-                    scale_bkg1 = np.nanmedian(self.full_image[:1063,:1027])/np.nanmedian(background[:1063,:1027])
-                    scale_bkg2 = np.nanmedian(self.full_image[:1063,1027:])/np.nanmedian(background[:1063,1027:])
-                    scale_bkg3 = np.nanmedian(self.full_image[1063:,:1027])/np.nanmedian(background[1063:,:1027])
-                    scale_bkg4 = np.nanmedian(self.full_image[1063:,1027:])/np.nanmedian(background[1063:,1027:])
+                    sci_mean, sci_med, sci_std = sigma_clipped_stats((self.full_image*full_mask)[:1063,:1027].flatten())
+                    bkg_mean, bkg_med, bkg_std = sigma_clipped_stats((background*full_mask)[:1063,:1027].flatten())
+                    scale_bkg1 = sci_med/bkg_med
+                    # scale_bkg1 = np.nanmedian((self.full_image*full_mask)[:1063,:1027]/(background*full_mask)[:1063,:1027])
+                    
+                    sci_mean, sci_med, sci_std = sigma_clipped_stats((self.full_image*full_mask)[:1063,1027:].flatten())
+                    bkg_mean, bkg_med, bkg_std = sigma_clipped_stats((background*full_mask)[:1063,1027:].flatten())
+                    scale_bkg2 = sci_med/bkg_med
+                    # scale_bkg2 = np.nanmedian((self.full_image*full_mask)[:1063,1027:])/np.nanmedian((background*full_mask)[:1063,1027:])
 
+                    sci_mean, sci_med, sci_std = sigma_clipped_stats((self.full_image*full_mask)[1063:,:1027].flatten())
+                    bkg_mean, bkg_med, bkg_std = sigma_clipped_stats((background*full_mask)[1063:,:1027].flatten())
+                    scale_bkg3 = sci_med/bkg_med
+                    # scale_bkg3 = np.nanmedian((self.full_image*full_mask)[1063:,:1027])/np.nanmedian((background*full_mask)[1063:,:1027])
+
+                    sci_mean, sci_med, sci_std = sigma_clipped_stats((self.full_image*full_mask)[1063:,1027:].flatten())
+                    bkg_mean, bkg_med, bkg_std = sigma_clipped_stats((background*full_mask)[1063:,1027:].flatten())
+                    scale_bkg4 = sci_med/bkg_med
+                    # scale_bkg4 = np.nanmedian((self.full_image*full_mask)[1063:,1027:])/np.nanmedian((background*full_mask)[1063:,1027:])                    
+                    
                     background[:1063,:1027] *= scale_bkg1
                     background[:1063,1027:] *= scale_bkg2
                     background[1063:,:1027] *= scale_bkg3
@@ -530,6 +552,7 @@ class wirc_data(object):
                     scale_bkg = np.nanmedian(self.full_image)/np.nanmedian(background)
                     background *= scale_bkg
 
+                # print(np.nanmedian(self.full_image*full_mask-background*full_mask))
                 self.bkg_image = background
 
                 if len(bkg_fns) == 1:
