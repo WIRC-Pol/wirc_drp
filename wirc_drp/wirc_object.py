@@ -63,9 +63,12 @@ class wirc_data(object):
         elif wirc_object_filename is not None:
             if verbose:
                 print("Loading a wirc_data object from file {}".format(wirc_object_filename))
-            self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image,clear_sources=clear_sources)
+            self.load_wirc_object(wirc_object_filename, load_full_image = load_full_image,clear_sources=clear_sources,
+                                verbose=verbose)
+            
 
         elif raw_filename is not None:
+            self.header["FN"] = raw_filename
             if verbose:
                 print("Creating a new wirc_data object from file {}".format(raw_filename))
             self.raw_filename = raw_filename
@@ -410,15 +413,15 @@ class wirc_data(object):
         
         #default shift and subtract method
         if method == 'shift_and_subtract':
-            print('Subtracting background using shift and subtract method.')
+            if verbose:
+                print('Subtracting background using shift and subtract method.')
             self.bkg_image = spec_utils.shift_and_subtract(self.full_image, shift_dir=shift_dir, bkg_sub_shift_size=bkg_sub_shift_size, filter_bkg_size=filter_bkg_size)
-
+            
         #PCA background subtraction
         if method == 'PCA':
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
             if bkg_fns is not None:
-                ref_lib = bkg_fns
-                
+                self.ref_lib = bkg_fns        
 
             if num_PCA_modes is not None:
                 #Do the PCA subtraction, save the model image to self.bkg_image. It also outputs a subtracted image, ignore that for now.
@@ -431,10 +434,10 @@ class wirc_data(object):
         elif method =='median_ref':
 
             #If no ref lib is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if bkg_fns is None:
-                ref_lib = self.ref_lib
-            else:
-                ref_lib = bkg_fns
+            if bkg_fns is not None:
+                self.ref_lib = bkg_fns
+
+            ref_lib = self.ref_lib
 
             if ref_lib is not None:
 
@@ -455,8 +458,10 @@ class wirc_data(object):
         elif method == 'scaled_bkg':
             
             #If no background file is provided, use the default one. If it is provided, we don't want to overwrite the default at this point. 
-            if bkg_fns is None:
-                bkg_fns = self.ref_lib
+            if bkg_fns is not None:
+                self.ref_lib = bkg_fns
+
+            bkg_fns = self.ref_lib
 
             if bkg_fns is not None: 
 
@@ -486,7 +491,7 @@ class wirc_data(object):
                 #Check if background is already reduced
                 try:
                     bkg_reduced = background_hdu[0].header["CALBRTED"]
-                except KeyError as e:
+                except KeyError:
                     bkg_reduced = False
 
                 if bkg_reduced == False:
@@ -559,7 +564,7 @@ class wirc_data(object):
                     #Update the header
                     # print(bkg_fns)
                     self.header['HISTORY'] = "Generated scaled background frame {}".format(bkg_fns[0])
-                    self.header['BKG_FN'] = bkg_fns[0]
+                    # self.header['BKG_FN'] = bkg_fns[0]
                 else: 
                     self.header['HISTORY'] = "Generated a scaled background based on the median of a big background list"
                     
@@ -580,6 +585,15 @@ class wirc_data(object):
             #TODO: Make sure we're in pol-mode
         
             self.bkg_image = image_utils.subtract_slit_background(self.full_image, bad_pixel_mask = self.DQ_image, band = self.filter_name[0] ,**kwargs)
+
+        self.header['BKG_MTHD'] = method
+
+        if method != "slit_background" and method != 'shift_and_subtract' and method != "cutout_median" and method != "simple_median":
+            nbkg_files = len(self.ref_lib)
+            self.header['N_BKGFN'] = str(nbkg_files)
+            for i in range(nbkg_files):
+                key = "BKGFN"+str(i).zfill(3)
+                self.header[key] = self.ref_lib[i]
 
         if destripe:
             if verbose:
@@ -694,7 +708,7 @@ class wirc_data(object):
         self.header["DARK_FN"] = self.dark_fn
         self.header["FLAT_FN"] = self.flat_fn
         self.header["BP_FN"] = self.bp_fn
-        self.header["BKG_FN"] = self.bkg_fn
+        # self.header["BKG_FN"] = self.bkg_fn
 
         #Have the data been calibrated/background subtracted?
         self.header["CALBRTED"] = self.calibrated
@@ -731,16 +745,38 @@ class wirc_data(object):
         for i in range(self.n_sources):
             #print ('Starting Iteration #',i);
 
-            #Create an ImageHDU for each of the sources
+            ### Create an ImageHDU for each of the sources
+
+            #First a list of the different image we'll include
+            traces_image_list = [self.source_list[i].trace_images]
+            source_img_list = "SCI"
+
+            if self.source_list[i].trace_images_DQ is not None:
+                traces_image_list.append(self.source_list[i].trace_images_DQ)
+                source_img_list += ",DQ"
+
+            if self.source_list[i].trace_bkg is not None:
+                traces_image_list.append(self.source_list[i].trace_bkg)
+                source_img_list += ",BKG"
+
+            if self.source_list[i].trace_images_extracted is not None:
+                traces_image_list.append(self.source_list[i].trace_images_extracted)
+                source_img_list += ",EXTR"
+
+            traces_image_list = np.vstack(np.array(traces_image_list))
+            # print(traces_image_list.shape)
+            source_hdu = fits.PrimaryHDU(traces_image_list)
+            source_hdu.header['TRC_IMGS'] = source_img_list
+
             # source_hdu = fits.ImageHDU(self.source_list[i].trace_images)
-            if self.source_list[i].trace_images_extracted is not None and self.source_list[i].trace_images_DQ is not None:
-                source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, self.source_list[i].trace_images_DQ,
-                                                        self.source_list[i].trace_images_extracted]))
-            elif self.source_list[i].trace_images_DQ is not None:
-                source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images,
-                                                        self.source_list[i].trace_images_DQ]))
-            else:
-                source_hdu = fits.PrimaryHDU(self.source_list[i].trace_images)
+            # if self.source_list[i].trace_images_extracted is not None and self.source_list[i].trace_images_DQ is not None:
+            #     source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images, self.source_list[i].trace_images_DQ,
+            #                                             self.source_list[i].trace_images_extracted]))
+            # elif self.source_list[i].trace_images_DQ is not None:
+            #     source_hdu = fits.PrimaryHDU(np.concatenate([self.source_list[i].trace_images,
+            #                                             self.source_list[i].trace_images_DQ]))
+            # else:
+            #     source_hdu = fits.PrimaryHDU(self.source_list[i].trace_images)
 
             #Put in the source info
             source_hdu.header["XPOS"] = self.source_list[i].pos[0]
@@ -835,7 +871,10 @@ class wirc_data(object):
         #Saving a wirc_object (hdulist)
         if verbose:
             print("Saving a wirc_object to {}".format(wirc_object_filename));
+        self.header["FN"] = wirc_object_filename
         hdulist.writeto(wirc_object_filename, overwrite=overwrite)
+
+        
 
     def load_wirc_object(self, wirc_object_filename, load_full_image = True, verbose=True, clear_sources=False):
         '''
@@ -865,15 +904,18 @@ class wirc_data(object):
 
             else:
                 self.full_image = None
-
+            
+        
             temp = hdulist[0].header
             self.header = copy.deepcopy(temp)
+
+            self.header["FN"] = wirc_object_filename
 
             #What are the calibration filenames?
             self.dark_fn = self.header["DARK_FN"]
             self.flat_fn = self.header["FLAT_FN"]
             self.bp_fn = self.header["BP_FN"]
-            self.bkg_fn = self.header["BKG_FN"]
+            # self.bkg_fn = self.header["BKG_FN"]
 
             self.filter_name = self.header['AFT'][0]
 
@@ -890,7 +932,8 @@ class wirc_data(object):
             except KeyError as err:
                 if verbose:
                     print(err)
-                        #A bad flag that indicates this whole file should be disregarded.
+            
+            #A bad flag that indicates this whole file should be disregarded.
             try:
                 self.bad_flag = self.header['BAD_FLAG']
                 self.bad_reason = self.header.comments['BAD_FLAG']
@@ -914,6 +957,17 @@ class wirc_data(object):
             if clear_sources:
                 self.n_sources=0
 
+            try: 
+                nbkg_files = int(self.header['N_BKGFN'])
+                self.ref_lib = [] #Background reference library
+                for i in range(nbkg_files):
+                    self.ref_lib.append(self.header["BKGFN"+str(i).zfill(3)])
+            except KeyError:
+                if verbose:
+                    print("Didn't find any background files")
+                self.ref_lib = None
+            
+
             #Create one source object for each source and append it to source_list
             self.source_list = []
 
@@ -924,8 +978,7 @@ class wirc_data(object):
                 ypos        = copy.deepcopy(hdulist[(2*i)+2].header["YPOS"])
                 slit_loc    = copy.deepcopy(hdulist[(2*i)+2].header["SLIT_LOC"])
 
-                #if they are there)
-
+                #if they are there positions errors, then take them. If not, don't!
                 try:
                     xpos_err = copy.deepcopy(hdulist[(2*i)+2].header["XPOS_ERR"])
                     ypos_err = copy.deepcopy(hdulist[(2*i)+2].header["YPOS_ERR"])
@@ -934,12 +987,42 @@ class wirc_data(object):
                 except KeyError:
                     new_source = wircpol_source([xpos,ypos],slit_loc, i)
 
-                try: 
-                    new_source.trace_images             = copy.deepcopy(hdulist[(2*i)+2].data[0:4]) #finds the i'th source image data in the hdulist, first 4 are raw images
-                    new_source.trace_images_DQ          = copy.deepcopy(hdulist[(2*i)+2].data[4:8])
-                    new_source.trace_images_extracted   = copy.deepcopy(hdulist[(2*i)+2].data[8:] )#last 4 images are from which extraction is done.
-                except: 
-                    print("Some error extracting cutout images. Maybe they weren't saved.")
+
+                #Get the list of saved trace images - an old method and a new one. 
+                try:
+                    # if hdulist[(2*i)+2].header['TRC_IMGS'] is not None:
+                        # print(hdulist[(2*i)+2].header['TRC_IMGS'])
+
+                    source_img_list=hdulist[(2*i)+2].header['TRC_IMGS'].split(",")
+                    
+                    if "SCI" in source_img_list:
+                        sci_ind = source_img_list.index("SCI")
+                        new_source.trace_images = copy.deepcopy(hdulist[(2*i)+2].data[4*sci_ind:4*(sci_ind+1)])
+                    
+                    if "DQ" in source_img_list:
+                        dq_ind =  source_img_list.index("DQ")
+                        new_source.trace_images_DQ = copy.deepcopy(hdulist[(2*i)+2].data[4*dq_ind:4*(dq_ind+1)])
+                    
+                    if "EXTR" in source_img_list:
+                        extr_ind =  source_img_list.index("EXTR")
+                        new_source.trace_images_extracted = copy.deepcopy(hdulist[(2*i)+2].data[4*extr_ind:4*(extr_ind+1)])
+
+                    if "BKG" in source_img_list:
+                        bkg_ind =  source_img_list.index("BKG")
+                        new_source.trace_bkg = copy.deepcopy(hdulist[(2*i)+2].data[4*bkg_ind:4*(bkg_ind+1)])
+
+                    
+                        # new_source.trace_images = copy
+                except KeyError:
+                    if verbose:
+                        print("Using the old way of reading in the trace images")
+
+                    try: 
+                        new_source.trace_images             = copy.deepcopy(hdulist[(2*i)+2].data[0:4]) #finds the i'th source image data in the hdulist, first 4 are raw images
+                        new_source.trace_images_DQ          = copy.deepcopy(hdulist[(2*i)+2].data[4:8])
+                        new_source.trace_images_extracted   = copy.deepcopy(hdulist[(2*i)+2].data[8:] )#last 4 images are from which extraction is done.
+                    except: 
+                        print("Some error extracting cutout images. Maybe they weren't saved.")
 
                 #finds the table data of the TableHDU corresponding to the i'th source
                 big_table = copy.deepcopy(hdulist[(2*i)+3].data )
@@ -987,6 +1070,7 @@ class wirc_data(object):
                 #Append it to the source_list
                 self.source_list.append(new_source)
             hdulist.close()
+            self.header["FN"] = wirc_object_filename
             #print ("ending iteration #",i)
 
     def find_sources_v2(self, bkg_im=None, cross_correlation_template=None, sigma_threshold=0, show_plots=True,perc_threshold=98,
@@ -1374,8 +1458,9 @@ class wircpol_source(object):
         else:
             self.trace_bkg = None
  
-    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8),plot_dq = False, plot_bkg_sub = False, plot_bkg=False, origin='lower', 
-    output_name='', show=True, **kwargs):
+    def plot_cutouts(self, fig_num = None, figsize=(6.4,4.8),plot_dq = False, plot_bkg_sub = False, 
+                        plot_bkg=False, plot_extracted=False,origin='lower', 
+                        output_name='', show=True, **kwargs):
         '''
         Plot the source cutouts
 
@@ -1401,8 +1486,14 @@ class wircpol_source(object):
             to_plot = self.trace_images - self.trace_bkg    
         elif plot_bkg:
             to_plot = self.trace_bkg
+        elif plot_extracted: 
+            to_plot = self.trace_images_extracted
         else:         
-            to_plot = self.trace_images         
+            to_plot = self.trace_images
+
+        if to_plot is None:
+            print("The thing you want plotted doesn't exist, returning")
+            return
         
         texts = ['Top - Left', 'Bottom - Right', 'Top - Right', 'Bottom - Left']        
         for i in range(4):        
@@ -1614,6 +1705,8 @@ class wircpol_source(object):
         self.trace_spectra[:,0,:] = np.arange(spectra_length) #The wavelength axis, to be calibrated later.
         self.trace_spectra[:,1,:] = spectra
         self.trace_spectra[:,2,:] = spectra_std
+
+        self.extract_method = method
 
         self.spectra_extracted = True #source attribute, later applied to header["SPC_XTRD"]
         self.spectra_aligned = align
