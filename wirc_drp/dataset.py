@@ -4,6 +4,7 @@ import warnings
 import os
 import wirc_drp.wirc_object as wo
 from wirc_drp.utils import calibration, spec_utils as su, image_utils as iu
+from wirc_drp.utils import source_utils as so
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import astropy.units as u
@@ -174,9 +175,15 @@ nclosest=None,same_HWP=True):
                                 bkg_by_quadrants=True,
                                 bkg_fns=bkg_fnames,num_PCA_modes=num_PCA_modes,
                                 nclosest=nclosest,
-                                same_HWP=same_HWP)
+                                same_HWP=same_HWP,
+                                destripe=True)
 
-        tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=False,sub_bkg=True)
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(tmp_data.full_image)
+        # plt.show()
+
+        tmp_data.add_source(source_pos[0],source_pos[1],update_w_chi2_shift=True,sub_bkg=True,max_offset=20)
 
         wp_source = tmp_data.source_list[0]
         wp_source.get_cutouts(tmp_data.full_image,tmp_data.DQ_image,'J',
@@ -198,6 +205,9 @@ nclosest=None,same_HWP=True):
 
         output_fname = output_path+filename.rsplit(".fits")[0].split("/")[-1]+output_suffix+".fits"
         tmp_data.save_wirc_object(output_fname,save_full_image = save_full_image)
+
+        so.plot_source_summary(tmp_data,save=True,verbose=True)
+
     except Exception as e:
         print("Some error with file {}".format(filename))
         print(str(e))
