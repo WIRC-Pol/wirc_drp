@@ -1840,7 +1840,7 @@ def plot_source_summary(wirc_object,source_no=0,png_filename = None,save=False,v
     ax17.text(min_x+0.01*xrange,0.96*vmax,wirc_object.header["FN"],fontsize=16)
     ax17.text(min_x+0.01*xrange,0.92*vmax,"Background Method: {}".format(bkg_method),fontsize=16)
     np.set_printoptions(precision=1)
-    ax17.text(min_x+0.01*xrange,0.88*vmax,"Trace Widths: {}".format(wircpol_source.spectra_widths),fontsize=16)
+    ax17.text(min_x+0.01*xrange,0.88*vmax,"Trace Widths: {} arcsec, FWHM".format(wircpol_source.spectra_widths*2.355*0.25),fontsize=16)
     ax17.text(min_x+0.01*xrange,0.84*vmax,"Trace Angles: {}".format(wircpol_source.spectra_angles),fontsize=16)
     
     if save:
