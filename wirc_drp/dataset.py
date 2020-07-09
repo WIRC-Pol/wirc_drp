@@ -4,6 +4,7 @@ import warnings
 import os
 import wirc_drp.wirc_object as wo
 from wirc_drp.utils import calibration, spec_utils as su, image_utils as iu
+from wirc_drp.utils import source_utils as so
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import astropy.units as u
@@ -204,6 +205,9 @@ nclosest=None,same_HWP=True):
 
         output_fname = output_path+filename.rsplit(".fits")[0].split("/")[-1]+output_suffix+".fits"
         tmp_data.save_wirc_object(output_fname,save_full_image = save_full_image)
+
+        so.plot_source_summary(tmp_data,save=True,verbose=True)
+
     except Exception as e:
         print("Some error with file {}".format(filename))
         print(str(e))

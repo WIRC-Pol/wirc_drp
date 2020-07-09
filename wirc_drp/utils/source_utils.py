@@ -217,7 +217,6 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             return q, u, q_err, u_err, None, None
 
         
-
 def group_HWP(HWP_set):
     """
     Helper function to compute_qu_for_obs_sequence. It groups given list of HWP angles into sets of two orthogonal observations. 
@@ -1704,3 +1703,154 @@ def fit_aperture(source, exp_time, stretch=1, plot=True, savefig=None, verbose=T
         SNRs.append(np.round(SNR, 2))
 
     return apertures, total_flux, SNRs
+
+def plot_source_summary(wirc_object,source_no=0,png_filename = None,save=False,verbose=False):
+    '''
+    Produces a plot that summarizes the extraction of a given source
+    '''
+    
+    wircpol_source = wirc_object.source_list[source_no]
+    
+    try: 
+        bkg_method = wirc_object.header['BKG_MTHD']
+    except:
+        bkg_method = "Unknown"
+        
+    ### Set up the Figure
+    fig = plt.figure(figsize=(20,10),constrained_layout=True)
+#     fig.suptitle(wirc_object.header["FN"])
+    gs = fig.add_gridspec(4, 9)
+    
+    #x-range
+    min_x = np.min(wircpol_source.trace_spectra[0,0])
+    xrange = wircpol_source.trace_spectra[0,0,-1]-wircpol_source.trace_spectra[0,0,0]
+    
+        
+    ### First the raw data
+    trace_image_percentiles = np.percentile(wircpol_source.trace_images.flatten(),[5,95])
+
+    vmin=trace_image_percentiles[0]
+    vmax=trace_image_percentiles[1]
+    ax1 = fig.add_subplot(gs[0, 0])    
+    ax2 = fig.add_subplot(gs[0, 1])    
+    ax3 = fig.add_subplot(gs[0, 2])    
+    ax4 = fig.add_subplot(gs[0, 3])    
+    
+    ax1.imshow(wircpol_source.trace_images[0],vmin=vmin,vmax=vmax)
+    ax2.imshow(wircpol_source.trace_images[1],vmin=vmin,vmax=vmax)
+    ax3.imshow(wircpol_source.trace_images[2],vmin=vmin,vmax=vmax)
+    im = ax4.imshow(wircpol_source.trace_images[3],vmin=vmin,vmax=vmax)
+    plt.colorbar(im)
+
+    ax1.set_ylabel('Calibrated Data')
+    
+    ### Then the DQ frame
+    # if wircpol_source.trace_images_DQ is not None:
+    #     vmin=0
+    #     vmax=3
+    #     ax5 = fig.add_subplot(gs[1, 0])    
+    #     ax6 = fig.add_subplot(gs[1, 1])    
+    #     ax7 = fig.add_subplot(gs[1, 2])    
+    #     ax8 = fig.add_subplot(gs[1, 3])    
+
+    #     ax5.imshow(wircpol_source.trace_images_DQ[0],vmin=vmin,vmax=vmax)
+    #     ax6.imshow(wircpol_source.trace_images_DQ[1],vmin=vmin,vmax=vmax)
+    #     ax7.imshow(wircpol_source.trace_images_DQ[2],vmin=vmin,vmax=vmax)
+    #     im = ax8.imshow(wircpol_source.trace_images_DQ[3],vmin=vmin,vmax=vmax)
+    #     plt.colorbar(im)
+    
+    # ax5.set_ylabel('Data Quality')
+    
+    ### Now plot the background
+    ax9 = fig.add_subplot(gs[1, 0])    
+    ax10 = fig.add_subplot(gs[1, 1])    
+    ax11 = fig.add_subplot(gs[1, 2])    
+    ax12 = fig.add_subplot(gs[1, 3])
+    if wircpol_source.trace_bkg is not None:
+        trace_image_percentiles = np.percentile(wircpol_source.trace_bkg.flatten(),[5,95])
+        vmin=trace_image_percentiles[0]
+        vmax=trace_image_percentiles[1]
+
+        ax9.imshow(wircpol_source.trace_bkg[0],vmin=vmin,vmax=vmax)
+        ax10.imshow(wircpol_source.trace_bkg[1],vmin=vmin,vmax=vmax)
+        ax11.imshow(wircpol_source.trace_bkg[2],vmin=vmin,vmax=vmax)
+        im = ax12.imshow(wircpol_source.trace_bkg[3],vmin=vmin,vmax=vmax)
+        plt.colorbar(im)
+    else: 
+        ax9.text(0.1,0.5,"No Trace Background \nFound")
+    
+    ax9.set_ylabel('Background')
+
+    ### Now plot the data - background
+    ax5 = fig.add_subplot(gs[2, 0])    
+    ax6 = fig.add_subplot(gs[2, 1])    
+    ax7 = fig.add_subplot(gs[2, 2])    
+    ax8 = fig.add_subplot(gs[2, 3])
+    if wircpol_source.trace_bkg is not None:
+        trace_image_percentiles = np.percentile((wircpol_source.trace_images-wircpol_source.trace_bkg).flatten(),[5,95])
+        vmin=trace_image_percentiles[0]
+        vmax=trace_image_percentiles[1]
+
+        ax5.imshow(wircpol_source.trace_images[0]-wircpol_source.trace_bkg[0],vmin=vmin,vmax=vmax)
+        ax6.imshow(wircpol_source.trace_images[1]-wircpol_source.trace_bkg[1],vmin=vmin,vmax=vmax)
+        ax7.imshow(wircpol_source.trace_images[2]-wircpol_source.trace_bkg[2],vmin=vmin,vmax=vmax)
+        im = ax8.imshow(wircpol_source.trace_images[3]-wircpol_source.trace_bkg[3],vmin=vmin,vmax=vmax)
+        plt.colorbar(im)
+    else: 
+        ax5.text(0.1,0.5,"No Trace Background \nFound")
+    
+    ax5.set_ylabel('Data - Background')
+
+
+    ### And the rotated trace to be extracted
+    ax13 = fig.add_subplot(gs[3, 0])    
+    ax14 = fig.add_subplot(gs[3, 1])    
+    ax15 = fig.add_subplot(gs[3, 2])    
+    ax16 = fig.add_subplot(gs[3, 3])
+    if wircpol_source.trace_images_extracted is not None:
+        trace_image_percentiles = np.percentile(wircpol_source.trace_images_extracted.flatten(),[5,95])
+        vmin=trace_image_percentiles[0]
+        vmax=trace_image_percentiles[1]
+
+        ax13.imshow(wircpol_source.trace_images_extracted[0],vmin=vmin,vmax=vmax)
+        ax14.imshow(wircpol_source.trace_images_extracted[1],vmin=vmin,vmax=vmax)
+        ax15.imshow(wircpol_source.trace_images_extracted[2],vmin=vmin,vmax=vmax)
+        im = ax16.imshow(wircpol_source.trace_images_extracted[3],vmin=vmin,vmax=vmax)
+        plt.colorbar(im)
+    
+    ax13.set_ylabel('For extraction')
+    
+    ### Plot the spectra
+    
+    ax17 = fig.add_subplot(gs[:,4:])
+    if wircpol_source.trace_spectra is not None:
+        trace_image_percentiles = np.percentile(wircpol_source.trace_spectra[:,1].flatten(),[5,95])
+        vmin=np.min(wircpol_source.trace_spectra[:,1])
+        vmax=np.max(wircpol_source.trace_spectra[:,1])*1.2
+        ax17.plot(wircpol_source.trace_spectra[0,0],wircpol_source.trace_spectra[0,1],label="Top-Left")
+        ax17.plot(wircpol_source.trace_spectra[1,0],wircpol_source.trace_spectra[1,1],label="Bottom-Right")
+        ax17.plot(wircpol_source.trace_spectra[2,0],wircpol_source.trace_spectra[2,1],label="Top-Right")
+        ax17.plot(wircpol_source.trace_spectra[3,0],wircpol_source.trace_spectra[3,1],label="Bottom-Left")
+        ax17.set_ylim(vmin,vmax)
+        ax17.legend(fontsize=16,loc="lower center")
+        ax17.set_xlabel("Wavelength")
+        ax17.set_ylabel("Counts")
+        
+    ##### print up some info
+    ax17.text(min_x+0.01*xrange,0.96*vmax,wirc_object.header["FN"],fontsize=16)
+    ax17.text(min_x+0.01*xrange,0.92*vmax,"Background Method: {}".format(bkg_method),fontsize=16)
+    np.set_printoptions(precision=1)
+    ax17.text(min_x+0.01*xrange,0.88*vmax,"Trace Widths: {}".format(wircpol_source.spectra_widths),fontsize=16)
+    ax17.text(min_x+0.01*xrange,0.84*vmax,"Trace Angles: {}".format(wircpol_source.spectra_angles),fontsize=16)
+    
+    if save:
+        if png_filename is None:
+            output_dir = wirc_object.header["FN"].rsplit("/",1)[-2]+"/pngs/"
+            
+            if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                    
+            png_filename = output_dir + wirc_object.header["FN"].rsplit("/",1)[-1].rsplit(".",1)[-2]+".png"
+        if verbose:
+            print("Saving a file to {}".format(png_filename))
+        plt.savefig(png_filename,dpi=200,bbox_inches="tight")

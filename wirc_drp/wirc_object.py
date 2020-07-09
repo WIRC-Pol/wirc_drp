@@ -68,7 +68,7 @@ class wirc_data(object):
             
 
         elif raw_filename is not None:
-            self.header["FN"] = raw_filename
+
             if verbose:
                 print("Creating a new wirc_data object from file {}".format(raw_filename))
             self.raw_filename = raw_filename
@@ -78,6 +78,7 @@ class wirc_data(object):
                 self.header = hdu[0].header
 
             self.header['RAW_FN'] = raw_filename
+            self.header["FN"] = raw_filename
 
             self.filelist = [raw_filename]
             self.dxdy_list = [[0.,0.]]
