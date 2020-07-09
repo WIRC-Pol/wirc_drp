@@ -11,11 +11,13 @@ import wirc_drp.utils.calibration as calibration
 from wirc_drp import constants
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
+import wirc_drp
+mask_path = (wirc_drp.__path__)[0]+'/masks/' 
 from astropy import time as ap_time, coordinates as coord, units as u
 from astropy.stats import sigma_clipped_stats
 
 import pdb
-import copy
+import copy 
 
 class wirc_data(object):
     """

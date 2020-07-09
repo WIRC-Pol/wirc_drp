@@ -803,7 +803,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
                 print("Warning: background frame not provided.")
                 raw, trace, trace_width, measured_trace_angle = findTrace(thumbnail, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
                                                                   fractional_fit_type=fractional_fit_type,diag_mask_width=diag_mask_width) #linear fit to the trace
-            widths += [trace_width]
+            # widths += [trace_width]
             angles += [measured_trace_angle]
             trace_angle[j] = measured_trace_angle
         else: #angle given, still run the fit but only record width
@@ -814,7 +814,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
             else: 
                 raw, trace, trace_width, measured_trace_angle = findTrace(thumbnail, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
                                                           fractional_fit_type = None,diag_mask_width=diag_mask_width) #for quickly getting trace width, which is 
-            widths += [trace_width]
+            # widths += [trace_width]
            
         # if diag_mask:
         #     mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
@@ -897,7 +897,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
 
             #measure real_width after rotation. Now do this for polarimetric data too
             real_width = image_utils.traceWidth_after_rotation(sub_rotated)
-            
+            widths += [real_width]
             #plt.imshow(sub_rotated, origin = 'lower')
             #plt.show()
 
@@ -934,7 +934,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
 
             if mode == 'spec':
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)
-                widths += [real_width]
+                # widths += [real_width]
             else:
                 #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)                
