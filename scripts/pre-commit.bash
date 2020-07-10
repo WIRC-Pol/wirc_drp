@@ -12,3 +12,28 @@ if [ $? -ne 0 ]; then
  exit 1
 fi
 
+echo "Test 1 passed"
+echo ""
+
+echo "Starting Test 2"
+python tests/test2.py
+
+if [ $? -ne 0 ]; then
+ echo "Pre-commit tests failed on test 2"
+ exit 1
+fi
+
+echo "Test 2 passed"
+echo ""
+
+echo "Starting Test 3"
+python tests/test3.py
+
+if [ $? -ne 0 ]; then
+ echo "Pre-commit tests failed on test 3"
+ exit 1
+fi
+
+echo "Test 3 passed"
+echo ""
+
