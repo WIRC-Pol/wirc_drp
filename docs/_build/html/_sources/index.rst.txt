@@ -3,14 +3,16 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to WIRC+Pol DRP's documentation!
-========================================
+Welcome to the WIRC+Pol DRP's documentation site!
+================================================= 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
+   :glob:
 
-
+   usage/installation
+   tutorials/*
 
 Indices and tables
 ==================

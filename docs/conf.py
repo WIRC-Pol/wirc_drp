@@ -43,8 +43,10 @@ import sphinx_rtd_theme
 extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'sphinx_rtd_theme'
-]
+    'sphinx.ext.autodoc',
+    'sphinx_rtd_theme',
+    'nbsphinx',
+     ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

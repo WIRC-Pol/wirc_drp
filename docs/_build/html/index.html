@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Welcome to WIRC+Pol DRP’s documentation! &mdash; WIRC+Pol DRP  documentation</title>
+  <title>Welcome to the WIRC+Pol DRP’s documentation site! &mdash; WIRC+Pol DRP  documentation</title>
   
 
   
@@ -30,12 +30,14 @@
         <script type="text/javascript" src="_static/underscore.js"></script>
         <script type="text/javascript" src="_static/doctools.js"></script>
         <script type="text/javascript" src="_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installation" href="usage/installation.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -80,12 +82,14 @@
               
             
             
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Welcome to WIRC+Pol DRP’s documentation!</a></li>
-<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html">Tutorial 1: WIRC+POL Single File Data Reduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html">Tutorial 2: WIRC+Pol Dataset Reduction Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html">Tutorial 3: WIRC+Pol Modulation Sequence Tutorial</a></li>
 </ul>
-</div>
+
             
           
         </div>
@@ -130,7 +134,7 @@
     
       <li><a href="#" class="icon icon-home"></a> &raquo;</li>
         
-      <li>Welcome to WIRC+Pol DRP’s documentation!</li>
+      <li>Welcome to the WIRC+Pol DRP’s documentation site!</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -149,9 +153,83 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="welcome-to-wirc-pol-drp-s-documentation">
-<h1>Welcome to WIRC+Pol DRP’s documentation!<a class="headerlink" href="#welcome-to-wirc-pol-drp-s-documentation" title="Permalink to this headline">¶</a></h1>
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="welcome-to-the-wirc-pol-drp-s-documentation-site">
+<h1>Welcome to the WIRC+Pol DRP’s documentation site!<a class="headerlink" href="#welcome-to-the-wirc-pol-drp-s-documentation-site" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html">Tutorial 1: WIRC+POL Single File Data Reduction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#Pipeline-Description">Pipeline Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#Assumptions">Assumptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#This-Tutorial">This Tutorial</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#Step-0---Make-your-calibration-files">Step 0 - Make your calibration files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#Step-1---Read-in-and-calibrate-your-data">Step 1 - Read in and calibrate your data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#Step-2---Extract-the-thumbnails-of-the-spectral-traces">Step 2 - Extract the thumbnails of the spectral traces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#Step-3---Extract-the-spectra-from-each-thumbnail">Step 3 - Extract the spectra from each thumbnail</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#Step-4---Calculate-the-polarized-spectra">Step 4 - Calculate the polarized spectra</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html#Step-5---Save-the-wirc-object">Step 5 - Save the wirc object</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html">Tutorial 2: WIRC+Pol Dataset Reduction Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#This-Tutorial">This Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#The-Recipe">The Recipe</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Step-0---Read-in-the-calibration-files">Step 0 - Read in the calibration files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Step-1---Read-in-and-calibrate-your-data">Step 1 - Read in and calibrate your data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Now-it’s-your-turn-to-set-up-a-loop-to-calibrate-the-brown-dwarf-data!">Now it’s your turn to set up a loop to calibrate the brown dwarf data!</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Step-2:-Source-identification">Step 2: Source identification</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Step-3-4:-Background-subtraction-and-spectral-extraction">Step 3-4: Background subtraction and spectral extraction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Now-with-Steps-2-4-demonstrated-for-one-file,-let’s-run-it-all-on-all-files:-First-with-the-unpolarized-standard-star">Now with Steps 2-4 demonstrated for one file, let’s run it all on all files: First with the unpolarized standard star</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Then-the-brown-dwarf">Then the brown dwarf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Step-5---Stack-the-spectra">Step 5 - Stack the spectra</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Now-do-the-same-for-the-brown-dwarf">Now do the same for the brown dwarf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Step-6:-Polarization-calibration-and-calculation">Step 6: Polarization calibration and calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html#Acknowledgement">Acknowledgement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html">Tutorial 3: WIRC+Pol Modulation Sequence Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html#Step-1:-Read-in-the-files">Step 1: Read in the files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html#Read-in-the-files---Tutorial-Dataset">Read in the files - Tutorial Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html#Read-in-the-files---Normal-Operations">Read in the files - Normal Operations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html#Step-2:-Plot-the-spectra-and-make-sure-they’re-aligned-and-ready-to-go">Step 2: Plot the spectra and make sure they’re aligned and ready to go</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html#Step-3:-Calculate-q-and-u-for-each-pair-of-HWP-positions.">Step 3: Calculate <em>q</em> and <em>u</em> for each pair of HWP positions.</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html#Now-calculate-p-and-:math:`theta`">Now calculate <em>p</em> and <em>:math:`theta`</em></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.html#Step-4:-Calibrate-q-and-u">Step 4: Calibrate q and u</a></li>
+</ul>
+</li>
+</ul>
 </div>
 </div>
 <div class="section" id="indices-and-tables">
@@ -168,6 +246,13 @@
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="usage/installation.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+    </div>
   
 
   <hr/>
