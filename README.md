@@ -31,5 +31,3 @@ https://photutils.readthedocs.io/en/stable/install.html
 - The OpenCV package. You can probably install it like this: ```pip install opencv-python```. (This should be installed when you run setup.py)
 
 - The scikit-image package: http://scikit-image.org/docs/dev/install.html (This should be installed when you run setup.py)
-
-- We use the git-python package to keep track of what version of the pipeline is being used to reduce a given file: http://gitpython.readthedocs.io/en/stable/intro.html
