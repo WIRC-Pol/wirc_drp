@@ -33,10 +33,12 @@ try:
                                     filter_bkg_size=None, same_HWP=False)
 
     image = wo.wirc_data(tutorial_dir+'wirc0140.fits')                           
-    image.generate_bkg(method='PCA', num_PCA_modes=3, ref_lib=sky_frames, same_HWP=False)
+    # image.generate_bkg(method='PCA', num_PCA_modes=3, ref_lib=sky_frames, same_HWP=False)
+    image.generate_bkg(method='PCA', num_PCA_modes=3, bkg_fns=sky_frames, same_HWP=False)
 
     image = wo.wirc_data(tutorial_dir+'wirc0140.fits')
-    image.generate_bkg(method='median_ref', ref_lib=sky_frames, same_HWP=False)
+    # image.generate_bkg(method='median_ref', ref_lib=sky_frames, same_HWP=False)
+    image.generate_bkg(method='median_ref', bkg_fns=sky_frames, same_HWP=False)
 
     image = wo.wirc_data(tutorial_dir+'wirc0140.fits')
     image.generate_bkg(method='scaled_bkg', bkg_fns=sky_frames, bkg_by_quadrants=False, same_HWP=False)
