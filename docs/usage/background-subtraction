@@ -1,0 +1,10 @@
+Background Subtraction
+========================
+
+Max add details. 
+
+Background subtraction is a crucial step to providing accurate polarimetric measurments since different level of background in the four traces can mimic polarimetric signal. In the infrared, the sky background is bright and quickly evolving (10-min timescale as opposed to the optical). Additionally, WIRC+Pol has a complicated background structure due to four dispersed fields of view that overlap and due to the bars in the focal plane mask. As a result, WIRC+Pol DRP employs a few different strategies to measure and remove sky background.
+
+Observation Strategies
+-----------------------
+1. Background frame. The simplest way to obtain sky background information is to observe a sky background frame before or after the science observation sequence at a moderate offset from the science target (~1 arcmin). A single set of background frames can capture most of the complex spatial structure of WIRC+Pol background. The temporal evolution is dealt with by scaling the level of the background frame to match that of the science frame.  

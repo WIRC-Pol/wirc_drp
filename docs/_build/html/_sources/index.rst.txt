@@ -13,6 +13,7 @@ Welcome to the WIRC+Pol DRP's documentation site!
 
    usage/installation
    usage/quickstart
+   usage/basic-calibration
    tutorials/*
 
 Indices and tables
