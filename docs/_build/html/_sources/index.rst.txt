@@ -11,7 +11,8 @@ Welcome to the WIRC+Pol DRP's documentation site!
    :caption: Contents:
    :glob:
 
-   usage/*
+   usage/installation
+   usage/quickstart
    tutorials/*
 
 Indices and tables
