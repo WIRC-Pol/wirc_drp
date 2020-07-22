@@ -1,10 +1,26 @@
 Background Subtraction
 ========================
 
-Max add details. 
-
 Background subtraction is a crucial step to providing accurate polarimetric measurments since different level of background in the four traces can mimic polarimetric signal. In the infrared, the sky background is bright and quickly evolving (10-min timescale as opposed to the optical). Additionally, WIRC+Pol has a complicated background structure due to four dispersed fields of view that overlap and due to the bars in the focal plane mask. As a result, WIRC+Pol DRP employs a few different strategies to measure and remove sky background.
 
 Observation Strategies
 -----------------------
-1. Background frame. The simplest way to obtain sky background information is to observe a sky background frame before or after the science observation sequence at a moderate offset from the science target (~1 arcmin). A single set of background frames can capture most of the complex spatial structure of WIRC+Pol background. The temporal evolution is dealt with by scaling the level of the background frame to match that of the science frame.  
+1. Do nothing. Even if the observer did not obtain any background frame, the DRP can still perform background subtraction albeit less accurately. For sources observed in slit, we showed that the slit background fitting routine may work as well as the AB dither strategy described below.  
+
+2. Background frame. The simplest way to obtain sky background information is to observe a sky background frame before or after the science observation sequence at a moderate offset from the science target (~1 arcmin). A single set of background frames can capture most of the complex spatial structure of WIRC+Pol background. The temporal evolution is dealt with by scaling the level of the background frame to match that of the science frame.  This strategy works best for a source observed outside of the slit. 
+
+#. Dither. Observer can also move the source back and forth on the detector, following e.g. an AB pattern with about 10 arcsec between the two positions. As such, observations at the "B" position can be used as background frame for the "A" position. This practice is preferred for observations of a source in slit. In this mode, the sky emission lines are resolved and their variability cannot be captured by simply scaling the background frame. 
+
+
+
+Data Reduction Strategies
+---------------------------
+The DRP function that deals with background subtraction is ``wirc_data.generate_bkg``. Refer to :doc:``../tutorials/WIRC+Pol_Tutorial_2-Reducing_a_Dataset`` for a sample of usage. Different background subtraction methods are selected by the keyword ``method``. Here are appropriate data reduction strategies corresponding to the observation strategies listed above.
+
+1. If no background frames were taken, the viable methods are ``shift_and_subtract`` and ``slit_background``. The ``shift_and_subtract`` method simply shift the science image by an amount specified by the keyword ``bkg_sub_shift_size``. This is a default method since it works on any data. However, we note that it produces most unreliable results. The ``slit_background`` method calls the ``image_utils.subtract_slit_background`` function to fit the slit background using its known spatial profile. This method only works for data taken inside the slit. 
+
+2. For observations with background frames taken, the appropriate methods are ``scaled_bkg``. It takes a python list of background file names given via a keyword ``bkg_fns``, read them into an array, median combine them and scale the combined background image to match the median of the science image. There is an option ``bkg_by_quadrant`` to perform this scaling quadrant by quadrant; we recommend that this enabled. 
+
+3. Dithered observations are best reduced also with the ``scaled_bkg`` method, but with the ``same_HWP`` flag set to True and the ``nclosest`` keyword set to 1 to use the closest background frame in time. See the ``reduce_ABAB_dataset`` function in ``dataset.py`` for this strategy. 
+
+

@@ -14,6 +14,7 @@ Welcome to the WIRC+Pol DRP's documentation site!
    usage/installation
    usage/quickstart
    usage/basic-calibration
+   usage/background-subtraction
    tutorials/*
 
 Indices and tables
