@@ -358,6 +358,7 @@ class wirc_data(object):
         (3) 'median_ref': Median combines the reference library frames 
         (4) 'scaled_bkg': Takes and scales a manually inputted background frame
         (5) 'simple_median': Calculates the median pixel value of the image and subtracts that off the entire image 
+        (6) 'slit_background': Call the image_utils.subtract_slit_background function to fit the backgrond inside slit
 
         nclosest: If not None, only use n images in bkg_fns exposed closest to the science frame to construct background
         same_HWP: If True, only use bkg_fns with the same HWP angle as the science image
