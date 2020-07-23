@@ -16,6 +16,7 @@ Welcome to the WIRC+Pol DRP's documentation site!
    usage/basic-calibration
    usage/background-subtraction
    usage/spectral-extraction
+   usage/polarization-calculation
    tutorials/*
 
 Indices and tables
