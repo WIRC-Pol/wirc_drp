@@ -1424,10 +1424,17 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
     # assert p_order > 2, "You really want p_order > 2"
 
     if filter_name == 'J':
-        good_inds = np.where((wvs>1.165) & (wvs<1.325))
+        wlMin = 1.165
+        wlMax = 1.325
+        wlMin_plot = 1.15
+        wlMax_plot = 1.35
     elif filter_name == 'H':
-        good_inds = np.where((wvs>1.5) & (wvs<1.78))
+        wlMin = 1.5
+        wlMax = 1.78
+        wlMin_plot = 1.45
+        wlMax_plot = 1.8
 
+    good_inds = np.where((wvs>wlMin) & (wvs<wlMax))
     good_wvs = wvs[good_inds]
 
     ###Cycle through the serkowski array and generate the expected polarization
@@ -1502,7 +1509,7 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         '''
         Calculate the residuals 
         '''
-        good_wvs = np.where((wvs > 1.165) & (wvs < 1.325))
+        good_wvs = np.where((wvs > wlMin) & (wvs < wlMax))
         q_residuals = []
         u_residuals = []        
 
@@ -1518,7 +1525,7 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         return q_residuals,u_residuals
     
     def to_minimize(p,wvs,serkowski_q,serkowski_u,data_q,data_u,data_qerrs,data_uerrs):
-        good_wvs = np.where((wvs > 1.165) & (wvs < 1.325))
+        good_wvs = np.where((wvs > wlMin) & (wvs < wlMax))
         q_residuals,u_residuals = residuals(p,wvs,serkowski_q,serkowski_u,data_q,data_u)
         
         return np.sqrt(np.nansum(((q_residuals/data_qerrs[good_wvs])**2))+np.sum(((u_residuals/data_uerrs[good_wvs])**2)))
@@ -1650,9 +1657,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         
         start_ax_u.legend()
 
-        start_ax_q.set_xlim(1.15,1.35)
+        start_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         start_ax_q.set_ylim(-6,6)
-        start_ax_u.set_xlim(1.15,1.35)
+        start_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         start_ax_u.set_ylim(-6,6)
 
         start_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1680,9 +1687,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_q.plot(wvs,100*data_q_pair1[:,i],'o',color='C{:d}'.format(i))
             fit_ax_u.plot(wvs,100*data_u_pair1[:,i],'o',color='C{:d}'.format(i))
         
-        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         fit_ax_q.set_ylim(-6,6)
-        fit_ax_u.set_xlim(1.15,1.35)
+        fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         fit_ax_u.set_ylim(-6,6)
 
         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1711,9 +1718,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_q.plot(wvs,100*data_q_pair2[:,i],'o',color='C{:d}'.format(i))
             fit_ax_u.plot(wvs,100*data_u_pair2[:,i],'o',color='C{:d}'.format(i))
         
-        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         fit_ax_q.set_ylim(-6,6)
-        fit_ax_u.set_xlim(1.15,1.35)
+        fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         fit_ax_u.set_ylim(-6,6)
 
         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1747,9 +1754,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_q.plot(good_wvs,100*cal_q,'o',color='C{:d}'.format(i))
             fit_ax_u.plot(good_wvs,100*cal_u,'o',color='C{:d}'.format(i))
         
-        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_q.set_ylim(-6,6)
-        fit_ax_u.set_xlim(1.15,1.35)
+        fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_u.set_ylim(-6,6)
 
         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1786,9 +1793,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_q.plot(good_wvs,100*cal_q,'o',color='C{:d}'.format(i))
             fit_ax_u.plot(good_wvs,100*cal_u,'o',color='C{:d}'.format(i))
         
-        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_q.set_ylim(-6,6)
-        fit_ax_u.set_xlim(1.15,1.35)
+        fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_u.set_ylim(-6,6)
 
         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1815,9 +1822,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             residuals_ax_q.plot(wvs,100*(data_q_pair1[:,i]-fit_detector_q),color='C{:d}'.format(i))
             residuals_ax_u.plot(wvs,100*(data_u_pair1[:,i]-fit_detector_u),color='C{:d}'.format(i))
 
-        residuals_ax_q.set_xlim(1.15,1.35)
+        residuals_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         residuals_ax_q.set_ylim(-1,1)
-        residuals_ax_u.set_xlim(1.15,1.35)
+        residuals_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         residuals_ax_u.set_ylim(-1,1)
 
         residuals_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1841,9 +1848,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             residuals_ax_q.plot(wvs,100*(data_q_pair2[:,i]-fit_detector_q),color='C{:d}'.format(i))
             residuals_ax_u.plot(wvs,100*(data_u_pair2[:,i]-fit_detector_u),color='C{:d}'.format(i))
 
-        residuals_ax_q.set_xlim(1.15,1.35)
+        residuals_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         residuals_ax_q.set_ylim(-1,1)
-        residuals_ax_u.set_xlim(1.15,1.35)
+        residuals_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         residuals_ax_u.set_ylim(-1,1)
 
         residuals_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1887,9 +1894,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_q.plot(good_wvs,cal_p,'o',color='C{:d}'.format(i))
             fit_ax_u.plot(good_wvs,cal_theta,'o',color='C{:d}'.format(i))
         
-        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_q.set_ylim(-6,6)
-        fit_ax_u.set_xlim(1.15,1.375)
+        fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         fit_ax_u.legend()
         # fit_ax_u.set_ylim(-6,6)
 
@@ -1933,9 +1940,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_q.plot(good_wvs,relative_delta_p,'o',color='C{:d}'.format(i))
             fit_ax_u.plot(good_wvs,delta_theta,'o',color='C{:d}'.format(i))
         
-        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_q.set_ylim(-6,6)
-        fit_ax_u.set_xlim(1.15,1.35)
+        fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_u.set_ylim(-6,6)
 
         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1975,9 +1982,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_q.plot(good_wvs,cal_p,'o',color='C{:d}'.format(i))
             fit_ax_u.plot(good_wvs,cal_theta,'o',color='C{:d}'.format(i))
         
-        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_q.set_ylim(-6,6)
-        fit_ax_u.set_xlim(1.15,1.375)
+        fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         fit_ax_u.legend()
         # fit_ax_u.set_ylim(-6,6)
 
@@ -2021,9 +2028,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_q.plot(good_wvs,relative_delta_p,'o',color='C{:d}'.format(i))
             fit_ax_u.plot(good_wvs,delta_theta,'o',color='C{:d}'.format(i))
         
-        fit_ax_q.set_xlim(1.15,1.35)
+        fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_q.set_ylim(-6,6)
-        fit_ax_u.set_xlim(1.15,1.35)
+        fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
         # fit_ax_u.set_ylim(-6,6)
 
         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
@@ -2046,10 +2053,10 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         axes[1,0].plot(wvs,np.poly1d(results2.x[1*(p_order+1):2*(p_order+1)])(wvs))
         axes[1,1].plot(wvs,np.poly1d(results2.x[3*(p_order+1):])(wvs))
 
-        axes[0,0].set_xlim(1.165,1.325)
-        axes[0,1].set_xlim(1.165,1.325)
-        axes[1,0].set_xlim(1.165,1.325)
-        axes[1,1].set_xlim(1.165,1.325)
+        axes[0,0].set_xlim(wlMin,wlMax)
+        axes[0,1].set_xlim(wlMin,wlMax)
+        axes[1,0].set_xlim(wlMin,wlMax)
+        axes[1,1].set_xlim(wlMin,wlMax)
 
         axes[0,0].set_ylim(0.,1)
         axes[0,1].set_ylim(-0.5,0)
