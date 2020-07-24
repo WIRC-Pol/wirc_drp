@@ -1400,7 +1400,7 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None)
     return calibrated_q,calibrated_u,calibrated_q_err,calibrated_u_err
 
 
-def make_instrument_calibration(wvs,dir_list,serkowski_array,names,p_order=3,
+def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name = 'J', p_order=3,
             plot_residuals=True,plot_starting_position=False,plot_best_fit=True,
             plot_best_fit_on_sky=True,plot_residuals_on_sky=True,
             plot_mueller_matrix=True):
@@ -1415,6 +1415,7 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,p_order=3,
     wvs     - An array of length n, that gives the wavelengths in microns
     dir_list - A list of length m of directories where we can find qu datafiles
     serkowski_array - An array of shape [m,4] that holds the [p_max,lambda_max, K, theta] values for corresponding to each directory in the dir_list
+    filter - either 'J' or 'H'
     p_order  - The order of the polynomial that we'll fit. 
     """
 
@@ -1422,8 +1423,11 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,p_order=3,
 
     # assert p_order > 2, "You really want p_order > 2"
 
+    if filter_name == 'J':
+        good_inds = np.where((wvs>1.165) & (wvs<1.325))
+    elif filter_name == 'H':
+        good_inds = np.where((wvs>1.5) & (wvs<1.78))
 
-    good_inds = np.where((wvs>1.165) & (wvs<1.325))
     good_wvs = wvs[good_inds]
 
     ###Cycle through the serkowski array and generate the expected polarization
