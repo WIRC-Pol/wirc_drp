@@ -1621,9 +1621,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         
         start_ax_u.legend()
 
-        start_ax_q.set_xlim(1.15,1.35)
+        start_ax_q.set_xlim(wlMin_plot, wlMax_plot)
         start_ax_q.set_ylim(-6,6)
-        start_ax_u.set_xlim(1.15,1.35)
+        start_ax_u.set_xlim(wlMin_plot, wlMax_plot)
         start_ax_u.set_ylim(-6,6)
 
         start_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
