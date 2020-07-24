@@ -1756,9 +1756,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_u.plot(good_wvs,100*cal_u,'o',color='C{:d}'.format(i))
         
         fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
-        # fit_ax_q.set_ylim(-6,6)
+        fit_ax_q.set_ylim(-6,6)
         fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
-        # fit_ax_u.set_ylim(-6,6)
+        fit_ax_u.set_ylim(-6,6)
 
         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
         fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
@@ -1795,9 +1795,9 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
             fit_ax_u.plot(good_wvs,100*cal_u,'o',color='C{:d}'.format(i))
         
         fit_ax_q.set_xlim(wlMin_plot,wlMax_plot)
-        # fit_ax_q.set_ylim(-6,6)
+        fit_ax_q.set_ylim(-6,6)
         fit_ax_u.set_xlim(wlMin_plot,wlMax_plot)
-        # fit_ax_u.set_ylim(-6,6)
+        fit_ax_u.set_ylim(-6,6)
 
         fit_ax_q.set_xlabel(r"Wavelength ($\mu m$)")
         fit_ax_u.set_xlabel(r"Wavelength ($\mu m$)")
