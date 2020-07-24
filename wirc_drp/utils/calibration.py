@@ -1349,6 +1349,7 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None)
 
     if polynomial_coefficients is None:
         #Use a default - This may not be the best. 
+        print('Use default polynomial coefficients')
         p_order = 3
         if trace_pair == 0:
             #The significant digits obviously do not reflect any sort of precision, they were just copied from a print statement
@@ -1868,7 +1869,7 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         ###########################################################
 
         fig1,axes = plt.subplots(1,2,figsize=(20,5))
-        fig1.suptitle("Trace Pair 1 Residuals On-Sky")
+        fig1.suptitle("Trace Pair 1 P and Theta On-Sky")
 
         fit_ax_q = axes[0]
         fit_ax_u = axes[1]
@@ -1956,7 +1957,7 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         ###########################################################
 
         fig1,axes = plt.subplots(1,2,figsize=(20,5))
-        fig1.suptitle("Trace Pair 2 Residuals On-Sky")
+        fig1.suptitle("Trace Pair 2 P and Theta On-Sky")
 
         fit_ax_q = axes[0]
         fit_ax_u = axes[1]
