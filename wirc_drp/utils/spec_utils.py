@@ -58,7 +58,9 @@ import sys, os, time
 import copy
 #import pyklip.klip
 
-wircpol_dir = os.environ['WIRC_DRP']
+# wircpol_dir = os.environ['WIRC_DRP']
+wircpol_dir = '/'.join(os.path.realpath(__file__).split('/')[:-2]) 
+
 
 
 def frame_rotate(array, angle, imlib='opencv', interpolation='bicubic', cxy=None):
@@ -675,8 +677,10 @@ def background_subtraction(thumbnails, sub_background_method = 'median',
     return bkg_sub, bkg
 
 def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
-    bad_pix_masking = 0, width_scale=1., diag_mask = False, trace_angle = None, mode = 'pol', spatial_sigma = 5, fixed_width = None, verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
-    spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None, plot_optimal_extraction = False, plot_findTrace = False, plot_result = True,):
+    bad_pix_masking = 0, width_scale=1., diag_mask = False, diag_mask_width = 70, trace_angle = None, mode = 'pol', 
+    spatial_sigma = 5, fixed_width = None, verbose = True, DQ_thumbnails = None, use_DQ=True, debug_DQ=False, 
+    spatial_smooth=1,spectral_smooth=10,fractional_fit_type=None, plot_optimal_extraction = False, plot_findTrace = False, 
+    plot_result = True,):
     """
     This is the main function to perform spectral extraction on the spectral image
     given a set of thumbnails.
@@ -794,23 +798,23 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
         if trace_angle[j] is None:
             if bkg_thumbnails is not None:
                 raw, trace, trace_width, measured_trace_angle = findTrace(thumbnail - bkg, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
-                                                                  fractional_fit_type=fractional_fit_type) #linear fit to the trace
+                                                                  fractional_fit_type=fractional_fit_type,diag_mask_width=diag_mask_width) #linear fit to the trace
             else: #no background provided, fit in findTrace. THIS SHOULD NOT HAPPEN
                 print("Warning: background frame not provided.")
                 raw, trace, trace_width, measured_trace_angle = findTrace(thumbnail, poly_order = 1, weighted=True, plot = plot_findTrace, diag_mask=diag_mask, mode=mode,
-                                                                  fractional_fit_type=fractional_fit_type) #linear fit to the trace
-            widths += [trace_width]
+                                                                  fractional_fit_type=fractional_fit_type,diag_mask_width=diag_mask_width) #linear fit to the trace
+            # widths += [trace_width]
             angles += [measured_trace_angle]
             trace_angle[j] = measured_trace_angle
         else: #angle given, still run the fit but only record width
             angles += [trace_angle[j]] 
             if bkg_thumbnails is not None:
                 raw, trace, trace_width, measured_trace_angle = findTrace(thumbnail - bkg, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
-                                                          fractional_fit_type = None) #for quickly getting trace width, which is needed to determine extraction range
+                                                          fractional_fit_type = None,diag_mask_width=diag_mask_width) #for quickly getting trace width, which is needed to determine extraction range
             else: 
                 raw, trace, trace_width, measured_trace_angle = findTrace(thumbnail, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
-                                                          fractional_fit_type = None) #for quickly getting trace width, which is 
-            widths += [trace_width]
+                                                          fractional_fit_type = None,diag_mask_width=diag_mask_width) #for quickly getting trace width, which is 
+            # widths += [trace_width]
            
         # if diag_mask:
         #     mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
@@ -877,7 +881,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
                     print("using given angle of ", trace_angle[j]," deg. change this by setting trace_angle to None")
 
             if diag_mask and mode=='pol':
-                mask = makeDiagMask(np.shape(thumbnail)[0],70)
+                mask = makeDiagMask(np.shape(thumbnail)[0],diag_mask_width)
                 thumbnail[~mask] = 0.0
                 bkg[~mask] = 0.0
                 DQ_copy[j,:,:][~mask] = 0.0
@@ -893,7 +897,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
 
             #measure real_width after rotation. Now do this for polarimetric data too
             real_width = image_utils.traceWidth_after_rotation(sub_rotated)
-            
+            widths += [real_width]
             #plt.imshow(sub_rotated, origin = 'lower')
             #plt.show()
 
@@ -930,7 +934,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
 
             if mode == 'spec':
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)
-                widths += [real_width]
+                # widths += [real_width]
             else:
                 #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
                 ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)                
@@ -1190,7 +1194,7 @@ def rough_lambda_and_filter_calibration(spectra, widths, xpos, ypos, band = "J",
             print("The linear dispersion for trace {} is {} um per pixel".format(i,ld))
 
         #Read in the filter profile
-        filt_tp = np.genfromtxt(wircpol_dir+"wirc_drp/specification/J_WIRC.csv", delimiter=',')
+        filt_tp = np.genfromtxt(wircpol_dir+"/specification/J_WIRC.csv", delimiter=',')
         filt_tp[:,1] = filt_tp[:,1]/100 #The filter trasmission is given as percent. Let's normalize it to 1. 
 
         #The wavelength correction factor for the filter. Ghinassi et al. 2002 paper gives the below equations, with n_eff = 2 for MKO filters. 

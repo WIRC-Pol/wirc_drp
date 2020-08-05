@@ -11,3 +11,11 @@ build/*
 *__pycache__*
 *egg-info*
 dist/*
+Tutorial/sample_data/wirc0140_calib.fits
+Tutorial/sample_data/wirc0141_calib.fits
+Tutorial/sample_data/wirc0142_calib.fits
+Tutorial/sample_data/wirc0158_calib.fits
+Tutorial/sample_data/wirc0159_calib.fits
+Tutorial/sample_data/wirc0160_calib.fits
+Tutorial/sample_data/Single_File_Tutorial/calibrated.fits
+wirc_drp/.vscode/settings.json

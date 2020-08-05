@@ -1,0 +1,910 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Tutorial 3: WIRC+Pol Modulation Sequence Tutorial &mdash; WIRC+Pol DRP  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Tutorial 2: WIRC+Pol Dataset Reduction Tutorial" href="WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> WIRC+Pol DRP
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/basic-calibration.html">Basic Calibration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/background-subtraction.html">Background Subtraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/spectral-extraction.html">Spectral Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/polarization-calculation.html">Polarization Calculation and Calibration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction.html">Tutorial 1: WIRC+POL Single File Data Reduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html">Tutorial 2: WIRC+Pol Dataset Reduction Tutorial</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial 3: WIRC+Pol Modulation Sequence Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#Step-1:-Read-in-the-files">Step 1: Read in the files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Read-in-the-files---Tutorial-Dataset">Read in the files - Tutorial Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Read-in-the-files---Normal-Operations">Read in the files - Normal Operations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#Step-2:-Plot-the-spectra-and-make-sure-they’re-aligned-and-ready-to-go">Step 2: Plot the spectra and make sure they’re aligned and ready to go</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Step-3:-Calculate-q-and-u-for-each-pair-of-HWP-positions.">Step 3: Calculate <em>q</em> and <em>u</em> for each pair of HWP positions.</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Now-calculate-p-and-:math:`theta`">Now calculate <em>p</em> and <em>:math:`theta`</em></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Now-we-can-plot-our-results">Now we can plot our results</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#Step-4:-Calibrate-q-and-u">Step 4: Calibrate q and u</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">WIRC+Pol DRP</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Tutorial 3: WIRC+Pol Modulation Sequence Tutorial</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/tutorials/WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence.ipynb.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container,
+div.nbinput.container div.prompt,
+div.nbinput.container div.input_area,
+div.nbinput.container div[class*=highlight],
+div.nbinput.container div[class*=highlight] pre,
+div.nboutput.container,
+div.nboutput.container div.prompt,
+div.nboutput.container div.output_area,
+div.nboutput.container div[class*=highlight],
+div.nboutput.container div[class*=highlight] pre {
+    background: none;
+    border: none;
+    padding: 0 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    background: #f5f5f5;
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="Tutorial-3:-WIRC+Pol-Modulation-Sequence-Tutorial">
+<h1>Tutorial 3: WIRC+Pol Modulation Sequence Tutorial<a class="headerlink" href="#Tutorial-3:-WIRC+Pol-Modulation-Sequence-Tutorial" title="Permalink to this headline">¶</a></h1>
+<p>This tutorial is to show you how to reduce WIRC+Pol data obtained after March 2019 using the new awesome modulator to obtain q,u,p and theta.</p>
+<p>In this tutorial we assume that you have already been through the two other tutorials, named WIRC+Pol_Tutorial_1-Single_File_Spectral_Extraction and WIRC+Pol_Tutorial_2-Reducing_a_Dataset. These tutorials will touch on installation, give you a good instroduction to the formats of WIRC+Pol data and demonstrate how to extract the spectra for a larger dataset.</p>
+<p>Here we assume that you already have run the pipeline to extract spectra on a dataset, but have yet to combine them via single differencing (in time) or double-differencing.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">wirc_drp</span>
+<span class="kn">import</span> <span class="nn">wirc_drp.wirc_object</span> <span class="k">as</span> <span class="nn">wo</span>
+<span class="kn">from</span> <span class="nn">wirc_drp.utils</span> <span class="kn">import</span> <span class="n">source_utils</span>
+<span class="kn">from</span> <span class="nn">wirc_drp.utils</span> <span class="kn">import</span> <span class="n">calibration</span> <span class="k">as</span> <span class="n">wc</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+<span class="o">%</span><span class="k">matplotlib</span> inline
+
+<span class="kn">import</span> <span class="nn">warnings</span><span class="p">;</span> <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+The autoreload extension is already loaded. To reload it, use:
+  %reload_ext autoreload
+</pre></div></div>
+</div>
+<div class="section" id="Step-1:-Read-in-the-files">
+<h2>Step 1: Read in the files<a class="headerlink" href="#Step-1:-Read-in-the-files" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="Read-in-the-files---Tutorial-Dataset">
+<h3>Read in the files - Tutorial Dataset<a class="headerlink" href="#Read-in-the-files---Tutorial-Dataset" title="Permalink to this headline">¶</a></h3>
+<p>For the purpose of this tutorial, we are providing you with spectra and hwp angles in .np files. That we read in here. Below we show a commented out example of how you would get these same inputs from a WIRC+Pol dataset.</p>
+<p>We assume here that the group of spectra have already been aligned (see the Dataset tutorial).</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">wircpol_dir</span> <span class="o">=</span> <span class="n">wirc_drp</span><span class="o">.</span><span class="n">__path__</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;/../&quot;</span>
+<span class="n">tutorial_dir</span> <span class="o">=</span> <span class="n">wircpol_dir</span> <span class="o">+</span> <span class="s2">&quot;Tutorial/&quot;</span>
+
+<span class="n">all_spec_cube</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">tutorial_dir</span><span class="o">+</span><span class="s2">&quot;sample_data/Elia2-14_HWP_Spectra.npy&quot;</span><span class="p">)</span> <span class="c1">#The extracted spectra</span>
+<span class="n">hwp_ang</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">tutorial_dir</span><span class="o">+</span><span class="s2">&quot;sample_data/Elia2-14_HWP_Angles.npy&quot;</span><span class="p">)</span> <span class="c1">#The HWP angles</span>
+<span class="n">wvs</span> <span class="o">=</span> <span class="n">all_spec_cube</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,:]</span> <span class="c1">#Grab the wavelengths from the first cube</span>
+<span class="n">nfiles</span> <span class="o">=</span> <span class="n">all_spec_cube</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="Read-in-the-files---Normal-Operations">
+<h3>Read in the files - Normal Operations<a class="headerlink" href="#Read-in-the-files---Normal-Operations" title="Permalink to this headline">¶</a></h3>
+<p>The following three commented out boxes give you an example of how to read in the data for this tutorial from normal wircpol_object fits files. You would do something like this when reducing your own data.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1">### Read in the files.</span>
+<span class="c1">#fnames = np.sort(glob.glob(&quot;/path_to_your_files_here/*.fits&quot;))</span>
+<span class="c1">#nfiles = len(fnames)</span>
+<span class="c1">#print(&quot;Found {} files&quot;.format(nfiles))</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1">### Read in the first one to get the spectra size</span>
+<span class="c1">#test= wo.wirc_data(wirc_object_filename=fnames[0],verbose=False)</span>
+
+<span class="c1">### Create a list to read the spectra into</span>
+<span class="c1"># all_spec_cube = []</span>
+
+<span class="c1">### And the HWP angles</span>
+<span class="c1">#hwp_ang = np.zeros([nfiles])</span>
+<span class="c1">#time = np.zeros([nfiles])</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># all_spec_cube = []</span>
+<span class="c1"># for im in np.arange(nfiles):</span>
+<span class="c1">#     wirc_object = wo.wirc_data(wirc_object_filename=fnames[im],verbose=False)</span>
+<span class="c1">#     wirc_object.source_list[0].get_broadband_polarization(mode=&quot;aperture_photometry&quot;)</span>
+<span class="c1">#     hwp_ang[im] = wirc_object.header[&#39;HWP_ANG&#39;]</span>
+
+<span class="c1">#     #Shift the spectra to the side because of the filter tilt.</span>
+<span class="c1">#     #The value of -3 used here might not be ideal, but we&#39;ll see.</span>
+<span class="c1">#     spectra[im,1,:] = np.roll(spectra[im,1,:],-3)</span>
+<span class="c1">#     spectra[im,3,:] = np.roll(spectra[im,3,:],-3)</span>
+
+<span class="c1">#     wirc_object.source_list[0].trace_spectra[1,1,:] = np.roll(wirc_object.source_list[0].trace_spectra[1,1,:],-3)</span>
+<span class="c1">#     wirc_object.source_list[0].trace_spectra[3,1,:] = np.roll(wirc_object.source_list[0].trace_spectra[3,1,:],-3)</span>
+
+<span class="c1">#     all_spec_cube.append(wirc_object.source_list[0].trace_spectra)</span>
+
+<span class="c1"># all_spec_cube = np.array(all_spec_cube)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="Step-2:-Plot-the-spectra-and-make-sure-they’re-aligned-and-ready-to-go">
+<h2>Step 2: Plot the spectra and make sure they’re aligned and ready to go<a class="headerlink" href="#Step-2:-Plot-the-spectra-and-make-sure-they’re-aligned-and-ready-to-go" title="Permalink to this headline">¶</a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fig</span><span class="p">,</span><span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="n">im</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nfiles</span><span class="p">):</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">all_spec_cube</span><span class="p">[</span><span class="n">im</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,:])</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">all_spec_cube</span><span class="p">[</span><span class="n">im</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,:])</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">all_spec_cube</span><span class="p">[</span><span class="n">im</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,:])</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">all_spec_cube</span><span class="p">[</span><span class="n">im</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">,:])</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mi">2000</span><span class="p">,</span><span class="mi">30000</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mi">2000</span><span class="p">,</span><span class="mi">30000</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mi">2000</span><span class="p">,</span><span class="mi">30000</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mi">2000</span><span class="p">,</span><span class="mi">30000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(-2000, 30000)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence_10_1.png" src="../_images/tutorials_WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence_10_1.png" />
+</div>
+</div>
+<p>Things look good here, so let’s move on. If the spectra aren’t aligned, then go back to the last tutorial and remind yourself how to align a spectral cube.</p>
+</div>
+<div class="section" id="Step-3:-Calculate-q-and-u-for-each-pair-of-HWP-positions.">
+<h2>Step 3: Calculate <em>q</em> and <em>u</em> for each pair of HWP positions.<a class="headerlink" href="#Step-3:-Calculate-q-and-u-for-each-pair-of-HWP-positions." title="Permalink to this headline">¶</a></h2>
+<p>Here we create an array of <em>q</em> and <em>u</em> by using the “Flux Ratio” method”. The following function automatically sorts the input data based on the HWP angles that you pass to it and subtracts the appropriate spectra from each other (i.e. 45 degrees from 0 degrees, and 67.5 degrees from 22.5 degrees).</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">q</span><span class="p">,</span><span class="n">u</span><span class="p">,</span><span class="n">q_err</span><span class="p">,</span><span class="n">u_err</span><span class="p">,</span><span class="n">q_ind</span><span class="p">,</span><span class="n">u_ind</span> <span class="o">=</span> <span class="n">source_utils</span><span class="o">.</span><span class="n">compute_qu_for_obs_sequence</span><span class="p">(</span><span class="n">all_spec_cube</span><span class="p">,</span><span class="n">hwp_ang</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>The <em>q</em> and <em>u</em> arrays that are output contain the <em>q</em> and <em>u</em> measurements for each pair of HWP positions. Recall that WIRC+Pol obtains a measurement of both <em>q</em> and <em>u</em> for a given pair of HWP positions. The dimensions of the <em>q</em> and <em>u</em> (also q_err and u_err) are [n_measurements/2, wavelength]. To know the HWP position for a given <em>q</em> or <em>u</em> measurement was made, you can look at the q_ind parameter.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="nb">print</span><span class="p">(</span><span class="n">q_ind</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1]
+</pre></div></div>
+</div>
+<p>An index of ‘0’ indicates that q measurement was obtained with the HWP at angles 0 and 45 degrees (i.e. the measurement was made with the Top-Left and Bottom-Right spectral trace pair). An index of ‘1’ indicates that the q measurement was obtained with HWP angles of 45 and 67.5 degrees (i.e. the measurement was made with the Top-Right and Bottom-Left spectral trace).</p>
+<div class="section" id="Now-calculate-p-and-:math:`theta`">
+<h3>Now calculate <em>p</em> and <em>:math:`theta`</em><a class="headerlink" href="#Now-calculate-p-and-:math:`theta`" title="Permalink to this headline">¶</a></h3>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">u</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">theta</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">q</span><span class="p">))</span>
+<span class="n">theta</span><span class="p">[</span><span class="n">theta</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">180</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="Now-we-can-plot-our-results">
+<h4>Now we can plot our results<a class="headerlink" href="#Now-we-can-plot-our-results" title="Permalink to this headline">¶</a></h4>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fig</span><span class="p">,</span><span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="mi">12</span><span class="p">))</span>
+
+<span class="n">n_q</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">q_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">q</span><span class="p">[:,:],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">u_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">u</span><span class="p">[:,:],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">q_mean_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">q_err</span><span class="p">))</span>
+
+<span class="n">p_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q_mean</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">u_mean</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">theta_mean</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">u_mean</span><span class="p">,</span><span class="n">q_mean</span><span class="p">))</span>
+<span class="n">theta_mean</span><span class="p">[</span><span class="n">theta_mean</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">180</span>
+
+
+<span class="n">q_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">q</span><span class="p">[:,:],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">u_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">u</span><span class="p">[:,:],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">p_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q_median</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">u_median</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">theta_median</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">u_median</span><span class="p">,</span><span class="n">q_median</span><span class="p">))</span>
+<span class="n">theta_median</span><span class="p">[</span><span class="n">theta_median</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">180</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">15</span><span class="p">):</span>
+    <span class="c1">#Plot Q</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q</span><span class="p">[</span><span class="n">i</span><span class="p">,:],</span> <span class="s1">&#39;C0&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">2</span><span class="o">/</span><span class="n">n_q</span><span class="p">)</span>
+
+    <span class="c1">#Plot U</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">,:],</span> <span class="s1">&#39;C1&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">2</span><span class="o">/</span><span class="n">n_q</span><span class="p">)</span>
+
+    <span class="c1">#Plot p</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">p</span><span class="p">[</span><span class="n">i</span><span class="p">,:],</span> <span class="s1">&#39;C2&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">2</span><span class="o">/</span><span class="n">n_q</span><span class="p">)</span>
+
+    <span class="c1">#Plot theta</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">theta</span><span class="p">[</span><span class="n">i</span><span class="p">,:],</span> <span class="s1">&#39;C3&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">2</span><span class="o">/</span><span class="n">n_q</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_mean</span><span class="p">,</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">u_mean</span><span class="p">,</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">p_mean</span><span class="p">,</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">theta_mean</span><span class="p">,</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Mean&#39;</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_median</span><span class="p">,</span><span class="s1">&#39;k--&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Median&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">u_median</span><span class="p">,</span><span class="s1">&#39;k--&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Median&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">p_median</span><span class="p">,</span><span class="s1">&#39;k--&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Median&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">theta_median</span><span class="p">,</span><span class="s1">&#39;k--&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Median&quot;</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1.15</span><span class="p">,</span><span class="mf">1.35</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1.15</span><span class="p">,</span><span class="mf">1.35</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1.15</span><span class="p">,</span><span class="mf">1.35</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1.15</span><span class="p">,</span><span class="mf">1.35</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">0.01</span><span class="p">,</span><span class="mf">0.06</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.06</span><span class="p">,</span><span class="mf">0.02</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">140</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;u&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;theta&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Wavelength [$\mu m$]&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Wavelength [$\mu m$]&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Wavelength [$\mu m$]&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Wavelength [$\mu m$]&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Text(0.5, 0, &#39;Wavelength [$\\mu m$]&#39;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence_21_1.png" src="../_images/tutorials_WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence_21_1.png" />
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="Step-4:-Calibrate-q-and-u">
+<h2>Step 4: Calibrate q and u<a class="headerlink" href="#Step-4:-Calibrate-q-and-u" title="Permalink to this headline">¶</a></h2>
+<p>Before using this data, we want to apply our instrument calibration that accounts for non-ideal polarimetric efficiencies and crosstalks. The details of how this correction was determined will be published in an upcoming paper.</p>
+<p>The correction was calculated by treating each trace pair (i.e. [top left,bottom right] and [top right,bottom left]) as independent polarimeters, so we first need to split them up to do the correction.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1">#Well apply the correction only to the mean values.</span>
+
+<span class="c1">#For the first trace pair</span>
+<span class="n">q_mean0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="n">q_ind</span><span class="o">==</span><span class="mi">0</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">u_mean0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">u_ind</span><span class="o">==</span><span class="mi">0</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">q_mean_err0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">q_err</span><span class="p">[</span><span class="n">q_ind</span><span class="o">==</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">u_mean_err0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">u_err</span><span class="p">[</span><span class="n">u_ind</span><span class="o">==</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+<span class="n">p_mean0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q_mean0</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">u_mean0</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">theta_mean0</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">u_mean0</span><span class="p">,</span><span class="n">q_mean0</span><span class="p">))</span>
+<span class="n">theta_mean0</span><span class="p">[</span><span class="n">theta_mean0</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">180</span>
+
+<span class="c1">#For the second trace pair</span>
+<span class="n">q_mean1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="n">q_ind</span><span class="o">==</span><span class="mi">1</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">u_mean1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">u_ind</span><span class="o">==</span><span class="mi">1</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">q_mean_err1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">q_err</span><span class="p">[</span><span class="n">q_ind</span><span class="o">==</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">u_mean_err1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">u_err</span><span class="p">[</span><span class="n">u_ind</span><span class="o">==</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+<span class="n">p_mean1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q_mean1</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">u_mean1</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">theta_mean1</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">u_mean1</span><span class="p">,</span><span class="n">q_mean0</span><span class="p">))</span>
+<span class="n">theta_mean1</span><span class="p">[</span><span class="n">theta_mean1</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">180</span>
+
+
+<span class="c1">#We&#39;ll just apply it to the mean q and u</span>
+<span class="n">q_cal0</span><span class="p">,</span><span class="n">u_cal0</span><span class="p">,</span><span class="n">q_err0</span><span class="p">,</span><span class="n">u_err0</span> <span class="o">=</span> <span class="n">wc</span><span class="o">.</span><span class="n">calibrate_qu</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_mean0</span><span class="p">,</span><span class="n">u_mean0</span><span class="p">,</span><span class="n">q_mean_err0</span><span class="p">,</span><span class="n">u_mean_err0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">q_cal1</span><span class="p">,</span><span class="n">u_cal1</span><span class="p">,</span><span class="n">q_err1</span><span class="p">,</span><span class="n">u_err1</span> <span class="o">=</span> <span class="n">wc</span><span class="o">.</span><span class="n">calibrate_qu</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_mean1</span><span class="p">,</span><span class="n">u_mean1</span><span class="p">,</span><span class="n">q_mean_err1</span><span class="p">,</span><span class="n">u_mean_err1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+<span class="c1">#The last argument in the above function corresponds to which qind (i.e. trace pair) you&#39;re</span>
+<span class="c1">#currently calibrating</span>
+
+<span class="c1">#Calculat the calibrated p and theta</span>
+<span class="n">p_cal0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q_cal0</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">u_cal0</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">theta_cal0</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">u_cal0</span><span class="p">,</span><span class="n">q_cal0</span><span class="p">))</span>
+<span class="n">theta_cal0</span><span class="p">[</span><span class="n">theta_cal0</span><span class="o">&lt;</span><span class="mi">10</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">180</span>
+
+<span class="n">p_cal1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">q_cal1</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">u_cal1</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">theta_cal1</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">u_cal1</span><span class="p">,</span><span class="n">q_cal1</span><span class="p">))</span>
+<span class="n">theta_cal1</span><span class="p">[</span><span class="n">theta_cal1</span><span class="o">&lt;</span><span class="mi">10</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">180</span>
+</pre></div>
+</div>
+</div>
+<p>Now let’s compare the before and after and include the expected polarization.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1">#Get the Serkowski law for Elias 2-14</span>
+
+<span class="n">p_elias</span><span class="p">,</span><span class="n">q_elias</span><span class="p">,</span><span class="n">u_elias</span> <span class="o">=</span> <span class="n">source_utils</span><span class="o">.</span><span class="n">serkowski_polarization</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="mf">0.74</span><span class="p">,</span><span class="mf">0.0656</span><span class="p">,</span><span class="mf">1.17</span><span class="p">,</span><span class="n">theta</span><span class="o">=</span><span class="mi">182</span><span class="p">)</span>
+
+
+<span class="n">fig</span><span class="p">,</span><span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="mi">12</span><span class="p">))</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_mean0</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean Trace 0&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">u_mean0</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean Trace 0&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">p_mean0</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean Trace 0&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">theta_mean0</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Mean Trace 0&#39;</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_mean1</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean Trace 1&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">u_mean1</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean Trace 1&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">p_mean1</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Mean Trace 1&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">theta_mean1</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Mean Trace 1&#39;</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_cal0</span><span class="p">,</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Calibrated Trace 0&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">u_cal0</span><span class="p">,</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Calibrated Trace 0&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">p_cal0</span><span class="p">,</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Calibrated Trace 0&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">theta_cal0</span><span class="p">,</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Calibrated Trace 0&quot;</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_cal1</span><span class="p">,</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Calibrated Trace 1&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">u_cal1</span><span class="p">,</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Calibrated Trace 1&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">p_cal1</span><span class="p">,</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Calibrated Trace 1&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">theta_cal1</span><span class="p">,</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Calibrated Trace 1&quot;</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">q_elias</span><span class="p">,</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Whittet et al. Serkowski&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">u_elias</span><span class="p">,</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Whittet et al. Serkowski&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">p_elias</span><span class="p">,</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Whittet et al. Serkowski&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span><span class="n">wvs</span><span class="o">*</span><span class="mi">0</span><span class="o">+</span><span class="mi">182</span><span class="p">,</span><span class="s1">&#39;k&#39;</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Whittet et al. Serkowski&quot;</span><span class="p">)</span>
+
+
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1.15</span><span class="p">,</span><span class="mf">1.35</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1.15</span><span class="p">,</span><span class="mf">1.35</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1.15</span><span class="p">,</span><span class="mf">1.35</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1.15</span><span class="p">,</span><span class="mf">1.35</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">0.01</span><span class="p">,</span><span class="mf">0.06</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.06</span><span class="p">,</span><span class="mf">0.02</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">140</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;u&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;theta&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Wavelength [$\mu m$]&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Wavelength [$\mu m$]&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Wavelength [$\mu m$]&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Wavelength [$\mu m$]&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Text(0.5, 0, &#39;Wavelength [$\\mu m$]&#39;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence_26_1.png" src="../_images/tutorials_WIRC+Pol_Tutorial_3-Reducing_a_Modulation_Sequence_26_1.png" />
+</div>
+</div>
+<p>With this dataset we’re not exactly matching as well as we should be to the Whittet et al values, but we’re much closer! The mismatch is perhaps related to the background subtraction used to extract the data or possibly the quality of our current instrument mode – a work in progress!</p>
+<p>If you have a set of polarized standard measurements you can create your own calibration using the function: <code class="docutils literal notranslate"><span class="pre">wirc_drp.utils.calibration.make_instrument_calibration()</span></code></p>
+<p>Congrats on making it through the tutorial!</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="WIRC+Pol_Tutorial_2-Reducing_a_Dataset.html" class="btn btn-neutral float-left" title="Tutorial 2: WIRC+Pol Dataset Reduction Tutorial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Max Millar-Blanchaer, Kaew Tinyanont and others
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

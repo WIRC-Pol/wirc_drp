@@ -9,6 +9,7 @@ from astropy.io import ascii as asci
 from astropy.io import fits 
 from wirc_drp.utils import spec_utils as su
 from wirc_drp.utils.image_utils import findTrace
+from wirc_drp.utils.calibration import calibrate_qu
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib as mpl
@@ -95,10 +96,10 @@ def get_angles_widths_from_list(filelist, data_dir = '', source_number = 0):
             print('Widths or angles not available')
     return np.array(widths), np.array(angles)
 
-#POLARIZATION CALCULATION HELPER
+# POLARIZATION CALCULATION HELPER
 # q, u, q_err, u_err, q_position, u_position = compute_qu(spec1, spec2, HWP1, HWP2)
-#helper function to compute q and u given two spectra cubes
-def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ratio'):
+# helper function to compute q and u given two spectra cubes
+def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ratio', sign = '-'):
     """
     compute_qu is a helper function that takes two spectral cubes, each with the dimensions of (4,3,spec_pix)
     with two orthogonal HWP angles (0 and 45 or 22.5 and 67.5), then compute q and u
@@ -122,7 +123,7 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
     #stack spectra
     # if spec1.shape != spec2.shape:
     if ((round(HWP1,2) - round(HWP2,2))%45) >0.01: #add some tolerance
-        print(np.abs((HWP1 - HWP2)%45))
+        # print(np.abs((HWP1 - HWP2)%45))
         print("Error, halfwave plate angles (%f, %f) are not orthogonal."%(HWP1,HWP2))
         return None
     else:
@@ -142,10 +143,16 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
 
             #now determine which is which
             sampling_angles_0 = np.array([135, 45, 90,0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
-            sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
-            sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
+            if sign == '-':
+                sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
+                sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
+            elif sign == '+':
+                sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
+                sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg. 
             signs = np.sign(sampling_angles_2 - sampling_angles_1) # 0 - 45 is +q, 22.5 - 67.5 is +u
-
+            # print(sampling_angles_1)
+            # print(sampling_angles_2)
+            # print(signs)
             #q's are those with sampling_angles_1 = 0 or 90 and sampling_angles_2 = 90 or 0
             q_ind = np.where(np.logical_or(sampling_angles_1 == 0, sampling_angles_1 == 90))
             u_ind = np.where(np.logical_or(sampling_angles_1 == 45, sampling_angles_1 == 135))
@@ -166,8 +173,14 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
         elif method == 'flux_ratio':
             #First, figure out the sampling angles
             sampling_angles_0 = np.array([135, 45, 90, 0]) #THIS IS FROM UL, LR, UR, LL = U-, U+, Q-, Q+ as determined from twilight. 
-            sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
-            sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
+            # sampling_angles_0 = np.array([0, 90, 45, 135])
+            if sign == '-':
+                sampling_angles_1 = (sampling_angles_0 - 2*(HWP1))%180 #angles are mod 180 deg.  
+                sampling_angles_2 = (sampling_angles_0 - 2*(HWP2))%180 #angles are mod 180 deg. 
+            elif sign=='+':
+                sampling_angles_1 = (sampling_angles_0 + 2*(HWP1))%180 #angles are mod 180 deg.  
+                sampling_angles_2 = (sampling_angles_0 + 2*(HWP2))%180 #angles are mod 180 deg.    
+            # print(HWP1, HWP2)             
             # print(sampling_angles_1)
             # print(sampling_angles_2)
             #indices (non elegant solution...)
@@ -204,7 +217,6 @@ def compute_qu(spec1, spec2, HWP1, HWP2, run_alignment = True, method = 'flux_ra
             return q, u, q_err, u_err, None, None
 
         
-
 def group_HWP(HWP_set):
     """
     Helper function to compute_qu_for_obs_sequence. It groups given list of HWP angles into sets of two orthogonal observations. 
@@ -212,6 +224,7 @@ def group_HWP(HWP_set):
     Input: HWP_set, a vector of all half wave plate angles in the observing compute_qu_for_obs_sequence
     Output: Two arrays each for sets of 0/45 deg and another for 22.5/67.5. compute_qu_for_obs_sequence can then use this info to call 
             compute_qu to compute qu for each appropriate pair.  
+            Another array to record pairless indices. 
     """
     # #HWP_index determine which pair is q and which is u. If HWP = 0 or 45, HWP_ind = 0; if HWP = 22.5, 67.5, HWP_ind = 1
     # #So HWP_ind = 0; LL, UR is q, LR, UL is u. Flipped for HWP_ind = 1
@@ -239,7 +252,12 @@ def group_HWP(HWP_set):
     
     # pairs_0 = np.stack([set_0[0], set_45[0]], axis = 1) #This is an array with shape (N/4, 2), each element is 2 indices of best 0, 45 pair.
     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
-    return pairs_0, pairs_225
+
+    #Report indices that didn't get paired up. 
+    # args = np.arange(len(HWP_set))
+    # paired = np.concatenate([pairs_0.flatten(), pairs_225.flatten()])
+    # pair_less = np.setdiff1d(args, paired)
+    return pairs_0, pairs_225#, pair_less
 
 # def null_qu(HWP_set):
 #     """
@@ -261,7 +279,8 @@ def group_HWP(HWP_set):
 #     # pairs_225 = np.stack([set_225[0], set_675[0]], axis = 1)
 #     return pairs_0, pairs_225   
 
-def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, method = 'flux_ratio'):
+def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_alignment = True, 
+                                method = 'flux_ratio', sign = '-', broadband=False):
     """
     This function takes a set of aligned spectra along with a set of HWP angles, both with the same length, 
     and call compute_qu to measure polarization q and u. 
@@ -271,10 +290,14 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
         HWP_set: a vector of length N, prescribing the half wave plate angle for each of the frame in obs_set. Values should be 0, 45, 22.5, 67.5 for double diff. 
                  if there is an offset from this orthogonal set, indicae so in HWP_offset
         HWP_offset: a float indicating the zeropoint of the HWP angle. We proceed with HWP_set - HWP_offset.
+        method: either the flux ratio method ("flux_ratio";Kaew to insert reference here) or double differencing ("double_difference")
 
     Output:
         q, q_err, u, u_err **currently single differencing in time. Can do double difference manually afterward. This may change. 
     """
+
+
+    
     #First, check length
     if spectra_cube.shape[0] != len(HWP_set):
         raise ValueError("Lengths of spectra_cube and HWP_set are not equal.")
@@ -290,10 +313,18 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     if set(HWP_final) != all_ang:
         raise ValueError("HWP set doesn't have all 4 angles or have wrong angles: %s"%str(set(HWP_final)))
 
+    #If we only want the broadband value, then collapse all the spetra
+    if broadband: 
+        spectra_cube = np.sum(spectra_cube,axis=3)
+
+
     #Arrange the sequence into best pairs of 0/45 and 22.5/67.5 to compute qu
     pairs_0, pairs_225 = group_HWP(HWP_final)
     # print( pairs_0, pairs_225)
     #First deal with observations with HWP angles 0/45. Go through the list and compute q and u for each pair
+
+    #Get rid of observations that have no pair, print report. 
+    # spectra_cube_with_pair = 
 
     all_q0 = []
     all_u0 = []
@@ -302,9 +333,11 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     all_qind0 = []
     all_uind0 = []
 
+    ind_of_obs = [] #This record the index of observations
+
     for i in pairs_0:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
-                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
+                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method, sign = sign)
         if method == 'flux_ratio':
             all_q0    += [q[0]]
             all_u0    += [u[0]]
@@ -320,6 +353,8 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
             all_qind0 += [0]
             all_uind0 += [1]
 
+        ind_of_obs += [np.mean(i)] #average between the two indices of the observations is recorded
+
     #Now deal with observations with HWP angles 22.5/67.5. 
 
     all_q225 = []
@@ -331,7 +366,7 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
 
     for i in pairs_225:
         q, u, q_err, u_err, q_ind, u_ind = compute_qu(spectra_cube[i[0]], spectra_cube[i[1]], \
-                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method)
+                                                        HWP_final[i[0]], HWP_final[i[1]], run_alignment, method = method, sign = sign)
         # print(q[0].shape)
         if method == 'flux_ratio':
             all_q225    += [q[0]]
@@ -348,6 +383,9 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
             all_qind225 += [1]
             all_uind225 += [0]
 
+        ind_of_obs += [np.mean(i)] #average between the two indices of the observations is recorded
+
+
     #Original:
     # all_q       = np.array(all_q0 + all_q225    )
     # all_u       = np.array(all_u0 + all_u225     )
@@ -359,46 +397,61 @@ def compute_qu_for_obs_sequence(spectra_cube, HWP_set, HWP_offset = 0, run_align
     #Now we want to return to the original measurement order, so we interleave the two sets: 
     #For now we do this by finding the indexes of the 0 and 22.5 waveplate positions. 
     #If there's a screwy HWP Sequence this will get messed up. 
-    first_inds = np.where(HWP_set ==0 )[0]//2
-    second_inds = np.where(HWP_set == 22.5 )[0]//2
+#     first_inds = np.where(HWP_set ==0 )[0]//2
+#     second_inds = np.where(HWP_set == 22.5 )[0]//2
     
-   # import pdb;pdb.set_trace()
-    all_q = np.empty((np.shape(all_q0)[0]+np.shape(all_q225)[0],np.shape(all_q0)[1]))
-    all_q[first_inds] = all_q0
-    all_q[second_inds] = all_q225
+#    # import pdb;pdb.set_trace()
+#     all_q = np.empty((np.shape(all_q0)[0]+np.shape(all_q225)[0],np.shape(all_q0)[1]))
+#     all_q[first_inds] = all_q0
+#     all_q[second_inds] = all_q225
 
-    all_u = np.empty((np.shape(all_u0)[0]+np.shape(all_u225)[0],np.shape(all_u0)[1]))
-    all_u[first_inds] = all_u0
-    all_u[second_inds] = all_u225
+#     all_u = np.empty((np.shape(all_u0)[0]+np.shape(all_u225)[0],np.shape(all_u0)[1]))
+#     all_u[first_inds] = all_u0
+#     all_u[second_inds] = all_u225
 
-    all_qerr = np.empty((np.shape(all_qerr0)[0]+np.shape(all_qerr225)[0],np.shape(all_qerr0)[1]))
-    all_qerr[first_inds] = all_qerr0
-    all_qerr[second_inds] = all_qerr225
+#     all_qerr = np.empty((np.shape(all_qerr0)[0]+np.shape(all_qerr225)[0],np.shape(all_qerr0)[1]))
+#     all_qerr[first_inds] = all_qerr0
+#     all_qerr[second_inds] = all_qerr225
 
-    all_uerr = np.empty((np.shape(all_uerr0)[0]+np.shape(all_uerr225)[0],np.shape(all_uerr0)[1]))
-    all_uerr[first_inds] = all_uerr0
-    all_uerr[second_inds] = all_uerr225
+#     all_uerr = np.empty((np.shape(all_uerr0)[0]+np.shape(all_uerr225)[0],np.shape(all_uerr0)[1]))
+#     all_uerr[first_inds] = all_uerr0
+#     all_uerr[second_inds] = all_uerr225
 
-    #These next few lines are probably overkill, but copying and pasting is easier than thinking. 
-    all_qind = np.empty((np.shape(all_qind0)[0]+np.shape(all_qind225)[0]))
-    all_qind[first_inds] = all_qind0
-    all_qind[second_inds] = all_qind225   
+#     #These next few lines are probably overkill, but copying and pasting is easier than thinking. 
+#     all_qind = np.empty((np.shape(all_qind0)[0]+np.shape(all_qind225)[0]))
+#     all_qind[first_inds] = all_qind0
+#     all_qind[second_inds] = all_qind225   
 
-    all_uind = np.empty((np.shape(all_uind0)[0]+np.shape(all_uind225)[0]))
-    all_uind[first_inds] = all_uind0
-    all_uind[second_inds] = all_uind225  
+#     all_uind = np.empty((np.shape(all_uind0)[0]+np.shape(all_uind225)[0]))
+#     all_uind[first_inds] = all_uind0
+#     all_uind[second_inds] = all_uind225  
+
+    #Instead of assuming regular HWP sequence, we will sort using ind_of_obs
+    sort_by_obs = (np.array(ind_of_obs)).argsort()
+
+    # print(ind_of_obs)
+    # print(sort_by_obs)
+
+    #add results from all_*0 and all_*225 together, then sort by the observation indices. 
+    all_q      = np.array(all_q0    + all_q225      )[sort_by_obs] 
+    all_u      = np.array(all_u0    + all_u225      )[sort_by_obs]
+    all_qerr   = np.array(all_qerr0 + all_qerr225   )[sort_by_obs]
+    all_uerr   = np.array(all_uerr0 + all_uerr225   )[sort_by_obs]
+    all_qind   = np.array(all_qind0 + all_qind225   )[sort_by_obs]
+    all_uind   = np.array(all_uind0 + all_uind225   )[sort_by_obs]
+
 
     return all_q, all_u, all_qerr, all_uerr, all_qind, all_uind
-
 
 def find_best_background(list_of_files, separation_threshold = 2, verbose = False):
     """
     find_best_background takes a list of headers from WIRC+Pol observations and find best background frame for each element. 
     Here are the conditions: 
-        Same HWP angle
-        With telescope offset greater than 'separation_threshold' (default at 2 arcsec)
-        Closest in time
-        Not already used by another frame (this condition is relaxed if every frame is used up. Say we have extra set of exposures at position A)
+    
+    Same HWP angle
+    With telescope offset greater than 'separation_threshold' (default at 2 arcsec)
+    Closest in time
+    Not already used by another frame (this condition is relaxed if every frame is used up. Say we have extra set of exposures at position A)
 
     Input:
         list_of_headers: a list of fits headers of the observations. 
@@ -507,11 +560,15 @@ def compute_p_and_pa( q, u, q_err, u_err):
     
     return p, p_corr, dp, theta, dtheta
 
-def serkowski_polarization(wl, wl_max, p_max, K):
+def serkowski_polarization(wl, wl_max, p_max, K, theta = None):
     """Compute the polarization spectrum expected from ISP Serkowski law
     p_serk = p_max * exp(-K ln^2(wl_max/wl))
     """
-    return p_max * np.exp( -K * (np.log(wl_max/wl))**2)
+    p_spec = p_max * np.exp( -K * (np.log(wl_max/wl))**2)
+    if theta is None:
+        return p_spec 
+    else:
+        return p_spec, p_spec*np.cos(2*np.radians(theta)), p_spec*np.sin(2*np.radians(theta)) 
 
 def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='mean',xlow=1.15,xhigh=1.325,
     ylow=-0.02,yhigh=0.02,target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,
@@ -545,8 +602,8 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
     p_dd = np.sqrt(q_dd**2+u_dd**2)
     theta_dd = 0.5*np.degrees(np.arctan2(u_dd,q_dd))
     theta_dd[theta_dd < 0] +=180
-   # q_dd = q
-   # u_dd = u
+    #    q_dd = q
+    #    u_dd = u
 
     #Doing this because of how things changed in compute polarization
 
@@ -633,8 +690,8 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
     theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
     theta_mean[theta_mean < theta_wrap] +=180
 
-    q_mean_err = np.sqrt(np.sum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
-    u_mean_err = np.sqrt(np.sum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
+    q_mean_err = np.sqrt(np.nansum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
+    u_mean_err = np.sqrt(np.nansum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
     p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
     p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
     theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
@@ -938,7 +995,8 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
 
 def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_bins=1,mode='mean',xlow=1.15,xhigh=1.325,ylow=-0.02,yhigh=0.02,
     target_name="",date="19850625",t_ext = 0,binsize=1,theta_wrap=180,ldwarf=False,show=True,
-    save_path=None,legend_loc ="bottom left",all_theta=False,cmap=None,dt=None,period=None):
+    save_path=None,legend_loc ="bottom left",all_theta=False,cmap=None,dt=None,period=None,
+    calibrate=False):
     '''
     Make a summary plot of polarization. The formatting assumes that the inputs (q,u,qerr,uerr)
     are the output of compute_qu_for_obs_sequence. 
@@ -960,7 +1018,7 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
     time_snip = spec_cube.shape[0] % (n_time_bins*4)
     time_bin_size = (spec_cube.shape[0]-time_snip)//n_time_bins
 
-    good_wvs = (master_wvs > 1.175) & (master_wvs < 1.325)
+    good_wvs = (master_wvs > 1.17) & (master_wvs < 1.32)
     spec_cube = copy.deepcopy(spec_cube[:,:,:,good_wvs])
     master_wvs = copy.deepcopy(master_wvs[good_wvs])
     master_spec = copy.deepcopy(master_spec[good_wvs])
@@ -1010,6 +1068,24 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         # u_dd_err = np.sqrt(np.sum((uerr**2),axis=1))/uerr.shape[1]
         u_dd_err = uerr
 
+        if calibrate: 
+            #Calibrate the data
+            q_cal = []
+            u_cal =[]
+            qerr_cal = []
+            uerr_cal = []
+
+            for i,ind in enumerate(qind):
+                q_new,u_new,qerr_new,uerr_new = calibrate_qu(master_wvs,q[i],u[i],qerr[i],uerr[i],ind)
+                q_cal.append(q_new)
+                u_cal.append(u_new)
+                qerr_cal.append(qerr_new)
+                uerr_cal.append(uerr_new)
+            q = np.array(q_cal)
+            u = np.array(u_cal)
+            qerr = np.array(qerr_cal)
+            uerr = np.array(uerr_cal)
+
         #Now calculate the mean or median
         from astropy import stats
         q_mean = np.zeros([q.shape[1]]) #We name this mean, though it could either be Mean or Median
@@ -1036,8 +1112,8 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
         theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
         theta_mean[theta_mean < theta_wrap] +=180
 
-        q_mean_err = np.sqrt(np.sum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
-        u_mean_err = np.sqrt(np.sum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
+        q_mean_err = np.sqrt(np.nansum(q_dd_err**2,axis=0))/q_dd_err.shape[0]
+        u_mean_err = np.sqrt(np.nansum(u_dd_err**2,axis=0))/q_dd_err.shape[0]
         p_mean_err = np.sqrt(q_mean**2*q_mean_err**2+u_mean**2*u_mean_err**2)/p_mean
         p_std = np.sqrt(q_mean**2*q_std**2+u_mean**2*u_std**2)/p_mean
         theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
@@ -1627,3 +1703,154 @@ def fit_aperture(source, exp_time, stretch=1, plot=True, savefig=None, verbose=T
         SNRs.append(np.round(SNR, 2))
 
     return apertures, total_flux, SNRs
+
+def plot_source_summary(wirc_object,source_no=0,png_filename = None,save=False,verbose=False):
+    '''
+    Produces a plot that summarizes the extraction of a given source
+    '''
+    
+    wircpol_source = wirc_object.source_list[source_no]
+    
+    try: 
+        bkg_method = wirc_object.header['BKG_MTHD']
+    except:
+        bkg_method = "Unknown"
+        
+    ### Set up the Figure
+    fig = plt.figure(figsize=(20,10),constrained_layout=True)
+#     fig.suptitle(wirc_object.header["FN"])
+    gs = fig.add_gridspec(4, 9)
+    
+    #x-range
+    min_x = np.min(wircpol_source.trace_spectra[0,0])
+    xrange = wircpol_source.trace_spectra[0,0,-1]-wircpol_source.trace_spectra[0,0,0]
+    
+        
+    ### First the raw data
+    trace_image_percentiles = np.percentile(wircpol_source.trace_images.flatten(),[5,95])
+
+    vmin=trace_image_percentiles[0]
+    vmax=trace_image_percentiles[1]
+    ax1 = fig.add_subplot(gs[0, 0])    
+    ax2 = fig.add_subplot(gs[0, 1])    
+    ax3 = fig.add_subplot(gs[0, 2])    
+    ax4 = fig.add_subplot(gs[0, 3])    
+    
+    ax1.imshow(wircpol_source.trace_images[0],vmin=vmin,vmax=vmax)
+    ax2.imshow(wircpol_source.trace_images[1],vmin=vmin,vmax=vmax)
+    ax3.imshow(wircpol_source.trace_images[2],vmin=vmin,vmax=vmax)
+    im = ax4.imshow(wircpol_source.trace_images[3],vmin=vmin,vmax=vmax)
+    plt.colorbar(im)
+
+    ax1.set_ylabel('Calibrated Data')
+    
+    ### Then the DQ frame
+    # if wircpol_source.trace_images_DQ is not None:
+    #     vmin=0
+    #     vmax=3
+    #     ax5 = fig.add_subplot(gs[1, 0])    
+    #     ax6 = fig.add_subplot(gs[1, 1])    
+    #     ax7 = fig.add_subplot(gs[1, 2])    
+    #     ax8 = fig.add_subplot(gs[1, 3])    
+
+    #     ax5.imshow(wircpol_source.trace_images_DQ[0],vmin=vmin,vmax=vmax)
+    #     ax6.imshow(wircpol_source.trace_images_DQ[1],vmin=vmin,vmax=vmax)
+    #     ax7.imshow(wircpol_source.trace_images_DQ[2],vmin=vmin,vmax=vmax)
+    #     im = ax8.imshow(wircpol_source.trace_images_DQ[3],vmin=vmin,vmax=vmax)
+    #     plt.colorbar(im)
+    
+    # ax5.set_ylabel('Data Quality')
+    
+    ### Now plot the background
+    ax9 = fig.add_subplot(gs[1, 0])    
+    ax10 = fig.add_subplot(gs[1, 1])    
+    ax11 = fig.add_subplot(gs[1, 2])    
+    ax12 = fig.add_subplot(gs[1, 3])
+    if wircpol_source.trace_bkg is not None:
+        trace_image_percentiles = np.percentile(wircpol_source.trace_bkg.flatten(),[5,95])
+        vmin=trace_image_percentiles[0]
+        vmax=trace_image_percentiles[1]
+
+        ax9.imshow(wircpol_source.trace_bkg[0],vmin=vmin,vmax=vmax)
+        ax10.imshow(wircpol_source.trace_bkg[1],vmin=vmin,vmax=vmax)
+        ax11.imshow(wircpol_source.trace_bkg[2],vmin=vmin,vmax=vmax)
+        im = ax12.imshow(wircpol_source.trace_bkg[3],vmin=vmin,vmax=vmax)
+        plt.colorbar(im)
+    else: 
+        ax9.text(0.1,0.5,"No Trace Background \nFound")
+    
+    ax9.set_ylabel('Background')
+
+    ### Now plot the data - background
+    ax5 = fig.add_subplot(gs[2, 0])    
+    ax6 = fig.add_subplot(gs[2, 1])    
+    ax7 = fig.add_subplot(gs[2, 2])    
+    ax8 = fig.add_subplot(gs[2, 3])
+    if wircpol_source.trace_bkg is not None:
+        trace_image_percentiles = np.percentile((wircpol_source.trace_images-wircpol_source.trace_bkg).flatten(),[5,95])
+        vmin=trace_image_percentiles[0]
+        vmax=trace_image_percentiles[1]
+
+        ax5.imshow(wircpol_source.trace_images[0]-wircpol_source.trace_bkg[0],vmin=vmin,vmax=vmax)
+        ax6.imshow(wircpol_source.trace_images[1]-wircpol_source.trace_bkg[1],vmin=vmin,vmax=vmax)
+        ax7.imshow(wircpol_source.trace_images[2]-wircpol_source.trace_bkg[2],vmin=vmin,vmax=vmax)
+        im = ax8.imshow(wircpol_source.trace_images[3]-wircpol_source.trace_bkg[3],vmin=vmin,vmax=vmax)
+        plt.colorbar(im)
+    else: 
+        ax5.text(0.1,0.5,"No Trace Background \nFound")
+    
+    ax5.set_ylabel('Data - Background')
+
+
+    ### And the rotated trace to be extracted
+    ax13 = fig.add_subplot(gs[3, 0])    
+    ax14 = fig.add_subplot(gs[3, 1])    
+    ax15 = fig.add_subplot(gs[3, 2])    
+    ax16 = fig.add_subplot(gs[3, 3])
+    if wircpol_source.trace_images_extracted is not None:
+        trace_image_percentiles = np.percentile(wircpol_source.trace_images_extracted.flatten(),[5,95])
+        vmin=trace_image_percentiles[0]
+        vmax=trace_image_percentiles[1]
+
+        ax13.imshow(wircpol_source.trace_images_extracted[0],vmin=vmin,vmax=vmax)
+        ax14.imshow(wircpol_source.trace_images_extracted[1],vmin=vmin,vmax=vmax)
+        ax15.imshow(wircpol_source.trace_images_extracted[2],vmin=vmin,vmax=vmax)
+        im = ax16.imshow(wircpol_source.trace_images_extracted[3],vmin=vmin,vmax=vmax)
+        plt.colorbar(im)
+    
+    ax13.set_ylabel('For extraction')
+    
+    ### Plot the spectra
+    
+    ax17 = fig.add_subplot(gs[:,4:])
+    if wircpol_source.trace_spectra is not None:
+        trace_image_percentiles = np.percentile(wircpol_source.trace_spectra[:,1].flatten(),[5,95])
+        vmin=np.min(wircpol_source.trace_spectra[:,1])
+        vmax=np.max(wircpol_source.trace_spectra[:,1])*1.2
+        ax17.plot(wircpol_source.trace_spectra[0,0],wircpol_source.trace_spectra[0,1],label="Top-Left")
+        ax17.plot(wircpol_source.trace_spectra[1,0],wircpol_source.trace_spectra[1,1],label="Bottom-Right")
+        ax17.plot(wircpol_source.trace_spectra[2,0],wircpol_source.trace_spectra[2,1],label="Top-Right")
+        ax17.plot(wircpol_source.trace_spectra[3,0],wircpol_source.trace_spectra[3,1],label="Bottom-Left")
+        ax17.set_ylim(vmin,vmax)
+        ax17.legend(fontsize=16,loc="lower center")
+        ax17.set_xlabel("Wavelength")
+        ax17.set_ylabel("Counts")
+        
+    ##### print up some info
+    ax17.text(min_x+0.01*xrange,0.96*vmax,wirc_object.header["FN"],fontsize=16)
+    ax17.text(min_x+0.01*xrange,0.92*vmax,"Background Method: {}".format(bkg_method),fontsize=16)
+    np.set_printoptions(precision=1)
+    ax17.text(min_x+0.01*xrange,0.88*vmax,"Trace Widths: {} arcsec, FWHM".format(wircpol_source.spectra_widths*2.355*0.25),fontsize=16)
+    ax17.text(min_x+0.01*xrange,0.84*vmax,"Trace Angles: {}".format(wircpol_source.spectra_angles),fontsize=16)
+    
+    if save:
+        if png_filename is None:
+            output_dir = wirc_object.header["FN"].rsplit("/",1)[-2]+"/pngs/"
+            
+            if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                    
+            png_filename = output_dir + wirc_object.header["FN"].rsplit("/",1)[-1].rsplit(".",1)[-2]+".png"
+        if verbose:
+            print("Saving a file to {}".format(png_filename))
+        plt.savefig(png_filename,dpi=200,bbox_inches="tight")

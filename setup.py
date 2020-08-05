@@ -8,6 +8,8 @@ setup(
 	version='0.1', 
 	packages=find_packages(),
 	license="TBD",
-	install_requires=['opencv-python','scikit-image'],
+	install_requires=['photutils','opencv-python','scikit-image'],
 	long_description=open('README.md').read()
 	)
+
+

@@ -524,7 +524,7 @@ def injectSourceToFiles(filelist, out_path, obj_list, seeing_pix = 4, \
         # out_file[0].header['HISTORY'] += ''
         new_name = 'injected_'+input_image.split('/')[-1] 
         print(new_name)
-        out_file.writeto(out_path+new_name)
+        out_file.writeto(out_path+new_name, overwrite = True)
 
 
 
@@ -547,16 +547,16 @@ def fakeSourceCreator(mag, spec_template_fn, pol_template_fn, pos):
         a list describing an object. The format is [spec_wl, spec_flux, (x,y), pol_vec], 
         which is for the source injection functions
     """
-    spec_template = asci.read(spec_template_fn)
-    pol_template = asci.read(pol_template_fn)
+    spec_template = np.load(spec_template_fn)
+    pol_template = np.load(pol_template_fn)
 
     wl = spec_template[0]
     #interpolate if the wl grid are not the same
-    if pol_template[0] != wl:
-        pol_interp = interp1d(pol_template[0], pol_template[1], bounds_error=False)
-        pol_vec = pol_interp(wl)
-        ang_interp = interp1d(pol_template[0], pol_template[2], bounds_error=False)
-        ang_vec = ang_interp(wl)
+    # if pol_template[0] != wl:
+    pol_interp = interp1d(pol_template[0], pol_template[1], bounds_error=False)
+    pol_vec = pol_interp(wl)
+    ang_interp = interp1d(pol_template[0], pol_template[2], bounds_error=False)
+    ang_vec = ang_interp(wl)
 
     #normalize the flux (assuming given F_lambda)
     #Get J band info
@@ -567,7 +567,7 @@ def fakeSourceCreator(mag, spec_template_fn, pol_template_fn, pos):
     #J band zero point
     J_zero_lam = 3.147e-9 #W/m^2/micron (sorry, it's the unit the old function used)
     desired_flux = J_zero_lam * 10**(-mag/2.5)
-    #Now, this is the actual spectrum in the W/m^2/micron unit at the given mag in J band
-    actual_spec = spec_template[1] * desired_flux/int_flux 
+    #Now, this is the actual spectrum in the W/m^2/micron unit at the given mag in J band. th is the J band throughput
+    actual_spec = spec_template[1] * desired_flux/int_flux * th
 
     return [wl, actual_spec, (pos[0],pos[1]), [wl, pol_vec, ang_vec]]
