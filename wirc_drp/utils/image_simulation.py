@@ -46,12 +46,15 @@ def polarize(wl, spec, polarization, polarization_angle):
     #calculate the Stokes parameter
     I = spec /2
     Q = polarization * I * np.cos(2*np.radians(polarization_angle))
-    U = Q * np.tan(2*np.radians(polarization_angle))
+    U = polarization * I * np.sin(2*np.radians(polarization_angle))
+    print(2*np.radians(polarization_angle))
+    # U = Q * np.tan(2*np.radians(polarization_angle))
     #calculate relative fluxes
-    Q1 = (Q + I)/2
+    Q1 = (I + Q)/2
     Q2 = (I - Q)/2
-    U1 = (U + I)/2
+    U1 = (I + U)/2
     U2 = (I - U)/2
+    print(np.nanmean(Q1), np.nanmean(Q2), np.nanmean(U1), np.nanmean(U2))
     return [Q1,Q2,U1,U2] #generate 4 flux vectors for image generation
     
 def locationInIm(wl, location_in_fov, offset_list = None):
@@ -445,8 +448,9 @@ def injectSource(base_image, obj_list, HWP_angle, seeing_pix,  exp_time, filter_
         pol_wl   = i[3][0]
         pol_frac = i[3][1]
         pol_ang  = i[3][2]
-        pol_ang_actual = pol_ang + 2*HWP_angle 
-        _, image = makeObject([i[0], i[1]], exp_time, seeing_pix, [pol_wl, pol_frac, pol_ang_actual], i[2], filter_name = filter_name, \
+        pol_ang_actual = pol_ang+2*HWP_angle 
+
+        _, image = makeObject([i[0], i[1]], exp_time, seeing_pix, [pol_wl, pol_frac,pol_ang_actual], i[2], filter_name = filter_name, \
                                     offset_list = offset_list, angle_list = angle_list) #good ordering!
         # direct_im += direct_image
         scene += image
