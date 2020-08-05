@@ -1379,9 +1379,13 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None)
                                     # [np.poly1d(polynomial_coefficients[2*(p_order+1):3*(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[3*(p_order+1):])(wvs[i])]]),
                                     # [q[i],u[i]])
 
+        # qu = np.linalg.solve(np.array([[np.poly1d(polynomial_coefficients[:(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[2*(p_order+1):3*(p_order+1)])(wvs[i])],
+        #                             [np.poly1d(polynomial_coefficients[1*(p_order+1):2*(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[3*(p_order+1):])(wvs[i])]]),
+        #                             [q[i],u[i]])
+        #Add a correct transposition by Max
         qu = np.linalg.solve(np.array([[np.poly1d(polynomial_coefficients[:(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[2*(p_order+1):3*(p_order+1)])(wvs[i])],
-                                    [np.poly1d(polynomial_coefficients[1*(p_order+1):2*(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[3*(p_order+1):])(wvs[i])]]),
-                                    [q[i],u[i]])
+                            [np.poly1d(polynomial_coefficients[1*(p_order+1):2*(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[3*(p_order+1):])(wvs[i])]]).T,
+                            [q[i],u[i]])
         calibrated_q[i] = qu[0]
         calibrated_u[i] = qu[1]
     
