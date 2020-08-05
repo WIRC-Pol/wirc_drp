@@ -1476,13 +1476,13 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
 
         data_q_pair1[:,i] = np.mean(qs[qind==0],axis=0)
         data_u_pair1[:,i] = np.mean(us[qind==0],axis=0)
-        data_qerrs_pair1[:,i] = np.sqrt(np.nanmean(q_errs[qind==0]**2))
-        data_uerrs_pair1[:,i] = np.sqrt(np.nanmean(u_errs[uind==0]**2))
+        data_qerrs_pair1[:,i] = np.sqrt(np.nanmean(q_errs[qind==0]**2, axis = 0))
+        data_uerrs_pair1[:,i] = np.sqrt(np.nanmean(u_errs[uind==0]**2, axis = 0))
 
         data_q_pair2[:,i] = np.nanmean(qs[qind==1],axis=0)
         data_u_pair2[:,i] = np.nanmean(us[qind==1],axis=0)
-        data_qerrs_pair2[:,i] = np.sqrt(np.nanmean(q_errs[qind==1]**2))
-        data_uerrs_pair2[:,i] = np.sqrt(np.nanmean(u_errs[uind==1]**2))
+        data_qerrs_pair2[:,i] = np.sqrt(np.nanmean(q_errs[qind==1]**2, axis = 0))
+        data_uerrs_pair2[:,i] = np.sqrt(np.nanmean(u_errs[uind==1]**2, axis = 0))
 
 
     #Ok Data Loaded. 
@@ -2060,8 +2060,8 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         axes[1,1].set_xlim(wlMin,wlMax)
 
         axes[0,0].set_ylim(0.,1)
-        axes[0,1].set_ylim(-0.5,0)
-        axes[1,0].set_ylim(-0.5,0)
+        # axes[0,1].set_ylim(-0.5,0)
+        # axes[1,0].set_ylim(-0.5,0)
         axes[1,1].set_ylim(-1.,0)
     
         axes[0,0].set_ylabel(r"$\eta_Q$")
