@@ -1328,7 +1328,7 @@ def PCA_subtraction(im, ref_lib, num_PCA_modes):
     else:
         print('Unsupported datatype for variable: num_PCA_modes. Variable must be either int or 1-D np.ndarray')
 
-def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None):
+def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None, filter_name = 'J'):
     '''
     Apply the system calibration to q and u measurements. 
     We treat the two channels as separate polarimeters, so we need the qind and uind outputs from compute_qu
@@ -1349,19 +1349,35 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None)
 
     if polynomial_coefficients is None:
         #Use a default - This may not be the best. 
-        print('Use default polynomial coefficients')
+        # print('Use default polynomial coefficients')
         p_order = 3
-        if trace_pair == 0:
-            #The significant digits obviously do not reflect any sort of precision, they were just copied from a print statement
-            polynomial_coefficients = [1.0661088786177235, -1.7766660078904966, -0.9104631784841992, 2.64385024405191, 1.5556061450161307, 
-            -2.2859691699493196, -1.3236229169762028, 1.1997075732954565, 1.5948731326729078, -2.7313632656048603, -1.336150812645815, 
-            2.4183673050376795, 0.7061071621209151, -1.3258240570135162, -0.8934473062537349, 1.278423011227312]
-        elif trace_pair == 1:
-            polynomial_coefficients = [2.0007323143773106, -3.0369726347949255, -1.6047715137239809, 3.520169106554172, 1.0160466675010955, 
-            -1.506184150325796, -0.8435650594122575, 0.5977833961415223, 0.970243805370234, -1.844184514283156, -0.8705549135207251, 
-            1.729607916941225, -1.4177309303796624, 1.7492484823597478, 0.9317500283173318, -1.6170943302985021]
-        else: 
-            raise ValueError("trace_pair must be 0 or 1 if you're not going to provide polynomial coefficients yourself")
+        if filter_name == 'J':
+            if trace_pair == 0:
+                #The significant digits obviously do not reflect any sort of precision, they were just copied from a print statement
+                polynomial_coefficients = [1.0661088786177235, -1.7766660078904966, -0.9104631784841992, 2.64385024405191, 1.5556061450161307, 
+                -2.2859691699493196, -1.3236229169762028, 1.1997075732954565, 1.5948731326729078, -2.7313632656048603, -1.336150812645815, 
+                2.4183673050376795, 0.7061071621209151, -1.3258240570135162, -0.8934473062537349, 1.278423011227312]
+            elif trace_pair == 1:
+                polynomial_coefficients = [2.0007323143773106, -3.0369726347949255, -1.6047715137239809, 3.520169106554172, 1.0160466675010955, 
+                -1.506184150325796, -0.8435650594122575, 0.5977833961415223, 0.970243805370234, -1.844184514283156, -0.8705549135207251, 
+                1.729607916941225, -1.4177309303796624, 1.7492484823597478, 0.9317500283173318, -1.6170943302985021]
+            else: 
+                raise ValueError("trace_pair must be 0 or 1 if you're not going to provide polynomial coefficients yourself")
+        if filter_name == 'H':
+            #added by Kaew, 2020 Aug 5. Update with more calibrators 
+            if trace_pair == 0:
+                #The significant digits obviously do not reflect any sort of precision, they were just copied from a print statement
+                polynomial_coefficients = [  40.04671309, -196.45543544,  321.07126032, -174.01831713,  -35.1547421,
+                    173.4368242,  -285.21023814,  155.58952982,  -25.82357749 , 128.13907361,
+                    -211.91874356,  116.32848158,  -12.98555672 ,  63.02204449 ,-101.94539788,
+                    54.09290844]
+            elif trace_pair == 1:
+                polynomial_coefficients = [  -5.94946748,   29.97163516,  -49.76867186,   27.92233232,    3.70026191,
+                    -17.53991802,   27.09486885,  -14.32795721, -119.39618238 , 595.6099552,
+                    -989.82653105,  547.33403619,   38.16112609, -194.79298122,  331.20177183,
+                    -188.33218698]
+            else: 
+                raise ValueError("trace_pair must be 0 or 1 if you're not going to provide polynomial coefficients yourself")         
     else:
         p_order = len(polynomial_coefficients)//4-1
     
