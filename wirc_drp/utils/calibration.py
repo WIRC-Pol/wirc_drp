@@ -1367,15 +1367,18 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None,
             #added by Kaew, 2020 Aug 5. Update with more calibrators 
             if trace_pair == 0:
                 #The significant digits obviously do not reflect any sort of precision, they were just copied from a print statement
-                polynomial_coefficients = [  40.04671309, -196.45543544,  321.07126032, -174.01831713,  -35.1547421,
-                    173.4368242,  -285.21023814,  155.58952982,  -25.82357749 , 128.13907361,
-                    -211.91874356,  116.32848158,  -12.98555672 ,  63.02204449 ,-101.94539788,
-                    54.09290844]
+                polynomial_coefficients = [  33.18893514, -161.06562703,  260.40224193, -139.46774815,  -33.47332221,
+                    163.4816129,  -266.14738034 , 143.69674646 , -21.67663915 , 106.71231986,
+                    -175.12316663,   95.32841661,  -11.40111624 ,  56.82655761 , -94.4359178,
+                    51.44079277]
             elif trace_pair == 1:
-                polynomial_coefficients = [  -5.94946748,   29.97163516,  -49.76867186,   27.92233232,    3.70026191,
-                    -17.53991802,   27.09486885,  -14.32795721, -119.39618238 , 595.6099552,
-                    -989.82653105,  547.33403619,   38.16112609, -194.79298122,  331.20177183,
-                    -188.33218698]
+                polynomial_coefficients = [   9.12906718,  -44.42516964,   72.2958087,   -38.59110824 ,   0.70542828,
+                    -2.43761409,    1.86984743,   -0.44573883 , -28.98536332,  143.90712343,
+                    -238.03876351,  130.5840938 ,  -26.73483128,  131.72164093, -216.04484581,
+                    117.13296957]
+
+                    
+
             else: 
                 raise ValueError("trace_pair must be 0 or 1 if you're not going to provide polynomial coefficients yourself")         
     else:
