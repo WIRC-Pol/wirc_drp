@@ -12,15 +12,14 @@ from wirc_drp import constants
 from wirc_drp import version # For versioning (requires gitpython 'pip install gitpython')
 from wirc_drp.masks import * ### Make sure that the wircpol/DRP/mask_design directory is in your Python Path!
 import wirc_drp
-mask_path = (wirc_drp.__path__)[0]+'/masks/' 
 from astropy import time as ap_time, coordinates as coord, units as u
 from astropy.stats import sigma_clipped_stats
 
 import pdb
 import copy 
 
-import wirc_drp
 mask_path = (wirc_drp.__path__)[0]+'/masks/'
+non_linearity_path = (wirc_drp.__path__)[0]+'/specification/'
 
 class wirc_data(object):
     """
@@ -183,6 +182,13 @@ class wirc_data(object):
         if not self.calibrated:
             if correct_nonlinearity:
                 n_coadds = self.header["COADDS"]
+                if nonlinearity_array is None:
+                    #if want to correct non linearity but an array is not provided, use a default file stored in the specification directory.
+                    nonlinearity_fname = non_linearity_path+'NL_polyfit_maps-beta.fits'
+                    print("Use default non linearity map: "+nonlinearity_fname)
+                    with fits.open(nonlinearity_fname) as hdu:
+                        nonlinearity_array = hdu[1].data
+                #Rn the correction
                 self.full_image = calibration.correct_nonlinearity(
                                       self.full_image, n_coadds,
                                       nonlinearity_array)
