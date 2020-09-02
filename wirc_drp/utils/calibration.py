@@ -1390,7 +1390,9 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None,
     calibrated_u_err = copy.deepcopy(uerr)
     
     #For each wavelength, invert 2x2 matrix
-    for i in range(len(wvs)):
+    for i in range(np.size(wvs)):
+        if np.size(wvs) == 1:
+            wvs = [wvs]
         # print(wvs[i])
         # print(np.array([[np.poly1d(polynomial_coefficients[:(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[1*(p_order+1):2*(p_order+1)])(wvs[i])],
                                     # [np.poly1d(polynomial_coefficients[2*(p_order+1):3*(p_order+1)])(wvs[i]),np.poly1d(polynomial_coefficients[3*(p_order+1):])(wvs[i])]]))
@@ -1407,6 +1409,7 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None,
                             [q[i],u[i]])
         calibrated_q[i] = qu[0]
         calibrated_u[i] = qu[1]
+
     
         #Get the inverse to calculate the errors
         inverse_matrix = np.linalg.inv([[np.polyval(polynomial_coefficients[:(p_order+1)],wvs[i]),np.polyval(polynomial_coefficients[(p_order+1):2*(p_order+1)],wvs[i])],
@@ -1422,7 +1425,6 @@ def calibrate_qu(wvs,q,u,qerr,uerr,trace_pair=None,polynomial_coefficients=None,
         calibrated_u_err[i] = np.sqrt(np.diag(cov_new)[1])
     
     return calibrated_q,calibrated_u,calibrated_q_err,calibrated_u_err
-
 
 def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name = 'J', p_order=3,
             plot_residuals=True,plot_starting_position=False,plot_best_fit=True,
@@ -1448,8 +1450,8 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
     # assert p_order > 2, "You really want p_order > 2"
 
     if filter_name == 'J':
-        wlMin = 1.165
-        wlMax = 1.325
+        wlMin = 1.18
+        wlMax = 1.31
         wlMin_plot = 1.15
         wlMax_plot = 1.35
     elif filter_name == 'H':
@@ -2100,9 +2102,6 @@ def make_instrument_calibration(wvs,dir_list,serkowski_array,names,filter_name =
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     return results1.x,results2.x        
-
-
-
 
 def serkowski_polarization(wl, wl_max, p_max, K, theta = None):
     """Compute the polarization spectrum expected from ISP Serkowski law
