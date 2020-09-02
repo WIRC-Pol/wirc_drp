@@ -589,7 +589,7 @@ def plot_pol_summary(master_wvs,spec,q,u,qerr,uerr,qinds=None,uinds=None,mode='m
     u_dd = copy.deepcopy(u)
     # q_dd = np.nanmean(q,axis=1)
 
-    good_wvs = (master_wvs > 1.175) & (master_wvs < 1.325)
+    good_wvs = (master_wvs > 1.15) & (master_wvs < 1.35)
     q_dd = q_dd[:,good_wvs]
     u_dd = u_dd[:,good_wvs]
     qerr = qerr[:,good_wvs]
@@ -1014,11 +1014,10 @@ def plot_pol_summary_time_bins(master_wvs,master_spec,spec_cube,hwp_ang,n_time_b
     fig,axes = plt.subplots(3,2,figsize=(16,20))
 
     #Cycle through the time bins
-
     time_snip = spec_cube.shape[0] % (n_time_bins*4)
     time_bin_size = (spec_cube.shape[0]-time_snip)//n_time_bins
 
-    good_wvs = (master_wvs > 1.17) & (master_wvs < 1.32)
+    good_wvs = (master_wvs > 1.15) & (master_wvs < 1.33)
     spec_cube = copy.deepcopy(spec_cube[:,:,:,good_wvs])
     master_wvs = copy.deepcopy(master_wvs[good_wvs])
     master_spec = copy.deepcopy(master_spec[good_wvs])
@@ -1718,7 +1717,7 @@ def plot_source_summary(wirc_object,source_no=0,png_filename = None,save=False,v
         
     ### Set up the Figure
     fig = plt.figure(figsize=(20,10),constrained_layout=True)
-#     fig.suptitle(wirc_object.header["FN"])
+    # fig.suptitle(wirc_object.header["FN"])
     gs = fig.add_gridspec(4, 9)
     
     #x-range
