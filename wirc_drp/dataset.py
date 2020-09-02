@@ -22,19 +22,33 @@ warnings.filterwarnings('ignore')
 def reduce_dataset(filelist, source_pos, bkg_fnames = None, output_path = "./",verbose=True, 
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
 "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,less_verbose=True,
-parallel=False,n_processes=None,nclosest=None,same_HWP=True,sub_bar=False,method='optimal_extraction',
+parallel=False,n_processes=None,nclosest=None,same_HWP=False,sub_bar=False,method='optimal_extraction',
 fixed_width = None):
-    '''
-    A function that reduces a dataset given a list of calibrated science and background files
+    """A function that reduces a dataset given a list of calibrated science and background files
 
-    It will first extract spectra using all of the bkg_methods then calculate the polarization of each one. 
+    It will first extract spectra using all of the bkg_methods then calculate the polarization of each one (though the polarization calculation is not yet implemented)
 
+    Args:
+        filelist ([str]): A list of input filepaths
+        source_pos ([float]): The source positions [x,y]
+        bkg_fnames ([str], optional): An optional list of background files. Most of the most successful background subtraction methods need this. Defaults to None.
+        output_path (str, optional): Where do you want to put all the extracted wirc_object files? I recommend elsewhere. Defaults to "./".
+        verbose (bool, optional): How many details do you want?. Defaults to True.
+        bkg_methods (list, optional): A list of all the background subtraction methods that you want to use. Defaults to ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median", "slit_background","cutout_median"].
+        n_pca (list, optional): A list of PCA modes you want to use for PCA bkg subtraction. Defaults to [1,3,5,10,15,20,40].
+        in_slit (bool, optional): Is the source in the slit? If not, then some of the bkg_methods won't be used. Defaults to False.
+        less_verbose (bool, optional): Somewhere between 'verbose' and silence. Defaults to True.
+        parallel (bool, optional): Do you want to run things in parallel? Probably, but sometimes it breaks. Defaults to False.
+        n_processes ([type], optional): If you're parallel how many processes do you want to run? Defaults to None.
+        nclosest ([type], optional): When building a library of background files to use (from bkg_fnames) for each file you can choose to only use the nclosests files in time. Defaults to None (i.e. use all).
+        same_HWP (bool, optional): When choosing bkg files, do you want to use those only with the same HWP angle? Defaults to False.
+        sub_bar (bool, optional): Do you want to subtract the back of doom? If you have no background files and you're relying on cutout_median, then maybe. Defaults to False.
+        method (str, optional): The method you want to use to extract the spectrum. Defaults to 'optimal_extraction'. Another option is 'sum_across_trace'
+        fixed_width ([type], optional): You can manually set the width of the extraction region rather than finding it automatically. This can sometimes be more stable. You can pass either a single value or a list of 4 - one for each trace. Defaults to None.
 
-    Inputs:
-        filelist    -   A python list of filepaths
-        source_pos  -   The source position in detector [x,y]
-        bkg_fnames -   A python list of background files (this can be one file)
-    '''
+    Raises:
+        ValueError: Raised in your filelist is empty
+    """
 
     #Set up all the directories and filenames: 
     # fnames = np.sort(glob.glob(filelist))
@@ -177,14 +191,25 @@ fixed_width = None):
 def extract_single_file(filename,source_pos, bkg_fnames,output_path = "./",output_suffix="",verbose=True,
 bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_image = False,sub_bar = False,
 nclosest=None,same_HWP=True,method='optimal_extraction',fixed_width=None):
-    '''
-    Opens a file, generates a background image, extracts the source spectra and then saves them to the output path
+    """Opens a file, generates a background image, extracts the source spectra and then saves them to the output path
 
-    Inputs:
-    filename    -   The filename of a calibrated wirc object file
-    source_pos  -   The source position in [x,y] format
-    '''
-
+    Args:
+        filename ([str]): The filename of a calibrated wirc object file
+        source_pos ([float]): The source positions [x,y]
+        bkg_fnames ([str], optional): An optional list of background files. Most of the most successful background subtraction methods need this. Defaults to None.
+        output_path (str, optional): Where do you want to put all the extracted wirc_object files? I recommend elsewhere. Defaults to "./".
+        output_suffix (str, optional): If you'd like you could append a new suffix to all the output filenames. Defaults to "".
+        verbose (bool, optional): How many details do you want?. Defaults to True.
+        bkg_method (str, optional): Which background method are we using?. Defaults to None.
+        num_PCA_modes (list of ints, optional): A list of PCA modes you want to use for PCA bkg subtraction. Defaults to None.
+        update_cutout_backgrounds (bool, optional): After you perform background subtraction, do you want to top it up with a median subtraction of the cutout? Defaults to False.
+        save_full_image (bool, optional): When you save the wirc_object, do you want to save the full image and save some space? Defaults to False.
+        sub_bar (bool, optional): Do you want to subtract the back of doom? If you have no background files and you're relying on cutout_median, then maybe. Defaults to False.
+        nclosest ([type], optional): When building a library of background files to use (from bkg_fnames) for each file you can choose to only use the nclosests files in time. Defaults to None (i.e. use all).
+        same_HWP (bool, optional): When choosing bkg files, do you want to use those only with the same HWP angle? Defaults to False.
+        method (str, optional): The method you want to use to extract the spectrum. Defaults to 'optimal_extraction'. Another option is 'sum_across_trace'
+        fixed_width ([type], optional): You can manually set the width of the extraction region rather than finding it automatically. This can sometimes be more stable. You can pass either a single value or a list of 4 - one for each trace. Defaults to None.
+    """
     try:
         tmp_data = wo.wirc_data(wirc_object_filename=filename,verbose=verbose)
         tmp_data.source_list = []
@@ -238,9 +263,12 @@ nclosest=None,same_HWP=True,method='optimal_extraction',fixed_width=None):
         print(str(e))
 
 def extract_single_file_parallel_helper(args):
-    '''
-    This is here to help the parallelization of extract_single_file by unpacking the arguments
-    '''
+    """This is here to help the parallelization of extract_single_file by unpacking the arguments
+
+    Args:
+        args ([list]): a big list of all the arguments to be passed to extract_single_file
+    """    
+   
     try: 
         extract_single_file(args[0],args[1],args[2],output_path = args[3],output_suffix = args[4],
         verbose = args[5],bkg_method = args[6],num_PCA_modes = args[7],
@@ -255,20 +283,33 @@ bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_medi
 "slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,parallel=False,
 n_processes=None,n_per_group=4,nclosest=None,same_HWP=False,sub_bar=False,groupA=None,
 groupB=None,method='optimal_extraction',fixed_width=None):
-    '''
-    A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
+    """A function that reduces a dataset given a list of calibrated science files, assuming you observed in an ABAB dither pattern.
     It uses each position as backgrond for the other. 
     
     It assumes by default that you have 4 images per dither position, but you can change this with the
     n_per_group keyword, or you can manually input groupA and groupB indices. 
 
-    Inputs:
-        filelist    -   A python list of filepaths
-        background_list -   A python list of background files (this can be one file)
-        groupA      - the indices of the files in position A
-        groupB      - the indicies of the files in position B. Both groupA and groupB must be set. 
-    '''
-
+    Args:
+        filelist ([str]): A list of input filepaths
+        source_posA ([float]): The source positions [x,y] of in the A position
+        source_posB ([float]): The source positions [x,y] of in the B position
+        output_path (str, optional): Where do you want to put all the extracted wirc_object files? I recommend elsewhere. Defaults to "./".
+        verbose (bool, optional): How many details do you want?. Defaults to True.
+        less_verbose (bool, optional): Somewhere between 'verbose' and silence. Defaults to True.
+        bkg_methods (list, optional): A list of all the background subtraction methods that you want to use. Defaults to ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median", "slit_background","cutout_median"].
+        n_pca (list, optional): A list of PCA modes you want to use for PCA bkg subtraction. Defaults to [1,3,5,10,15,20,40].
+        in_slit (bool, optional): Is the source in the slit? If not, then some of the bkg_methods won't be used. Defaults to False.
+        parallel (bool, optional): Do you want to run things in parallel? Probably, but sometimes it breaks. Defaults to False.
+        n_processes ([type], optional): If you're parallel how many processes do you want to run? Defaults to None.
+        n_per_group (int, optional): The number of files per dither group (e.g. at the A position). Defaults to 4.
+        nclosest ([type], optional): When building a library of background files to use (from bkg_fnames) for each file you can choose to only use the nclosests files in time. Defaults to None (i.e. use all).
+        same_HWP (bool, optional): When choosing bkg files, do you want to use those only with the same HWP angle? Defaults to False.
+        sub_bar (bool, optional): Do you want to subtract the back of doom? If you have no background files and you're relying on cutout_median, then maybe. Defaults to False.
+        groupA ([type], optional): You can optionally provide the indices in the filelist that correspond to group A. You also need to provide groupB. Defaults to None.
+        groupB ([type], optional): You can optionally provide the indices in the filelist that correspond to group A. You also need to provide groupA. Defaults to None.
+        method (str, optional): The method you want to use to extract the spectrum. Defaults to 'optimal_extraction'. Another option is 'sum_across_trace'
+        fixed_width ([type], optional): You can manually set the width of the extraction region rather than finding it automatically. This can sometimes be more stable. You can pass either a single value or a list of 4 - one for each trace. Defaults to None.
+    """
     nfiles = np.size(filelist)
     ngroups = nfiles//(2*n_per_group)
 
@@ -306,16 +347,33 @@ groupB=None,method='optimal_extraction',fixed_width=None):
 
 def reduce_dataset_distance(filelist, source_pos, output_path = "./",verbose=False, less_verbose=True,
 bkg_methods = ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median",
-"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,delta_ra=10,
+"slit_background","cutout_median"],n_pca=[1,3,5,10,15,20,40], in_slit=False,delta_ra=15,
 parallel=False,n_processes=None,parallel_finding=True,fixed_width=None):
-    '''
-    A version of reduce_dataset that has an ra distance cutoff to use in determining what background to use. 
+    """A version of reduce_dataset that has an ra distance cutoff to use in determining what background to use. 
 
     This one works best when you have a bright-ish source that can be automatically found by the source finder. 
     
     This one is also a bit out of date compared to reduce_dataset and reduced_ABAB_dataset
-    
-    '''
+
+    Args:
+        filelist ([str]): A list of input filepaths
+        source_pos ([float]): The source positions [x,y]
+        bkg_fnames ([str], optional): An optional list of background files. Most of the most successful background subtraction methods need this. Defaults to None.
+        output_path (str, optional): Where do you want to put all the extracted wirc_object files? I recommend elsewhere. Defaults to "./".
+        verbose (bool, optional): How many details do you want?. Defaults to True.
+        less_verbose (bool, optional): Somewhere between 'verbose' and silence. Defaults to True.
+        bkg_methods (list, optional): A list of all the background subtraction methods that you want to use. Defaults to ["shift_and_subtract","PCA","median_ref","scaled_bkg","simple_median", "slit_background","cutout_median"].
+        n_pca (list, optional): A list of PCA modes you want to use for PCA bkg subtraction. Defaults to [1,3,5,10,15,20,40].
+        in_slit (bool, optional): Is the source in the slit? If not, then some of the bkg_methods won't be used. Defaults to False.
+        delta_ra (int, optional): The minimum distance in pixels you want before you consider a file a good background. Defaults to 15.
+        parallel (bool, optional): Do you want to run things in parallel? Probably, but sometimes it breaks. Defaults to False.
+        n_processes ([type], optional): If you're parallel how many processes do you want to run? Defaults to None.
+        parallel_finding (bool, optional): Do you want to find the sources in parallel as well? Defaults to True.
+        fixed_width ([type], optional): You can manually set the width of the extraction region rather than finding it automatically. This can sometimes be more stable. You can pass either a single value or a list of 4 - one for each trace. Defaults to None.
+
+    Raises:
+        ValueError: [description]
+    """
 
     ### Get all the RAS
     ## Old Version
@@ -486,7 +544,7 @@ parallel=False,n_processes=None,parallel_finding=True,fixed_width=None):
 
 def do_parallel_extraction(source_pos,filelist,ras,delta_ra,outdir,verbose,bkg_method,npca,update_bkg_cutouts,save,n_processes,method):
     '''
-    Another helping function
+    A helper function for reduce_data_distance
     '''
     import multiprocessing as mp
     #Make the pool
