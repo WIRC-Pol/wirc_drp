@@ -780,6 +780,13 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
         bkg = bkg_copy[j,:,:]
         DQ = DQ_copy[j,:,:]
 
+        if fixed_width is not None:
+            if np.size(fixed_width) == 4:
+                this_fixed_width = fixed_width[j]
+
+            else: 
+                this_fixed_width = fixed_width
+
         if verbose:
             if mode=='pol':
                 print("Extracting spectra from trace {} of 4".format(j))
