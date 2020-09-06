@@ -366,7 +366,8 @@ def locate_traces(science, sky = None, sigmalim = 5, plot = False, verbose = Fal
 
     return locs
 
-def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, verbose = False, cutout_size = None, slit_pos = 'slitless', trace_template = None,max_offset=10):
+def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, verbose = False, cutout_size = None, 
+                                    slit_pos = 'slitless', trace_template = None,max_offset=40):
     """
     This function grabs the upper left cutout from given x,y location of the zeroth order, then uses chi2_shift to align it
     with a trace template, then spits out the new x, y location that will center the trace. 
