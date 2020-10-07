@@ -190,7 +190,7 @@ fixed_width = None):
             
 def extract_single_file(filename,source_pos, bkg_fnames,output_path = "./",output_suffix="",verbose=True,
 bkg_method=None,num_PCA_modes=None,update_cutout_backgrounds=False,save_full_image = False,sub_bar = False,
-nclosest=None,same_HWP=True,method='optimal_extraction',fixed_width=None):
+nclosest=None,same_HWP=False,method='optimal_extraction',fixed_width=None):
     """Opens a file, generates a background image, extracts the source spectra and then saves them to the output path
 
     Args:
@@ -629,8 +629,8 @@ def plot_dataset_extraction_summary(directory,BD_all_spec_cube = None,verbose=Tr
             filelist = sorted(glob.glob(directory+"/image*.fits"))
             nfiles = len(filelist)
 
-        print(nfiles)
-        print("Found {} files".format(nfiles))
+        # print(nfiles)
+        # print("Found {} files".format(nfiles))
 
         time = np.zeros([nfiles])
 
@@ -1589,7 +1589,8 @@ def plot_bkg_method_comparison(home_directory,save=False,prefix="image",verbose=
 def plot_dataset_polarization_summary(directory,BD_all_spec_cube = None, hwp_ang = None,
                                     save=False,png_filename=None,prefix="image",verbose=True,
                                    target_name = "Unknown",nfiles=None,max_files=-1,binsize=4,
-                                     all_theta = None,ylow=-0.02,yhigh=0.02,theta_low=0,theta_high=180):
+                                     all_theta = None,ylow=-0.02,yhigh=0.02,theta_low=0,theta_high=180,
+                                     calibrate=False):
     '''
     Produces a plot that summarizes the extractions and polarization from a whole dataset. 
     '''
@@ -1846,8 +1847,9 @@ def plot_dataset_polarization_summary(directory,BD_all_spec_cube = None, hwp_ang
         theta_mean_err = 0.5*np.degrees( np.sqrt( (u_mean**2*q_mean_err**2+q_mean**2*u_mean_err**2)/(q_mean**2+u_mean**2)**2))
 
     ## Now let's calibrate!
-    q_median_pair1, u_median_pair1, q_std_pair1,u_std_pair1 = calibration.calibrate_qu(wvs_bin,q_median_pair1,u_median_pair1,q_std_pair1,u_std_pair1,trace_pair=0)
-    q_median_pair2, u_median_pair2, q_std_pair2,u_std_pair2 = calibration.calibrate_qu(wvs_bin,q_median_pair2,u_median_pair2,q_std_pair2,u_std_pair2,trace_pair=1)
+    if calibrate: 
+        q_median_pair1, u_median_pair1, q_std_pair1,u_std_pair1 = calibration.calibrate_qu(wvs_bin,q_median_pair1,u_median_pair1,q_std_pair1,u_std_pair1,trace_pair=0)
+        q_median_pair2, u_median_pair2, q_std_pair2,u_std_pair2 = calibration.calibrate_qu(wvs_bin,q_median_pair2,u_median_pair2,q_std_pair2,u_std_pair2,trace_pair=1)
     
     q_median = 0.5*(q_median_pair1+q_median_pair2)
     q_std = np.sqrt(q_std_pair1**2+q_std_pair2**2)/np.sqrt(2)
@@ -1860,6 +1862,8 @@ def plot_dataset_polarization_summary(directory,BD_all_spec_cube = None, hwp_ang
     theta_mean = 0.5*np.degrees(np.arctan2(u_mean,q_mean))
     theta_mean = theta_mean %180
     theta_mean[theta_mean < 0] += 180
+
+    p_median = np.sqrt(q_median**2+u_median**2)
 
     where_3sigma = np.where(p_mean > 3*p_mean_err)
 
@@ -1898,7 +1902,7 @@ def plot_dataset_polarization_summary(directory,BD_all_spec_cube = None, hwp_ang
     # axes[1,0].plot(wvs_bin,q_median,color='rebeccapurple',linewidth=2,label="Median Combined Traces")
 
     #u combined pair
-    axes[1,1].fill_between(wvs_bin,u_mean+u_std,u_mean-u_std,color='rebeccapurple',alpha=0.2,label="Combined")    
+    axes[1,1].fill_between(wvs_bin,u_median+u_std,u_median-u_std,color='rebeccapurple',alpha=0.2,label="Combined")    
     axes[1,1].plot(wvs_bin,u_median,color='rebeccapurple',linewidth=2)
     axes[1,1].plot(wvs_bin,u_median+u_mean_err,color='rebeccapurple',linestyle="--")
     axes[1,1].plot(wvs_bin,u_median-u_mean_err,color='rebeccapurple',linestyle="--")
