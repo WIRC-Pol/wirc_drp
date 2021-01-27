@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Installation &mdash; WIRC+Pol DRP  documentation</title>
+  <title>Basic Calibration &mdash; WIRC+Pol DRP  documentation</title>
   
 
   
@@ -36,8 +36,8 @@
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Quick Start" href="quickstart.html" />
-    <link rel="prev" title="Welcome to the WIRC+Pol DRP’s documentation site!" href="../index.html" /> 
+    <link rel="next" title="Spectral Extraction" href="spectral-extraction.html" />
+    <link rel="prev" title="Quick Start" href="quickstart.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -83,9 +83,9 @@
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="basic-calibration.html">Basic Calibration</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Basic Calibration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="spectral-extraction.html">Spectral Extraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_1-Single_File_Spectral_Extraction.html">Tutorial 1: WIRC+POL Single File Data Reduction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_2-Reducing_a_Dataset.html">Tutorial 2: WIRC+Pol Dataset Reduction Tutorial</a></li>
@@ -136,13 +136,13 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>Installation</li>
+      <li>Basic Calibration</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/usage/installation.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/usage/basic-calibration.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -179,10 +179,15 @@
     text-align: unset;
 }
 </style>
-<div class="section" id="installation">
-<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
-<p>The WIRC_DRP can be found in a public <a class="reference external" href="https://github.com/WIRC-Pol/wirc_drp">Github Repository</a>.</p>
-<p>There are several dependecies for the pipeline, but if you follow the install instructions on Github then the only one you’ll have to install manually is: <a class="reference external" href="https://github.com/keflavich/image_registration">image_registration</a>. Please pay attention to their <a class="reference external" href="https://photutils.readthedocs.io/en/stable/index.html">citation request</a>.</p>
+<div class="section" id="basic-calibration">
+<h1>Basic Calibration<a class="headerlink" href="#basic-calibration" title="Permalink to this headline">¶</a></h1>
+<p>The first step of the DRP is to apply dark subtraction and field flattening to science images. Once an image is loaded as a <code class="docutils literal notranslate"><span class="pre">wirc_data</span></code> object, the calibration is performed by the method <code class="docutils literal notranslate"><span class="pre">wirc_data.calibrate</span></code>. To do this, we need the following calibration files.</p>
+<ol class="arabic simple">
+<li><p>Master dark frame. This is a median-combined dark frames taken at the same exposure time and coadd as the science image. In case of exposure time mismatch, the DRP will automatically scale the master dark. However, this is much less reliable at subtracting numerous hot pixels in WIRC data. We typically use about 21 dark images to construct the master dark frame. This is done using the <code class="docutils literal notranslate"><span class="pre">wirc_drp.calibration.masterDark</span></code> function.</p></li>
+<li><p>Master flat frame. This is a median-combined flat frames taken using the same filter as the science image. The best practice is to use flat with the PG and the focal plane mask out of the beam. The half-wave plate is also typically removed. Twenty one 1-second exposures with the low lamp is sufficient. This is done using the <code class="docutils literal notranslate"><span class="pre">wirc_drp.calibration.masterFlat</span></code> function.</p></li>
+<li><p>Bad pixel map. In addition to the master flat, the <code class="docutils literal notranslate"><span class="pre">wirc_drp.calibration.masterFlat</span></code> function also produces a bad pixel map by finding pixels that deviate significantly in gain from the rest of the array.  This map is used later on in the reduction process to mask them out of spectral extraction.</p></li>
+</ol>
+<p>The basic calibration steps are shown in <a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_1-Single_File_Spectral_Extraction.html"><span class="doc">Tutorial 1: WIRC+POL Single File Data Reduction</span></a>.</p>
 </div>
 
 
@@ -193,10 +198,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="quickstart.html" class="btn btn-neutral float-right" title="Quick Start" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="spectral-extraction.html" class="btn btn-neutral float-right" title="Spectral Extraction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="../index.html" class="btn btn-neutral float-left" title="Welcome to the WIRC+Pol DRP’s documentation site!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="quickstart.html" class="btn btn-neutral float-left" title="Quick Start" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

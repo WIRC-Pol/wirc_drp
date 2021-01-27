@@ -1,0 +1,267 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Spectral Extraction &mdash; WIRC+Pol DRP  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 1: WIRC+POL Single File Data Reduction" href="../tutorials/WIRC%2BPol_Tutorial_1-Single_File_Spectral_Extraction.html" />
+    <link rel="prev" title="Basic Calibration" href="basic-calibration.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> WIRC+Pol DRP
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic-calibration.html">Basic Calibration</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Spectral Extraction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#inputs-for-spectral-extraction">Inputs for Spectral Extraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-options-for-spectral-extraction">Key Options for Spectral Extraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#steps-of-operation">Steps of Operation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_1-Single_File_Spectral_Extraction.html">Tutorial 1: WIRC+POL Single File Data Reduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_2-Reducing_a_Dataset.html">Tutorial 2: WIRC+Pol Dataset Reduction Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_3-Reducing_a_Modulation_Sequence.html">Tutorial 3: WIRC+Pol Modulation Sequence Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_4-Convenience%20Functions.html">WIRC+Pol Convenience Functions Tutorial</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">WIRC+Pol DRP</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Spectral Extraction</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/usage/spectral-extraction.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="spectral-extraction">
+<h1>Spectral Extraction<a class="headerlink" href="#spectral-extraction" title="Permalink to this headline">¶</a></h1>
+<p>In this step, the 2D spectrum in WIRC+Pol data is extracted into 1D spectrum. The spectral extraction step is performed by the method <code class="docutils literal notranslate"><span class="pre">wircpol_source.extract_spectra</span></code>, which directly calls the function <code class="docutils literal notranslate"><span class="pre">spec_utils.spec_extraction</span></code>. See <a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_1-Single_File_Spectral_Extraction.html"><span class="doc">Tutorial 1: WIRC+POL Single File Data Reduction</span></a> and <a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_3-Reducing_a_Modulation_Sequence.html"><span class="doc">Tutorial 3: WIRC+Pol Modulation Sequence Tutorial</span></a> for examples of how to run this function. Here we describe the inputs and each step of spectral extraction.</p>
+<div class="section" id="inputs-for-spectral-extraction">
+<h2>Inputs for Spectral Extraction<a class="headerlink" href="#inputs-for-spectral-extraction" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p>Science thumbnails: an array with shape [4, width, width] with four small thumbnails of the four spectral traces</p></li>
+<li><p>Background thumbnails: same-shape array with background thumbnails</p></li>
+<li><p>Data quality thumbnails: same-shape array containing bad pixel information</p></li>
+</ol>
+</div>
+<div class="section" id="key-options-for-spectral-extraction">
+<h2>Key Options for Spectral Extraction<a class="headerlink" href="#key-options-for-spectral-extraction" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p>Optimal extraction (<code class="docutils literal notranslate"><span class="pre">method</span> <span class="pre">=</span> <span class="pre">'optimal_extraction'</span></code>): the optimal extraction algorighm of <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract">Horne 1986</a>. This algorithm weighs the significant of each pixel by its signal to noise ratio, thereby suppressing noise from low SNR pixels. This is the default extraction algorighm.</p></li>
+<li><p>Simple extraction (<code class="docutils literal notranslate"><span class="pre">method</span> <span class="pre">=</span> <span class="pre">'sum_across_trace'</span></code>): in this simpler method, all pixels in the spatial direction are simply summed with equal weight. It may produce noisier 1D spectrum, but suffers less biases from the weighing algorithm.</p></li>
+<li><p>Bad pixel masking (<code class="docutils literal notranslate"><span class="pre">bad_pix_masking</span></code>): The optimal extraction algorighm allows us to easily mask bad pixels out from spectral extraction.</p></li>
+<li><p>Extraction Range (<code class="docutils literal notranslate"><span class="pre">spatial_sigma</span></code>): The DRP automatically detect the trace inside each thumbnail and measure its spatial profile. User can select how many “sigmas” in each direction to extract the spectrum. For example, if the DRP determines that the trace has a Gaussian profile with 2 pixel standard deviation, <code class="docutils literal notranslate"><span class="pre">spatial_sigma</span> <span class="pre">=</span> <span class="pre">5</span></code> (default) will extract the spectrum +-10 pixels from the center of the trace.</p></li>
+</ol>
+</div>
+<div class="section" id="steps-of-operation">
+<h2>Steps of Operation<a class="headerlink" href="#steps-of-operation" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p>Find Spectral Trace: the function <code class="docutils literal notranslate"><span class="pre">wirc_drp.image_utils.findTrace</span></code> is called to find the trace within each thumbnail. This function a Gaussian profile to each column in the thumbnail to find the peak pixel. It then fits a straight line through it to find the trace. It returns the location, the first estimate of the width of the trace, and the angle of the trace.</p></li>
+<li><p>Rotate Spectral Trace: WIRC+Pol produce spectral traces that are about 45 degrees with respect to the pixel grid. To extract the spectra, we first rotate this to align with the pixel grid. The angle used is either what measured by the previous step, or what supplied by the user via a keyword <code class="docutils literal notranslate"><span class="pre">trace_angle</span></code>, which is a list of four angles in degree of the four traces (per convention, the order of the four traces are always upper left, lower right, upper right, lower left). The default rotation algorithm used is openCV bicubic interpolation. (To be consistent, the rotation method can only be changed by adjusting the DRP code. See the <code class="docutils literal notranslate"><span class="pre">wirc_drp.spec_utils.frame_rotate</span></code> function for the keywords.)</p></li>
+<li><p>Determine Extraction Range: After rotation, the function <code class="docutils literal notranslate"><span class="pre">image_utils.traceWidth_after_rotation</span></code> is called to recompute the trace width. Then the function <code class="docutils literal notranslate"><span class="pre">spec_utils.determine_extraction_range</span></code> is called to robustly find the center of the trace in the rotated thumbnail, and determine the range (in pixel) in the spatial direction over which the spectrum is extracted.</p></li>
+<li><p>Run Spectral Extraction: Once the thumbnails are prepared and the extraction range determined, the <code class="docutils literal notranslate"><span class="pre">spec_utils.optimal_extraction</span></code> or <code class="docutils literal notranslate"><span class="pre">spec_utils.sum_across_trace</span></code> is called to extract the spectrum. The output from the function are: array of extracted spectra, array of flux standard deviation, spectral trace widths, spectral trace angle, and the thumbnails used for extraction (background subtracted). The DRP incorporates these outputs into the <code class="docutils literal notranslate"><span class="pre">wircpol_source</span></code> object from which the <code class="docutils literal notranslate"><span class="pre">extract_spectra</span></code> method was called.</p></li>
+</ol>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../tutorials/WIRC%2BPol_Tutorial_1-Single_File_Spectral_Extraction.html" class="btn btn-neutral float-right" title="Tutorial 1: WIRC+POL Single File Data Reduction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="basic-calibration.html" class="btn btn-neutral float-left" title="Basic Calibration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Max Millar-Blanchaer, Kaew Tinyanont and others
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

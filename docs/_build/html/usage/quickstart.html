@@ -1,0 +1,251 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Quick Start &mdash; WIRC+Pol DRP  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Basic Calibration" href="basic-calibration.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> WIRC+Pol DRP
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick Start</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#steps-of-operation">Steps of Operation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="basic-calibration.html">Basic Calibration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="spectral-extraction.html">Spectral Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_1-Single_File_Spectral_Extraction.html">Tutorial 1: WIRC+POL Single File Data Reduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_2-Reducing_a_Dataset.html">Tutorial 2: WIRC+Pol Dataset Reduction Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_3-Reducing_a_Modulation_Sequence.html">Tutorial 3: WIRC+Pol Modulation Sequence Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/WIRC%2BPol_Tutorial_4-Convenience%20Functions.html">WIRC+Pol Convenience Functions Tutorial</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">WIRC+Pol DRP</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Quick Start</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/usage/quickstart.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="quick-start">
+<h1>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this headline">¶</a></h1>
+<p>The Data Reduction Pipeline (DRP) of WIRC+Pol is a modular, object-oriented software designed to reduce data taken by the WIRC+Pol infrared (IR) spectropolarimeter on the 200-inch Hale Telescope at Palomar Observatory. It is also designed to be adaptable to reduce data from other multi-channel spectropolarimeter.</p>
+<p>There are two classes of objects the DRP uses: <code class="docutils literal notranslate"><span class="pre">wirc_data</span></code> and <code class="docutils literal notranslate"><span class="pre">wircpol_source</span></code>. Each <code class="docutils literal notranslate"><span class="pre">wirc_data</span></code> object encapsulate one image recorded by WIRC+Pol including the full image, all header informations, and its calibration and reduction history. For each <code class="docutils literal notranslate"><span class="pre">wirc_data</span></code> object, there may be a list of <code class="docutils literal notranslate"><span class="pre">wircpol_source</span></code> objects, each of which describes a source in the <code class="docutils literal notranslate"><span class="pre">wirc_data</span></code> object. This object contains the position of the source along with cutouts of the source’s four spectral traces. It may also include spectra and polarization extracted for the source. To reduce WIRC+Pol data, the DRP loads the raw image in as a <code class="docutils literal notranslate"><span class="pre">wirc_data</span></code> object, then operate on it through the following steps to produce polarization spectra.</p>
+<div class="section" id="steps-of-operation">
+<h2>Steps of Operation<a class="headerlink" href="#steps-of-operation" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p><a class="reference internal" href="basic-calibration.html"><span class="doc">Basic Calibration</span></a>: a science image is dark subtracted and flattened using dark and flat frames taken on the same night, or on a night close to the science observation. This step is performed by the method <code class="docutils literal notranslate"><span class="pre">wirc_data.calibrate</span></code>.</p></li>
+<li><p><span class="xref std std-doc">background-subtraction</span>: a calibrated science image is then background subtracted. This is a crucial step to remove polarimetric biases from the bright IR sky emission. There are several methods, but generally they rely on a library of background frames taken with some offsets from the science observations. If the slit is used, the source is typically observed at two dither positions inside the slit (AB) so images from one position can be used as background for another position. The method for generating background file for subtraction is <code class="docutils literal notranslate"><span class="pre">wirc_data.generate_bkg</span></code>.</p></li>
+<li><p>Source Finding: after background subtraction, one can either run automatic source finding using the method of <code class="docutils literal notranslate"><span class="pre">wirc_data.find_sources_v2</span></code>, or manually specify the location of the source to be extracted using the <code class="docutils literal notranslate"><span class="pre">add_source</span></code> method. Either way, this will create <code class="docutils literal notranslate"><span class="pre">wircpol_source</span></code> objects associated with that <code class="docutils literal notranslate"><span class="pre">wirc_data</span></code> object. The <code class="docutils literal notranslate"><span class="pre">get_source_cutouts</span></code> method is run to retrieve small thumbnails of the four spectral traces for extraction.</p></li>
+<li><p><a class="reference internal" href="spectral-extraction.html"><span class="doc">Spectral Extraction</span></a>: once the background image and the location of the source(s) are defined, the <code class="docutils literal notranslate"><span class="pre">extract_spectra</span></code> method can be run on each <code class="docutils literal notranslate"><span class="pre">wircpol_source</span></code> object to retrieve four flux spectra from the upper left, lower right, upper right, and lower left spectral traces of a source. The output spectral cube, which is the <code class="docutils literal notranslate"><span class="pre">trace_spectra</span></code> attribute of the <code class="docutils literal notranslate"><span class="pre">wircpol_source</span></code> object, is an array of shape [4, 3, spectral_length] where the first index is the four spectra, the second index is (wavelength, flux, flux_uncertainty), and the last index is the spectrum. For example, the upper left flux is wircpol_source.trace_spectra[0,1,:]. Wavelength calibration can be obtained by the <code class="docutils literal notranslate"><span class="pre">rough_lambda_calibration</span></code> method. Note that this step is sometimes unreliable, and the resulting wavelength solution should be verified.</p></li>
+<li><p><span class="xref std std-doc">polarization-calculation</span>: and Calibration: this calculation is performed after all science images in the dataset have been reduced and extracted. The calculation is performed on the datacube of all extracted spectra (dimensions [n_images, 4, 3, spectral_length], where n_images is the number of images in the observation sequence. In addition, we also need an array of the half-wave plate angle (with length equals to n_images). The calculation can be performed by using the function <code class="docutils literal notranslate"><span class="pre">compute_qu_for_obs_sequence</span></code> in <code class="docutils literal notranslate"><span class="pre">source_utils.py</span></code> on the spectra cube and the HWP angle array. Finally, the normalized Stokes parameters from <code class="docutils literal notranslate"><span class="pre">compute_qu_for_obs_sequence</span></code> can be calibrated using the <code class="docutils literal notranslate"><span class="pre">calibrate_qu</span></code> function in <code class="docutils literal notranslate"><span class="pre">calibration.py</span></code>.</p></li>
+</ol>
+<p>For the example of these steps, see the Tutorial notebooks. Functions to perform steps 2-5 automatically are in <code class="docutils literal notranslate"><span class="pre">dataset.py</span></code>.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="basic-calibration.html" class="btn btn-neutral float-right" title="Basic Calibration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Max Millar-Blanchaer, Kaew Tinyanont and others
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
