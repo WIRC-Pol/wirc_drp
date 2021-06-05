@@ -103,7 +103,10 @@ def masterFlat(flat_list, master_dark_fname, normalize = 'median', local_sig_bad
         except:
             print("Some error. Skipping file {}".format(i))   
     #Median combine frames
-    flat = np.median(foo, axis = 0)
+    try:
+        flat = np.median(foo, axis = 0)
+    except:
+        raise ValueError('No flat images found in input list, or all eliminated by the min_flux requirement\nTry lowering min_flux threshold')
 
     #Filter bad pixels
     #bad_px = sigma_clip(flat, sigma = sig_bad_pix) #old and bad
