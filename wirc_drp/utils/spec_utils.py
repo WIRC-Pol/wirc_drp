@@ -406,7 +406,7 @@ def determine_extraction_range(thumbnail, trace_width, spatial_sigma = 3, fixed_
         upper = int(np.ceil(vert_max + spatial_sigma*trace_width))
 
     else: #This is when a fixed width is specified
-        print("Fixed width of {} used, this is {}sigma of trace width.".format(fixed_width, fixed_width/trace_width))
+        print("Fixed width of {:.2f} used, this is {:.2f}-sigma of trace width.".format(fixed_width, fixed_width/trace_width))
         lower = int(np.floor(vert_max - fixed_width)) 
         upper = int(np.ceil(vert_max + fixed_width))        
 
@@ -783,7 +783,6 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
         if fixed_width is not None:
             if np.size(fixed_width) == 4:
                 this_fixed_width = fixed_width[j]
-
             else: 
                 this_fixed_width = fixed_width
 
@@ -867,7 +866,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
             #determine the extraction range based on the width parameter
             #first, find the peak
             ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), 
-                spatial_sigma = spatial_sigma, fixed_width = fixed_width)
+                spatial_sigma = spatial_sigma, fixed_width = this_fixed_width)
 
             #call the optimal extraction method, remember it's sum_across_trace(bkg_sub_data, bkg, extraction_range, etc)
             spec_res, spec_var = sum_across_trace( sub_rotated, rotated , ext_range) 
@@ -944,7 +943,7 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
                 # widths += [real_width]
             else:
                 #ext_range = determine_extraction_range(sub_rotated, trace_width/np.abs(np.cos(np.radians(rotate_spec_angle))), spatial_sigma = spatial_sigma)
-                ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = fixed_width)                
+                ext_range = determine_extraction_range(sub_rotated, real_width, spatial_sigma = spatial_sigma, fixed_width = this_fixed_width)                
                 # fit_im = np.zeros(thumbnail.shape) 
                 # for i in range(fit_im.shape[1]):
                 #     #print(trace[i])
@@ -1366,7 +1365,7 @@ def align_set_of_traces(traces_cube, ref_trace, oversampling = 10, return_shift 
     else: 
         return new_cube
 
-def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversampling = 10):
+def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversampling = 10,extra_shift=0):
     """
     align_set_of_traces takes a cube of traces with dimension (number_of_traces, 3(wl, flux, flux_err), length_of_each_trace) 
     and align them with respect to the reference trace of the same length. 
@@ -1399,12 +1398,12 @@ def align_spectral_cube_helper(traces_cube, ref_trace, smooth_size = 1, oversamp
         corr = fftconvolve(np.nan_to_num(ref/np.nanmax(ref)), np.nan_to_num((up_spec[1,:]/np.nanmax(up_spec[1,:]))[::-1]) )#j[1,:] is the flux vector
 
         shift_size = np.nanargmax(corr) - len(ref) +1
-        #print(shift_size)
-        new_cube[i] = shift(traces_cube[i], (0,shift_size/oversampling), order = 1) # this shifts wl, flux, and flux_error at the same time. 
+
+        new_cube[i] = shift(traces_cube[i], (0,(shift_size)/oversampling+extra_shift), order = 1) # this shifts wl, flux, and flux_error at the same time. 
             
     return new_cube
 
-def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_trace = 'median'):
+def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_trace = 'median', compensate=True):
     """
     A higher level function to run align_set_of_traces. This function takes a wirc+pol cube with dimensions
     (number of observations, 4 spectral traces, 3(wavelength, flux, flux_err), number of spectral pixels)
@@ -1424,7 +1423,16 @@ def align_spectral_cube(spectral_cube, oversampling = 10, smooth_size = 1, ref_t
     aligned_cube = np.zeros(spectral_cube.shape) 
     #loop through 4 spectral traces
     for i in range(spectral_cube.shape[1]): #this dimension is the 4 spectral traces for wirc+pol
-        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:],  ref_trace , smooth_size = smooth_size, oversampling = oversampling)
+        if (i == 1)  and compensate:
+            extra_shift = -2
+        elif (i == 3) and compensate:
+            extra_shift = -3
+        else:
+            extra_shift = 0
+        aligned_cube[:,i,:,:] = align_spectral_cube_helper(spectral_cube[:,i,:,:],  ref_trace , smooth_size = smooth_size, 
+                                    oversampling = oversampling,extra_shift=extra_shift)
+        
+            
 
     return aligned_cube
 

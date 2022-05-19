@@ -1663,6 +1663,108 @@ class wircpol_source(object):
         self.trace_images, self.trace_images_DQ = image_utils.clean_thumbnails_for_cosmicrays(self.trace_images,
             thumbnails_dq=self.trace_images_DQ, nsig=nsig, method=method)
 
+    
+    def find_traces(self,trace_angles=None,plot_findTrace=False,diag_mask=True,
+                    mode='pol',diag_mask_width = 70):
+        """
+        Get the trance angles and widths
+
+        Args:
+            trace_angles ([type], optional): [description]. Defaults to None.
+            plot_findTrace (bool, optional): [description]. Defaults to False.
+            diag_mask (bool, optional): [description]. Defaults to True.
+            mode (str, optional): [description]. Defaults to 'pol'.
+            diag_mask_width (int, optional): [description]. Defaults to 70.
+        """                    
+
+
+        thumbnails_copy = copy.deepcopy(self.trace_images)
+
+        if self.trace_images_DQ is not None:
+            DQ_copy = copy.deepcopy(self.trace_images_DQ)
+        else:
+            DQ_copy = np.zeros(thumbnails_copy.shape)
+
+        if self.trace_bkg is not None:
+            bkg_copy = copy.deepcopy(self.trace_bkg)
+        else:
+            bkg_copy = np.zeros(thumbnails_copy.shape)
+
+        
+        
+        #Flip some of the traces around.
+        if mode=='pol': 
+            thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+            thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
+            thumbnails_copy[3,:,:] = thumbnails_copy[3,-1::-1, :] #flip y #Bottom-left
+
+            DQ_copy[1,:,:] = DQ_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+            DQ_copy[2,:,:] = DQ_copy[2,:,-1::-1] #flip x #Top-right
+            DQ_copy[3,:,:] = DQ_copy[3,-1::-1, :] #flip y #Bottom-left
+
+            bkg_copy[1,:,:] = bkg_copy[1,-1::-1,-1::-1]
+            bkg_copy[2,:,:] = bkg_copy[2,:,-1::-1]
+            bkg_copy[3,:,:] = bkg_copy[3,-1::-1,:]
+
+        trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
+        
+        #Cycle through the traces
+        # 
+        if trace_angles is None:
+            trace_angle = [None,None,None,None]
+        else:
+            trace_angle = trace_angles
+
+        #The measured trace widths
+        widths = np.zeros([4])
+        
+        for j in range(4):            
+            
+            trace_title = trace_titles[j]
+
+            #copy thumbnails
+            thumbnail = thumbnails_copy[j,:,:]
+            bkg = bkg_copy[j,:,:]
+            DQ = DQ_copy[j,:,:]
+
+            if trace_angle[j] is None:
+                raw, trace, trace_width, measured_trace_angle = spec_utils.findTrace(thumbnail - bkg, poly_order = 1, weighted=True, 
+                    plot = plot_findTrace, diag_mask=diag_mask, mode=mode,diag_mask_width=diag_mask_width) #linear fit to the trace
+
+                trace_angle[j] = measured_trace_angle
+
+            else: #angle given, still run the fit but only record width
+
+                raw, trace, trace_width, measured_trace_angle = spec_utils.findTrace(thumbnail - bkg, poly_order = 1, weighted = True, plot = plot_findTrace, diag_mask = diag_mask, mode = mode,
+                                                            fractional_fit_type = None,diag_mask_width=diag_mask_width) #for quickly getting trace width, which is needed to determine extraction range
+                # widths += [trace_width]
+           
+            if diag_mask and mode=='pol':
+                mask = spec_utils.makeDiagMask(np.shape(thumbnail)[0],diag_mask_width)
+                thumbnail[~mask] = 0.0
+                bkg[~mask] = 0.0
+                DQ_copy[j,:,:][~mask] = 0.0
+                # plt.imshow(thumbnail)
+                # print(trace)
+                # print(trace_width)
+                # print(measured_trace_angle)
+
+                if trace_width is None:
+                    trace_width = 7
+                mask = spec_utils.make_mask_from_findTrace(trace, 3*trace_width, measured_trace_angle)
+
+            #rotate the spectrum here. rotation axis is the middle of the image
+            width_thumbnail = thumbnail.shape[0]
+            sub_rotated = spec_utils.frame_rotate(thumbnail-bkg, trace_angle[j]+180,cxy=[width_thumbnail/2,width_thumbnail/2])
+
+            real_width = image_utils.traceWidth_after_rotation(sub_rotated)
+
+            widths[j]= real_width
+        self.spectra_widths = widths
+        self.spectra_angles = trace_angle
+
+
+    
     def extract_spectra(self, method = 'optimal_extraction', niter = 2, sig_clip = 5, 
                         bad_pix_masking = 1, width_scale=1., diag_mask=False, diag_mask_width = 70, 
                         trace_angle = None, mode = 'pol', 
