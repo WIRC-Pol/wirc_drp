@@ -1527,10 +1527,19 @@ def smooth_spectra(spectra, kernel = 'Gaussian', smooth_size = 3, rebin = False)
 
     return out_spectra #same dimension as spectra
 
-# def rebin_spectral_cube(input_cube, rebin_size, kernel = 'Box'):
-#     """
-#     Rebin 
-#     """
+from scipy.signal import medfilt
+def med_replace(spec, size, threshold = 0.1):
+    """
+    replace spurious values in the spectrum with a median in the "size" pixels around the problematic pixel
+    Spurious is define by a pixel value that is more than a factor of "thershold" more than the median in the 
+        given window
+    """
+    med = medfilt(spec, size) #compute the median filter
+#     diff = spec - med
+    bad = np.abs(spec - med)/med > threshold # define bad pixels
+#     print(np.sum(bad))
+    spec[bad]  =med[bad] #replace those values with the median
+    return spec   """
 
 #########################################################
 ################To be deprecated#########################
