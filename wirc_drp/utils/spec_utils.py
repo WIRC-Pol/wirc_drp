@@ -1547,7 +1547,7 @@ def med_replace(spec, size, threshold = 0.1):
     bad = np.abs(spec - med)/med > threshold # define bad pixels
 #     print(np.sum(bad))
     spec[bad]  =med[bad] #replace those values with the median
-    return spec   """
+    return spec   
 
 #########################################################
 ################To be deprecated#########################
