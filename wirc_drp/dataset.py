@@ -1466,7 +1466,7 @@ def plot_dataset_broadband_summary(directory,save=False,png_filename=None,prefix
         highs = [-1,np.min(np.where(wvs>1.34)),np.min(np.where(wvs>1.33)),np.min(np.where(wvs>1.32))]
     elif "H" in band:
         trace_md_spec = np.median(BD_all_spec_cube,axis=0)
-        wvs = su.rough_wavelength_calibration_v2(trace_md_spec[0,1,:], band)
+        wvs = su.rough_wavelength_calibration_v2(trace_md_spec[0,1,:], 'H')
         BD_all_spec_cube = su.align_spectral_cube(BD_all_spec_cube,ref_trace=trace_md_spec[0,1])
         lows = [0,np.max(np.where(wvs<1.45)),np.max(np.where(wvs<1.49)),np.max(np.where(wvs<1.52))]
         highs = [-1,np.min(np.where(wvs>1.82)),np.min(np.where(wvs>1.8)),np.min(np.where(wvs>1.78))]
@@ -1735,7 +1735,7 @@ def plot_dataset_broadband_binning_summary(directory,save=False,png_filename=Non
         highs = [-1,np.min(np.where(wvs>1.34)),np.min(np.where(wvs>1.33)),np.min(np.where(wvs>1.32))]
     elif "H" in band:
         trace_md_spec = np.median(BD_all_spec_cube,axis=0)
-        wvs = su.rough_wavelength_calibration_v2(trace_md_spec[0,1,:], band)
+        wvs = su.rough_wavelength_calibration_v2(trace_md_spec[0,1,:], 'H')
         BD_all_spec_cube = su.align_spectral_cube(BD_all_spec_cube,ref_trace=trace_md_spec[0,1])
         lows = [0,np.max(np.where(wvs<1.45)),np.max(np.where(wvs<1.49)),np.max(np.where(wvs<1.52))]
         highs = [-1,np.min(np.where(wvs>1.82)),np.min(np.where(wvs>1.8)),np.min(np.where(wvs>1.78))]

@@ -552,7 +552,13 @@ def compute_p_and_pa( q, u, q_err, u_err):
     #Compute deg of polarization
     p = np.sqrt(q**2 + u**2)
     dp = 1/p * np.sqrt( (q * q_err)**2 + (u * u_err)**2)
-    p_corr = np.sqrt(p**2 - dp**2) #debiased deg of polarization
+    p_corr=[]
+    for pp,ddpp in zip(p,dp):
+        if pp>ddpp:
+            p_corr.append(np.sqrt(pp**2 - ddpp**2)) #debiased deg of polarization
+        else:
+            p_corr.append(0)
+
     
     #Compute angle of polarization
     theta = 1/2.*np.arctan2(u,q)
@@ -1853,3 +1859,4 @@ def plot_source_summary(wirc_object,source_no=0,png_filename = None,save=False,v
         if verbose:
             print("Saving a file to {}".format(png_filename))
         plt.savefig(png_filename,dpi=200,bbox_inches="tight")
+        
