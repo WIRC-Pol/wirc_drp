@@ -1466,7 +1466,7 @@ def plot_dataset_broadband_summary(directory,save=False,png_filename=None,prefix
         highs = [-1,np.min(np.where(wvs>1.34)),np.min(np.where(wvs>1.33)),np.min(np.where(wvs>1.32))]
     elif "H" in band:
         trace_md_spec = np.median(BD_all_spec_cube,axis=0)
-        wvs = su.rough_wavelength_calibration_v2(trace_md_spec[0,1,:], band)
+        wvs = su.rough_wavelength_calibration_v2(trace_md_spec[0,1,:], 'H')
         BD_all_spec_cube = su.align_spectral_cube(BD_all_spec_cube,ref_trace=trace_md_spec[0,1])
         lows = [0,np.max(np.where(wvs<1.45)),np.max(np.where(wvs<1.49)),np.max(np.where(wvs<1.52))]
         highs = [-1,np.min(np.where(wvs>1.82)),np.min(np.where(wvs>1.8)),np.min(np.where(wvs>1.78))]
@@ -1487,8 +1487,10 @@ def plot_dataset_broadband_summary(directory,save=False,png_filename=None,prefix
     ubbs_std = []
 
     
+
     for i in range(len(lows)):
-        
+    
+
         low = lows[i]
         high = highs[i]
         
@@ -1551,9 +1553,25 @@ def plot_dataset_broadband_summary(directory,save=False,png_filename=None,prefix
 
 
 
-        axn1.errorbar(dt_qu,q_bb[:,0],yerr=qerr_bb[:,0],label="q",marker='o',linestyle="")
-        axn1.errorbar(dt_qu,u_bb[:,0],yerr=uerr_bb[:,0],label="u",marker='o',linestyle="")
+        axn1.errorbar(dt_qu,q_bb[:,0],yerr=qerr_bb[:,0],label="q",marker='.',linestyle="")
+        axn1.errorbar(dt_qu,u_bb[:,0],yerr=uerr_bb[:,0],label="u",marker='.',linestyle="")
+
+        axn1.axhline(np.median(q_bb),linestyle="--",color='purple',alpha=0.6)
+        axn1.axhline(np.median(u_bb),linestyle="--",color='red',alpha=0.6)
+
         axn1.axhline(0,color='r',linestyle='-.')
+
+        # # black errorbars################################################
+        # fix_errorbar = True
+        
+        # if fix_errorbar:
+
+        #     new_qerr_bb = np.ones(len(dt_qu))*np.std(q_bb)
+        #     new_uerr_bb = np.ones(len(dt_qu))*np.std(u_bb)
+
+        #     axn1.errorbar(dt_qu,q_bb[:,0],yerr=new_qerr_bb,marker='.',linestyle="", c='purple', zorder=0)
+        #     axn1.errorbar(dt_qu,u_bb[:,0],yerr=new_uerr_bb,marker='.',linestyle="", c='red', zorder=0)
+        # ###################################################################
 
         # bb_ylow = np.percentile(np.append(q_bb[:,0],u_bb[:,0]),[5,99])
 
@@ -1735,7 +1753,7 @@ def plot_dataset_broadband_binning_summary(directory,save=False,png_filename=Non
         highs = [-1,np.min(np.where(wvs>1.34)),np.min(np.where(wvs>1.33)),np.min(np.where(wvs>1.32))]
     elif "H" in band:
         trace_md_spec = np.median(BD_all_spec_cube,axis=0)
-        wvs = su.rough_wavelength_calibration_v2(trace_md_spec[0,1,:], band)
+        wvs = su.rough_wavelength_calibration_v2(trace_md_spec[0,1,:], 'H')
         BD_all_spec_cube = su.align_spectral_cube(BD_all_spec_cube,ref_trace=trace_md_spec[0,1])
         lows = [0,np.max(np.where(wvs<1.45)),np.max(np.where(wvs<1.49)),np.max(np.where(wvs<1.52))]
         highs = [-1,np.min(np.where(wvs>1.82)),np.min(np.where(wvs>1.8)),np.min(np.where(wvs>1.78))]
@@ -1750,7 +1768,6 @@ def plot_dataset_broadband_binning_summary(directory,save=False,png_filename=Non
     ax1.plot(wvs,spec,label="Source Extracted Spectrum")
     
 
-    
 
     
     for i in range(len(time_bins)):
@@ -1830,14 +1847,35 @@ def plot_dataset_broadband_binning_summary(directory,save=False,png_filename=Non
                 uerr_bb[ind] = uc_err
 
 
-        if len(q_bb.shape) > 1:
-            axn1.errorbar(dt_qu,q_bb[:,0],yerr=qerr_bb[:],label="q",marker='o',linestyle="")
-            axn1.errorbar(dt_qu,u_bb[:,0],yerr=uerr_bb[:],label="u",marker='o',linestyle="")
-            axn2.errorbar(q_bb[:,0],u_bb[:,0],xerr=qerr_bb[:],yerr=uerr_bb,linestyle="",marker='o')
-        else:
-            axn1.errorbar(dt_qu,q_bb[:],yerr=qerr_bb[:],label="q",marker='o',linestyle="")
-            axn1.errorbar(dt_qu,u_bb[:],yerr=uerr_bb[:],label="u",marker='o',linestyle="")
-            axn2.errorbar(q_bb[:],u_bb[:],xerr=qerr_bb[:],yerr=uerr_bb,linestyle="",marker='o')
+
+        dt_qu = np.ndarray.flatten(dt_qu)
+        q_bb, qerr_bb = np.ndarray.flatten(q_bb), np.ndarray.flatten(qerr_bb)
+        u_bb, uerr_bb = np.ndarray.flatten(u_bb), np.ndarray.flatten(uerr_bb)
+
+        axn1.errorbar(dt_qu,q_bb,yerr=qerr_bb,label="q",marker='.',linestyle="")
+        axn1.errorbar(dt_qu,u_bb,yerr=uerr_bb,label="u",marker='.',linestyle="")
+        axn2.errorbar(q_bb,u_bb,xerr=qerr_bb,yerr=uerr_bb,linestyle="",marker='.')
+
+# black errorbars################################################
+        fix_errorbar = True
+        
+        if fix_errorbar:
+            if time_bins[i] == 1:
+                first_qerr_bb = np.std(q_bb)
+                first_uerr_bb = np.std(u_bb)
+  
+            new_qerr_bb = np.ones(len(dt_qu))*first_qerr_bb/np.sqrt(time_bins[i])
+            new_uerr_bb = np.ones(len(dt_qu))*first_uerr_bb/np.sqrt(time_bins[i])
+
+            axn1.errorbar(dt_qu,q_bb,yerr=new_qerr_bb,marker='.',linestyle="", c='purple', zorder=0)
+            axn1.errorbar(dt_qu,u_bb,yerr=new_uerr_bb,marker='.',linestyle="", c='red', zorder=0)
+
+            axn1.axhline(np.median(q_bb),linestyle="--",color='purple',alpha=0.6)
+            axn1.axhline(np.median(u_bb),linestyle="--",color='red',alpha=0.6)
+
+            axn2.errorbar(q_bb,u_bb,xerr=new_qerr_bb,yerr=new_uerr_bb,linestyle="",marker='.', c='black', zorder=0)
+###################################################################
+
         # bb_ylow = np.percentile(np.append(q_bb[:,0],u_bb[:,0]),[5,99])
 
         # axes[1,0].set_ylim(2*bb_ylow[0],2*bb_ylow[1])
@@ -1889,8 +1927,8 @@ def plot_dataset_broadband_binning_summary(directory,save=False,png_filename=Non
         axn2.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.0e'))
         # axn2.set_aspect(1 / axn2.get_data_ratio(),adjustable='box')
         # axn2.grid(which='both')
-        axn2.grid(b=True, which='major', color='k', linestyle='-',alpha=0.6)
-        axn2.grid(b=True, which='minor', color='k', linestyle='--',alpha=0.4)
+        axn2.grid(True, which='major', color='k', linestyle='-',alpha=0.6)
+        axn2.grid(True, which='minor', color='k', linestyle='--',alpha=0.4)
 
         ### Get the mean and std broadband values: 
         from astropy import stats

@@ -35,7 +35,8 @@ import scipy.ndimage as sn
 import copy
 from image_registration import chi2_shift
 from wirc_drp import constants
-from photutils import RectangularAperture, aperture_photometry,make_source_mask
+from photutils import RectangularAperture, aperture_photometry
+# from photutils import make_source_mask
 from astropy.stats import sigma_clipped_stats
 from scipy import signal
 import multiprocessing as mp
@@ -1866,44 +1867,44 @@ def traceWidth_after_rotation(trace, fitlength = 10):
     res = f(gauss, x, collapsed)                     #fitting collapsed trace to a gaussian
     return res.stddev.value                          #returning standard deviation
        
-def clean_thumbnails_for_cosmicrays(thumbnails, method='lacosmic',thumbnails_dq=None, nsig=3):
-    '''
-    Tries to identify cosmic rays, by looking for pixels 5-sigma about the background, after masking out the trace. 
-    It then adds them to the DQ frame
-    Note, this doesn't do anything for cosmic rays very close to the trace. 
+# def clean_thumbnails_for_cosmicrays(thumbnails, method='lacosmic',thumbnails_dq=None, nsig=3):
+#     '''
+#     Tries to identify cosmic rays, by looking for pixels 5-sigma about the background, after masking out the trace. 
+#     It then adds them to the DQ frame
+#     Note, this doesn't do anything for cosmic rays very close to the trace. 
 
-    Inputs: 
-        thumbnails - a [4,n,n]  array that has 4 thumbnails, each of dimension n x n pixels. 
-        thumbnails_dq  - a [4,n,n] shaped array that has 4 thumbnails representing the dataquality frame of each thumbnail
-        nsig - pixels above this many sigma away from the median will be rejected. 
-    '''
-    if method == 'old':
+#     Inputs: 
+#         thumbnails - a [4,n,n]  array that has 4 thumbnails, each of dimension n x n pixels. 
+#         thumbnails_dq  - a [4,n,n] shaped array that has 4 thumbnails representing the dataquality frame of each thumbnail
+#         nsig - pixels above this many sigma away from the median will be rejected. 
+#     '''
+#     if method == 'old':
     
-        bp_masks = []
-        for i in range(4):
-            mask = make_source_mask(thumbnails[i,:,:],snr=nsig,npixels=5,dilate_size=5)
-            mean,median,std = sigma_clipped_stats(thumbnails[i,:,:],sigma=3.0,mask=mask)
+#         bp_masks = []
+#         for i in range(4):
+#             mask = make_source_mask(thumbnails[i,:,:],snr=nsig,npixels=5,dilate_size=5)
+#             mean,median,std = sigma_clipped_stats(thumbnails[i,:,:],sigma=3.0,mask=mask)
 
-            bpmask = (np.abs(thumbnails[i,:,:]-median) > nsig*std) & ~(mask)
+#             bpmask = (np.abs(thumbnails[i,:,:]-median) > nsig*std) & ~(mask)
 
-            for bpx,bpy in [(np.where(bpmask)[0],np.where(bpmask)[1])]:
-                thumbnails[0,bpx,bpy] = np.nanmedian(thumbnails[0,bpx[0]-2:bpx[0]+2,bpy[1]-2:bpy[1]+2])
+#             for bpx,bpy in [(np.where(bpmask)[0],np.where(bpmask)[1])]:
+#                 thumbnails[0,bpx,bpy] = np.nanmedian(thumbnails[0,bpx[0]-2:bpx[0]+2,bpy[1]-2:bpy[1]+2])
 
-            # if thumbnails_dq is not None:
-                # bp_mask = thumbnails_dq[i] | bpmask
-            thumbnails_dq[i][np.where(bpmask)] = 4
+#             # if thumbnails_dq is not None:
+#                 # bp_mask = thumbnails_dq[i] | bpmask
+#             thumbnails_dq[i][np.where(bpmask)] = 4
 
-            # bp_masks.append(bpmask)
+#             # bp_masks.append(bpmask)
 
-        return thumbnails, thumbnails_dq
+#         return thumbnails, thumbnails_dq
 
-    if method == 'lascosmic':
-        import ccdproc
-        # A downside to this method is that it doesn't update the DQ frame. 
+#     if method == 'lascosmic':
+#         import ccdproc
+#         # A downside to this method is that it doesn't update the DQ frame. 
         
-        for i in range(4):
-            thumbnails[i,:,:] = ccdproc.cosmicray_lacosmic(thumbnails[i,:,:], sigclip=nsig)[0]
-        return thumbnails, thumbnails_dq
+#         for i in range(4):
+#             thumbnails[i,:,:] = ccdproc.cosmicray_lacosmic(thumbnails[i,:,:], sigclip=nsig)[0]
+#         return thumbnails, thumbnails_dq
 
 def smooth_cutouts(thumbnails,method='gaussian',width=3):
     '''
