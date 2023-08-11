@@ -26,7 +26,8 @@ from astropy.convolution import Gaussian1DKernel, Box1DKernel, convolve
 from astropy.io import fits as f
 from astropy import stats
 
-from photutils import RectangularAperture, aperture_photometry,make_source_mask
+from photutils import RectangularAperture, aperture_photometry
+# from photutils import make_source_mask
 
 #From other packages
 from wirc_drp.utils.image_utils import locationInIm, shift_and_subtract_background, fit_and_subtract_background, findTrace
@@ -1907,199 +1908,199 @@ def make_scale_widget(Qp, Qm, x0):
     #radio.on_clicked(colorfunc)
     plt.show()
     
-def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = (0,0), sky_offsets = (50,0), mode = 'pol', 
-            filter_name = "J", plot = False, ron = 12, gain = 1.2, DQ_thumbnails = None, verbose = False,
-            bkg_method = "aper"):
-    """
-    This function uses photutils package to define rectangular apertures over spectral traces 
-    and compute aperture sums. 
-    """
-    if filter_name == "J":
-        trace_length = 130
-        template_width= 75
-    elif filter_name == "H":
-        trace_length = 260
-        template_width = 120 #test this
-    # Define lists to collect results.
-    phot = [] #This vector collects extracted spectra from 4 traces
-    phot_sky = []
+# def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = (0,0), sky_offsets = (50,0), mode = 'pol', 
+#             filter_name = "J", plot = False, ron = 12, gain = 1.2, DQ_thumbnails = None, verbose = False,
+#             bkg_method = "aper"):
+#     """
+#     This function uses photutils package to define rectangular apertures over spectral traces 
+#     and compute aperture sums. 
+#     """
+#     if filter_name == "J":
+#         trace_length = 130
+#         template_width= 75
+#     elif filter_name == "H":
+#         trace_length = 260
+#         template_width = 120 #test this
+#     # Define lists to collect results.
+#     phot = [] #This vector collects extracted spectra from 4 traces
+#     phot_sky = []
 
-    if mode=='pol':
-        ntraces = 4 #how many traces? 4 for WIRC-POL
-        if plot:
-            fig = plt.figure(figsize=(11,4))
+#     if mode=='pol':
+#         ntraces = 4 #how many traces? 4 for WIRC-POL
+#         if plot:
+#             fig = plt.figure(figsize=(11,4))
         
-    if mode=='spec':
-        ntraces = 1 #how many traces? 1 for WIRC-SPEC
-        if plot:
-            fig = plt.figure(figsize=(11,4))
+#     if mode=='spec':
+#         ntraces = 1 #how many traces? 1 for WIRC-SPEC
+#         if plot:
+#             fig = plt.figure(figsize=(11,4))
 
-    thumbnails_copy = copy.deepcopy(thumbnails)
+#     thumbnails_copy = copy.deepcopy(thumbnails)
     
 
-    if DQ_thumbnails is not None:
-        DQ_copy = copy.deepcopy(DQ_thumbnails)
+#     if DQ_thumbnails is not None:
+#         DQ_copy = copy.deepcopy(DQ_thumbnails)
 
     
-    #Flip some of the traces around.
-    if mode=='pol': 
-        thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
-        thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
-        thumbnails_copy[3,:,:] = thumbnails_copy[3,-1::-1, :] #flip y #Bottom-left
+#     #Flip some of the traces around.
+#     if mode=='pol': 
+#         thumbnails_copy[1,:,:] = thumbnails_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+#         thumbnails_copy[2,:,:] = thumbnails_copy[2,:,-1::-1] #flip x #Top-right
+#         thumbnails_copy[3,:,:] = thumbnails_copy[3,-1::-1, :] #flip y #Bottom-left
 
-        if DQ_thumbnails is not None:
-            DQ_copy[1,:,:] = DQ_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
-            DQ_copy[2,:,:] = DQ_copy[2,:,-1::-1] #flip x #Top-right
-            DQ_copy[3,:,:] = DQ_copy[3,-1::-1, :] #flip y #Bottom-left
+#         if DQ_thumbnails is not None:
+#             DQ_copy[1,:,:] = DQ_copy[1,-1::-1, -1::-1] #flip y, x. Bottom-right
+#             DQ_copy[2,:,:] = DQ_copy[2,:,-1::-1] #flip x #Top-right
+#             DQ_copy[3,:,:] = DQ_copy[3,-1::-1, :] #flip y #Bottom-left
 
-        trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
+#         trace_titles=["Top-Left", "Bottom-Right", "Top-Right", "Bottom-left"]
 
-    if mode=='spec':
-        trace_titles=['Extracted Spectrum']
+#     if mode=='spec':
+#         trace_titles=['Extracted Spectrum']
 
-    #lists to collect widths and angles of the traces
-    widths = []
-    angles = []
-    thumbnails_to_extract = [] #This is to collect the thumbnails that will actually be extracted (e.g. bkg subtracted/rotated)
-    for j in range(ntraces):    
-        trace_title = trace_titles[j]
+#     #lists to collect widths and angles of the traces
+#     widths = []
+#     angles = []
+#     thumbnails_to_extract = [] #This is to collect the thumbnails that will actually be extracted (e.g. bkg subtracted/rotated)
+#     for j in range(ntraces):    
+#         trace_title = trace_titles[j]
 
-        thumbnail = thumbnails_copy[j,:,:]
-        if mode=='pol' and verbose:
-            print("Extracting spectra from trace {} of 4".format(j))
-        if mode=='spec' and verbose:
-            print("Extracting spectrum".format(j))
+#         thumbnail = thumbnails_copy[j,:,:]
+#         if mode=='pol' and verbose:
+#             print("Extracting spectra from trace {} of 4".format(j))
+#         if mode=='spec' and verbose:
+#             print("Extracting spectrum".format(j))
 
-        #subtract background for source finder
+#         #subtract background for source finder
 
-        bkg_sub_shift_size = 30 #doesn't matter...
+#         bkg_sub_shift_size = 30 #doesn't matter...
 
-        if False:        
-            #############################################
-            ######If data is in the slit mode, perform shift and subtract to remove background
-            #############################################
+#         if False:        
+#             #############################################
+#             ######If data is in the slit mode, perform shift and subtract to remove background
+#             #############################################
 
-            #if slit_num != 'slitless':
+#             #if slit_num != 'slitless':
 
-             #   bkg_sub, bkg = shift_and_subtract_background(thumbnail, obj_slit = slit_num)
+#              #   bkg_sub, bkg = shift_and_subtract_background(thumbnail, obj_slit = slit_num)
 
-                #Mask out the area outside of the slit hole.
-             #   thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
-             #   bkg_sub = bkg_sub * thumb_mask
-             #   bkg = bkg * thumb_mask
+#                 #Mask out the area outside of the slit hole.
+#              #   thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
+#              #   bkg_sub = bkg_sub * thumb_mask
+#              #   bkg = bkg * thumb_mask
         
-            #############################################
-            ######For each thumbnail, fit for background
-            #############################################
-            #else:
-             #   bkg_sub, bkg = fit_and_subtract_background(thumbnail)
+#             #############################################
+#             ######For each thumbnail, fit for background
+#             #############################################
+#             #else:
+#              #   bkg_sub, bkg = fit_and_subtract_background(thumbnail)
 
-        #For now, do shift and subtract always
+#         #For now, do shift and subtract always
 
-            # shift_dir = 'diagonal'
+#             # shift_dir = 'diagonal'
 
-            # if slit_num != 'slitless' or shift_dir == 'horizontal':
-            #     bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] )))
+#             # if slit_num != 'slitless' or shift_dir == 'horizontal':
+#             #     bkg_stack = np.dstack((shift( thumbnail, [0,-bkg_sub_shift_size ]),shift( thumbnail, [0,bkg_sub_shift_size ] )))
 
-            #     bkg = np.nanmean(bkg_stack, axis=2)
+#             #     bkg = np.nanmean(bkg_stack, axis=2)
 
-            # elif shift_dir == 'vertical':
-            #     bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ]),shift( thumbnail, [bkg_sub_shift_size ,0] )))
-            #     bkg = np.nanmean(bkg_stack, axis=2)
-            # elif shift_dir =='diagonal': #for slitless data, shift in diagonal
-            bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] )))
-            bkg = np.nanmean(bkg_stack, axis=2)
-            #else:
-            #    print('')
+#             # elif shift_dir == 'vertical':
+#             #     bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,0 ]),shift( thumbnail, [bkg_sub_shift_size ,0] )))
+#             #     bkg = np.nanmean(bkg_stack, axis=2)
+#             # elif shift_dir =='diagonal': #for slitless data, shift in diagonal
+#             bkg_stack = np.dstack((shift( thumbnail, [-bkg_sub_shift_size,-bkg_sub_shift_size ]),shift( thumbnail, [bkg_sub_shift_size,bkg_sub_shift_size ] )))
+#             bkg = np.nanmean(bkg_stack, axis=2)
+#             #else:
+#             #    print('')
 
 
-            bkg_sub = thumbnail - bkg
+#             bkg_sub = thumbnail - bkg
 
-            #Mask out the area outside of the slit hole.
-            # thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
-            # bkg_sub = bkg_sub * thumb_mask
-            # bkg = bkg * thumb_mask
+#             #Mask out the area outside of the slit hole.
+#             # thumb_mask = makeDiagMask(len(bkg_sub[0]), slit_hole_diameter+3)
+#             # bkg_sub = bkg_sub * thumb_mask
+#             # bkg = bkg * thumb_mask
 
-        else: #if not background subtraction, set bkg to 0.
-            bkg_sub = np.copy(thumbnail)
-            bkg = thumbnail*0.
+#         else: #if not background subtraction, set bkg to 0.
+#             bkg_sub = np.copy(thumbnail)
+#             bkg = thumbnail*0.
 
-        ###############################
-        #locate the trace in the data##
-        ###############################
-        #trace is the vector of the y location of the trace for each x location in the frame
-        #width is the width of the trace at its brightest point. 
+#         ###############################
+#         #locate the trace in the data##
+#         ###############################
+#         #trace is the vector of the y location of the trace for each x location in the frame
+#         #width is the width of the trace at its brightest point. 
 
-        raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=0, mode=mode) #linear fit to the trace
+#         raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=0, mode=mode) #linear fit to the trace
 
-        #if background subtraction type is fit_background, then call the function
+#         #if background subtraction type is fit_background, then call the function
 
-      #  diag_mask = 0
-        if diag_mask:
-            mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
-            bkg_sub[~mask] = 0.
+#       #  diag_mask = 0
+#         if diag_mask:
+#             mask = makeDiagMask(np.shape(bkg_sub)[0], 25)
+#             bkg_sub[~mask] = 0.
 
-        if verbose:
-            print("Trace width {}".format(trace_width))
+#         if verbose:
+#             print("Trace width {}".format(trace_width))
 
-        weight_width = trace_width*width_scale
+#         weight_width = trace_width*width_scale
 
-        widths += [trace_width]
-        angles += [measured_trace_angle]
+#         widths += [trace_width]
+#         angles += [measured_trace_angle]
         
-        #raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
-        #weight_width = trace_width*width_scale
-        #if verbose:
-        #    print("Trace width {}".format(trace_width))
+#         #raw, trace, trace_width, measured_trace_angle = findTrace(bkg_sub, poly_order = 1, weighted=True, plot = 0, diag_mask=diag_mask,mode=mode) #linear fit to the trace
+#         #weight_width = trace_width*width_scale
+#         #if verbose:
+#         #    print("Trace width {}".format(trace_width))
 
-        #find x location center of the trace
-        x_loc = image_utils.trace_location_along_x(thumbnail, measured_trace_angle,plot = 0, template_width = template_width)
+#         #find x location center of the trace
+#         x_loc = image_utils.trace_location_along_x(thumbnail, measured_trace_angle,plot = 0, template_width = template_width)
 
-        ######################################
-        ######Define Aperture#################
-        ######################################
-        phot_aper = RectangularAperture( (x_loc+source_offsets[0],trace[x_loc]+source_offsets[1]), \
-           trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
+#         ######################################
+#         ######Define Aperture#################
+#         ######################################
+#         phot_aper = RectangularAperture( (x_loc+source_offsets[0],trace[x_loc]+source_offsets[1]), \
+#            trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
 
-        #phot_aper = RectangularAperture( (int(len(trace)/2)+source_offsets[0],trace[int(len(trace)/2)]+source_offsets[1]), \
-        #    trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
-            #trace center default to the center of the cutout in x, and the measured y position there, plus any given source offsets (x,y)
-            #length is 130 for J, 260 for H
-            #width is width_scale*measured trace_width and the angle is the measured angle
+#         #phot_aper = RectangularAperture( (int(len(trace)/2)+source_offsets[0],trace[int(len(trace)/2)]+source_offsets[1]), \
+#         #    trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
+#             #trace center default to the center of the cutout in x, and the measured y position there, plus any given source offsets (x,y)
+#             #length is 130 for J, 260 for H
+#             #width is width_scale*measured trace_width and the angle is the measured angle
 
-        sky_aper = RectangularAperture( (x_loc + sky_offsets[0],trace[x_loc]+sky_offsets[1]), \
-            trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
-        # sky_aper = RectangularAperture( (int(len(trace)/2)+sky_offsets[0],trace[int(len(trace)/2)]+sky_offsets[1]), \
-        #     trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
+#         sky_aper = RectangularAperture( (x_loc + sky_offsets[0],trace[x_loc]+sky_offsets[1]), \
+#             trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
+#         # sky_aper = RectangularAperture( (int(len(trace)/2)+sky_offsets[0],trace[int(len(trace)/2)]+sky_offsets[1]), \
+#         #     trace_length, width_scale*trace_width, np.radians(measured_trace_angle)) 
 
-        #show diagnosis plot if selected.
-        if plot:
-            fig,ax  = plt.subplots(1,1,figsize = (5,5))
-            ax.imshow(thumbnail, origin = 'lower')
-            phot_aper.plot(ax = ax, color = 'b')
-            sky_aper.plot(ax = ax, color = 'r')
-            plt.show()
+#         #show diagnosis plot if selected.
+#         if plot:
+#             fig,ax  = plt.subplots(1,1,figsize = (5,5))
+#             ax.imshow(thumbnail, origin = 'lower')
+#             phot_aper.plot(ax = ax, color = 'b')
+#             sky_aper.plot(ax = ax, color = 'r')
+#             plt.show()
 
-        if bkg_method == 'median_mask':
-            mask = make_source_mask(thumbnail,snr=3,npixels=5,dilate_size=11)
-            mean,median,std = sigma_clipped_stats(thumbnail,sigma=3.0,mask=mask)
-            thumbnail = thumbnail - median
+#         if bkg_method == 'median_mask':
+#             mask = make_source_mask(thumbnail,snr=3,npixels=5,dilate_size=11)
+#             mean,median,std = sigma_clipped_stats(thumbnail,sigma=3.0,mask=mask)
+#             thumbnail = thumbnail - median
 
-        #Sum the aperture and output
-        phot += [aperture_photometry(thumbnail, phot_aper)['aperture_sum'][0]]
-        phot_sky  += [aperture_photometry(thumbnail, sky_aper)['aperture_sum'][0]]
+#         #Sum the aperture and output
+#         phot += [aperture_photometry(thumbnail, phot_aper)['aperture_sum'][0]]
+#         phot_sky  += [aperture_photometry(thumbnail, sky_aper)['aperture_sum'][0]]
 
-    #for 4 traces
-    phot = np.array(phot)
-    phot_sky = np.array(phot_sky)
+#     #for 4 traces
+#     phot = np.array(phot)
+#     phot_sky = np.array(phot_sky)
 
-    #source_flux is phot-sky
-    source_flux = phot - phot_sky
+#     #source_flux is phot-sky
+#     source_flux = phot - phot_sky
 
-    #source std is sqrt(phot + phot_sky + read_noise**2) 
-    source_std = np.sqrt(phot*gain + phot_sky*gain + ron**2)/gain #remember that poisson noise is sqrt(N in electrons)
+#     #source std is sqrt(phot + phot_sky + read_noise**2) 
+#     source_std = np.sqrt(phot*gain + phot_sky*gain + ron**2)/gain #remember that poisson noise is sqrt(N in electrons)
 
-    return source_flux, source_std
+#     return source_flux, source_std
 
 
 def PCA_subtraction(im, ref_lib, num_PCA_modes):
