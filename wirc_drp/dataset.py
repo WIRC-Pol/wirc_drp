@@ -1413,7 +1413,7 @@ def plot_dataset_variability_summary(directory,BD_all_spec_cube = None, hwp_ang 
 def plot_dataset_broadband_summary(directory,save=False,png_filename=None,prefix="image",verbose=True,
                                 max_files=None,ylow=-0.025,yhigh=0.025,start_file =0, time_bin_factor=1,
                                 known_period=None,target_name="Unknown",calibrate=False, recalc_lambda=True,
-                                save_data = True):
+                                save_data = True, std_errorbar=True):
 
     #### Load up the files ####
     filelist = sorted(glob.glob(directory+"/"+prefix+"*.fits"))
@@ -1555,6 +1555,14 @@ def plot_dataset_broadband_summary(directory,save=False,png_filename=None,prefix
         axn1.errorbar(dt_qu,u_bb[:,0],yerr=uerr_bb[:,0],label="u",marker='o',linestyle="")
         axn1.axhline(0,color='r',linestyle='-.')
 
+        if std_errorbar:
+
+            new_qerr_bb = np.ones(len(dt_qu))*np.std(q_bb)
+            new_uerr_bb = np.ones(len(dt_qu))*np.std(u_bb)
+
+            axn1.errorbar(dt_qu,q_bb[:,0],yerr=new_qerr_bb,marker='.',linestyle="", c='purple', zorder=0)
+            axn1.errorbar(dt_qu,u_bb[:,0],yerr=new_uerr_bb,marker='.',linestyle="", c='red', zorder=0)
+
         # bb_ylow = np.percentile(np.append(q_bb[:,0],u_bb[:,0]),[5,99])
 
         # axes[1,0].set_ylim(2*bb_ylow[0],2*bb_ylow[1])
@@ -1670,7 +1678,7 @@ def plot_dataset_broadband_summary(directory,save=False,png_filename=None,prefix
 
 def plot_dataset_broadband_binning_summary(directory,save=False,png_filename=None,prefix="image",verbose=True,time_bins = [1,2,4,8, 16, 32],
                                 max_files=None,ylow=-0.025,yhigh=0.025,start_file =0, time_bin_factor=1,extraction_range_index=2,
-                                known_period=None,target_name="Unknown",calibrate=False, recalc_lambda=False, save_data = True):
+                                known_period=None,target_name="Unknown",calibrate=False, recalc_lambda=False, save_data = True, std_errorbar=True):
 
     '''
     Copied from plot_dataset_broadband_summary, but the rows will plot different time binnings of the data
@@ -1830,14 +1838,30 @@ def plot_dataset_broadband_binning_summary(directory,save=False,png_filename=Non
                 uerr_bb[ind] = uc_err
 
 
-        if len(q_bb.shape) > 1:
-            axn1.errorbar(dt_qu,q_bb[:,0],yerr=qerr_bb[:],label="q",marker='o',linestyle="")
-            axn1.errorbar(dt_qu,u_bb[:,0],yerr=uerr_bb[:],label="u",marker='o',linestyle="")
-            axn2.errorbar(q_bb[:,0],u_bb[:,0],xerr=qerr_bb[:],yerr=uerr_bb,linestyle="",marker='o')
-        else:
-            axn1.errorbar(dt_qu,q_bb[:],yerr=qerr_bb[:],label="q",marker='o',linestyle="")
-            axn1.errorbar(dt_qu,u_bb[:],yerr=uerr_bb[:],label="u",marker='o',linestyle="")
-            axn2.errorbar(q_bb[:],u_bb[:],xerr=qerr_bb[:],yerr=uerr_bb,linestyle="",marker='o')
+        dt_qu = np.ndarray.flatten(dt_qu)
+        q_bb, qerr_bb = np.ndarray.flatten(q_bb), np.ndarray.flatten(qerr_bb)
+        u_bb, uerr_bb = np.ndarray.flatten(u_bb), np.ndarray.flatten(uerr_bb)
+
+        axn1.errorbar(dt_qu,q_bb,yerr=qerr_bb,label="q",marker='.',linestyle="")
+        axn1.errorbar(dt_qu,u_bb,yerr=uerr_bb,label="u",marker='.',linestyle="")
+        axn2.errorbar(q_bb,u_bb,xerr=qerr_bb,yerr=uerr_bb,linestyle="",marker='.')
+
+        if std_errorbar:
+            if time_bins[i] == 1:
+                first_qerr_bb = np.std(q_bb)
+                first_uerr_bb = np.std(u_bb)
+  
+            new_qerr_bb = np.ones(len(dt_qu))*first_qerr_bb/np.sqrt(time_bins[i])
+            new_uerr_bb = np.ones(len(dt_qu))*first_uerr_bb/np.sqrt(time_bins[i])
+
+            axn1.errorbar(dt_qu,q_bb,yerr=new_qerr_bb,marker='.',linestyle="", c='purple', zorder=0)
+            axn1.errorbar(dt_qu,u_bb,yerr=new_uerr_bb,marker='.',linestyle="", c='red', zorder=0)
+
+            axn1.axhline(np.median(q_bb),linestyle="--",color='purple',alpha=0.6)
+            axn1.axhline(np.median(u_bb),linestyle="--",color='red',alpha=0.6)
+
+            axn2.errorbar(q_bb,u_bb,xerr=new_qerr_bb,yerr=new_uerr_bb,linestyle="",marker='.', c='black', zorder=0)
+        
         # bb_ylow = np.percentile(np.append(q_bb[:,0],u_bb[:,0]),[5,99])
 
         # axes[1,0].set_ylim(2*bb_ylow[0],2*bb_ylow[1])
@@ -2547,6 +2571,7 @@ def plot_dataset_polarization_summary(directory,BD_all_spec_cube = None, hwp_ang
         axes[2,1].set_xlim(1.45,1.85)
 
                 # axes[0,0].set_ylim(3*qymax[0],3*qymax[1])
+
 
     if band =="J":
         axes[0,0].fill_between([0,1.17],3*qymax[0],3*qymax[1],hatch='x',color='k',alpha=0.05,zorder=10)
