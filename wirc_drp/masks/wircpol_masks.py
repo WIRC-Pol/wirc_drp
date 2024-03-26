@@ -6,7 +6,7 @@ Created on Tue Nov  1 16:22:27 2016
 Various focal plane masks to be simulated
 """
 import numpy as np
-from imageio import imread #Scipy got rid of imread in version 1.2 and we now need to use iamgeio
+from imageio.v2 import imread #Scipy got rid of imread in version 1.2 and we now need to use iamgeio
 import os 
 from astropy.io import fits
 #from constants import *
@@ -55,17 +55,17 @@ circ_mask[511-slit_width:511+slit_width, 511-slit_width:511+slit_width] = 1
 
 
 ####Cross mask version 2
-cross_mask_v2 = imread(wircpol_dir+'/masks/cross_mask/cross_mask_v2.002.png', as_gray = True)
+cross_mask_v2 = imread(wircpol_dir+'/masks/cross_mask/cross_mask_v2.002.png', mode="L")
 cross_mask_v2[cross_mask_v2 < 20] = 0
 cross_mask_v2[cross_mask_v2 > 20] = 1
 
 ####Cross mask, no slit. For reduction pipeline
-cross_mask_ns = imread(wircpol_dir+'/masks/cross_mask/cross_mask_v2.003.png', as_gray = True)
+cross_mask_ns = imread(wircpol_dir+'/masks/cross_mask/cross_mask_v2.003.png', mode="L")
 cross_mask_ns[cross_mask_ns < 20] = 0
 cross_mask_ns[cross_mask_ns > 20] = 1
 
 ####Cross mask, with circular holes
-cross_mask_circ = imread(wircpol_dir+'/masks/cross_mask/cross_mask_v2.003.png', as_gray = True)
+cross_mask_circ = imread(wircpol_dir+'/masks/cross_mask/cross_mask_v2.003.png', mode="L")
 cross_mask_circ[cross_mask_circ < 20] = 0
 cross_mask_circ[cross_mask_circ > 20] = 1
 

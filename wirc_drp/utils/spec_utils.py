@@ -785,6 +785,8 @@ def spec_extraction(thumbnails, bkg_thumbnails = None, method = 'optimal_extract
                 this_fixed_width = fixed_width[j]
             else: 
                 this_fixed_width = fixed_width
+        else:
+            this_fixed_width = None
 
         if verbose:
             if mode=='pol':
