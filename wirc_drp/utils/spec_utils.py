@@ -26,7 +26,6 @@ from astropy.convolution import Gaussian1DKernel, Box1DKernel, convolve
 from astropy.io import fits as f
 from astropy import stats
 
-from photutils import RectangularAperture, aperture_photometry,make_source_mask
 
 #From other packages
 from wirc_drp.utils.image_utils import locationInIm, shift_and_subtract_background, fit_and_subtract_background, findTrace
@@ -34,6 +33,10 @@ from wirc_drp.masks.wircpol_masks import *
 from wirc_drp.utils import image_utils
 
 from astropy.stats import sigma_clipped_stats
+
+from photutils import RectangularAperture, aperture_photometry
+from photutils.segmentation import SegmentationImage, detect
+
 
 #Import for vip functions
 import warnings
@@ -2083,7 +2086,10 @@ def broadband_aperture_photometry(thumbnails, width_scale = 5, source_offsets = 
             plt.show()
 
         if bkg_method == 'median_mask':
-            mask = make_source_mask(thumbnail,snr=3,npixels=5,dilate_size=11)
+            im_data=copy.deepcopy(thumbnail)
+            imthres=detect.detect_threshold(im_data,3)
+            im_data[im_data < imthres]=0
+            mask = SegmentationImage(im_data).make_source_mask(size=11)            
             mean,median,std = sigma_clipped_stats(thumbnail,sigma=3.0,mask=mask)
             thumbnail = thumbnail - median
 
