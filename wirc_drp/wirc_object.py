@@ -1374,16 +1374,29 @@ class wircpol_source(object):
         """
         locs = [int(self.pos[0]),int(self.pos[1])]
 
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,
-            cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
-        try:
-            self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,
-            cutout_size= cutout_size, sub_bar = False, verbose = verbose)[0])
-        except:
-            if verbose:
-                print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
-            self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
+        if self.slit_pos=='slitless':
+        
+            self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs],axis=0), flip=False,filter_name = filter_name,
+                cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
+            try:
+                self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs],axis=0), flip=False,filter_name = filter_name,
+                cutout_size= cutout_size, sub_bar = False, verbose = verbose)[0])
+            except:
+                if verbose:
+                    print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
+                self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
+        else:
+            self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,
+                cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
+            try:
+                self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,
+                cutout_size= cutout_size, sub_bar = False, verbose = verbose)[0])
+            except:
+                if verbose:
+                    print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")
+                self.trace_images_DQ = np.ndarray.astype(copy.deepcopy(self.trace_images*0),int)
 
+            
         # if replace_bad_pixels:
         #     #iterate through the 4 thumbnails
         #     for i in range(len(self.trace_images)):
@@ -1417,8 +1430,12 @@ class wircpol_source(object):
             LL_pca_cutouts = []
 
             for i in range(len(ref_lib)):
-                cutouts = np.array(image_utils.cutout_trace_thumbnails(fits.getdata(ref_lib[i]), np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
-                                        cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0]) 
+                if self.slit_pos=='slitless':
+                    cutouts = np.array(image_utils.cutout_trace_thumbnails(fits.getdata(ref_lib[i]), np.expand_dims([locs],axis=0), flip=False,filter_name = filter_name,   
+                                                                           cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
+                else:
+                    cutouts = np.array(image_utils.cutout_trace_thumbnails(fits.getdata(ref_lib[i]), np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
+                                                                           cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0]) 
 
                 UL_pca_cutouts.append(cutouts[0])
                 LR_pca_cutouts.append(cutouts[1])
@@ -1447,9 +1464,13 @@ class wircpol_source(object):
                         bad_pix_map = self.trace_images_DQ[i].astype(bool)  
                         self.trace_bkg[i] = calibration.cleanBadPix(self.trace_bkg[i], bad_pix_map, replacement_box = box_size)
 
-        elif bkg_image is not None:   
-            self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
-                                cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
+        elif bkg_image is not None:
+            if self.slit_pos=='slitless':
+                self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs],axis=0), flip=False,filter_name = filter_name,   
+                                                                              cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
+            else:
+                self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,filter_name = filter_name,   
+                                                                              cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
             if replace_bad_pixels: 
                 #check method   
                 if method == 'interpolate': 
@@ -2141,8 +2162,12 @@ class wircpol_source(object):
 
         locs = [int(self.pos[0]),int(self.pos[1])]
 
-        self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,
-            filter_name = filter_name, cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
+        if self.slit_pos=='slitless':
+            self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs],axis=0), flip=False,
+                                                                          filter_name = filter_name, cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])
+        else:
+            self.trace_bkg = np.array(image_utils.cutout_trace_thumbnails(bkg_image, np.expand_dims([locs, self.slit_pos],axis=0), flip=False,
+                                                                          filter_name = filter_name, cutout_size= cutout_size, sub_bar = sub_bar, verbose=verbose)[0])   
 
 
         if replace_bad_pixels:
@@ -2220,12 +2245,19 @@ class wircspec_source(object):
         """
 
         locs = [int(self.pos[0]),int(self.pos[1])]
-        self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose=verbose)[0])
+        if self.slit_pos=='slitless':
+            self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs],axis=0), flip=flip,filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose=verbose)[0])
+        else:
+            self.trace_images = np.array(image_utils.cutout_trace_thumbnails(image, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose=verbose)[0])
         if image_DQ is not None:
 
             try:
-                self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,\
-                                        filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose = verbose)[0])
+                if self.slit_pos=='slitless':
+                    self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs],axis=0), flip=flip,\
+                                                                                        filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose = verbose)[0])
+                else:
+                    self.trace_images_DQ = np.array(image_utils.cutout_trace_thumbnails(image_DQ, np.expand_dims([locs, self.slit_pos],axis=0), flip=flip,\
+                                                                                        filter_name = filter_name, sub_bar = sub_bar, mode = 'spec', cutout_size = cutout_size, verbose = verbose)[0])
             except:
                 if verbose:
                     print("Could not cutout data quality (DQ) thumbnails. Assuming everything is good.")

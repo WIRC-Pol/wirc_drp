@@ -8,6 +8,8 @@ Imaging Utilities for the WIRC+Pol DRP
 
 This file contains functions used to extract spectra from a cutout. 
 
+updated 2024-08-09 by Joe Masiero to use latest photutils
+
 """
 import time
 import numpy as np
@@ -35,12 +37,16 @@ import scipy.ndimage as sn
 import copy
 from image_registration import chi2_shift
 from wirc_drp import constants
-from photutils import RectangularAperture, aperture_photometry,make_source_mask
+from photutils import RectangularAperture, aperture_photometry
 from astropy.stats import sigma_clipped_stats
 from scipy import signal
 import multiprocessing as mp
 
 import cv2
+
+#from photutils import make_source_mask
+from photutils.segmentation import SegmentationImage, detect
+
 
 def shift_figure(x_figs,y_figs=0):
     '''
@@ -393,8 +399,13 @@ def update_location_w_chi2_shift(image, x, y, filter_name = 'J',seeing = 0.75, v
             trace_template = np.pad(trace_template,cutout_size-trace_template.shape[0],'edge')
     cutout_size = int(trace_template.shape[0]/2)
     # Grab top left trace cutout
-    UL_trace = cutout_trace_thumbnails(image, np.expand_dims([[y,x], slit_pos],axis=0) , flip = False, filter_name = 'foo',
-            cutout_size = cutout_size, sub_bar = False, mode = 'pol', verbose = False)[0][0] #just take the first ones
+    if slit_pos=='slitless': 
+        UL_trace = cutout_trace_thumbnails(image, np.expand_dims([[y,x]],axis=0) , flip = False, filter_name = 'foo',
+                                           cutout_size = cutout_size, sub_bar = False, mode = 'pol', verbose = False)[0][0] #just take the first ones
+    else:
+        UL_trace = cutout_trace_thumbnails(image, np.expand_dims([[y,x],slit_pos],axis=0) , flip = False, filter_name = 'foo',
+                                           cutout_size = cutout_size, sub_bar = False, mode = 'pol', verbose = False)[0][0] #just take the first ones
+        
 	
     try:
         shifts = chi2_shift(median_filter(UL_trace,3),trace_template, zeromean=True, verbose=False, return_error=True, boundary='constant')
@@ -1881,7 +1892,10 @@ def clean_thumbnails_for_cosmicrays(thumbnails, method='lacosmic',thumbnails_dq=
     
         bp_masks = []
         for i in range(4):
-            mask = make_source_mask(thumbnails[i,:,:],snr=nsig,npixels=5,dilate_size=5)
+            im_data=copy.deepcopy(thumbnails[i,:,:])
+            imthres=detect.detect_threshold(im_data,nsig)
+            im_data[im_data < imthres]=0
+            mask = SegmentationImage(im_data).make_source_mask(size=5)
             mean,median,std = sigma_clipped_stats(thumbnails[i,:,:],sigma=3.0,mask=mask)
 
             bpmask = (np.abs(thumbnails[i,:,:]-median) > nsig*std) & ~(mask)
